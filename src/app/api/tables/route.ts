@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { ensureDatabaseSeeded } from '@/lib/seed-data';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const tables = await prisma.table.findMany({
+    let tables = await prisma.table.findMany({
       orderBy: { id: 'asc' },
       include: {
         orders: {
@@ -20,6 +21,24 @@ export async function GET() {
         },
       },
     });
+
+    if (tables.length === 0) {
+      await ensureDatabaseSeeded();
+      tables = await prisma.table.findMany({
+        orderBy: { id: 'asc' },
+        include: {
+          orders: {
+            where: {
+              status: { notIn: ['COMPLETED', 'CANCELLED'] },
+            },
+            include: {
+              items: true,
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+    }
 
     const formattedTables = tables.map((t) => {
       const activeOrders = t.orders;
@@ -67,6 +86,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { action } = body;
+
+    if (action === 'SEED_DEFAULTS') {
+      await ensureDatabaseSeeded();
+      broadcastEvent('TABLE_UPDATED', { type: 'TABLE_SEEDED' });
+      return NextResponse.json({ success: true });
+    }
 
     // Action 1: Move Table
     if (action === 'MOVE_TABLE') {

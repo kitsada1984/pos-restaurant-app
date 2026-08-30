@@ -426,6 +426,32 @@ export default function PosPage() {
             <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
             <p className="mt-3 text-xs text-slate-400 font-semibold">กำลังโหลดผังโต๊ะ...</p>
           </div>
+        ) : filteredTables.length === 0 ? (
+          <div className="bg-white rounded-3xl p-10 border border-slate-200/80 text-center max-w-md mx-auto my-12 space-y-4 shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center mx-auto shadow-inner">
+              <LayoutGrid className="w-7 h-7" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-slate-900 text-base">ยังไม่มีข้อมูลผังโต๊ะ</h3>
+              <p className="text-xs text-slate-500 mt-1">กดปุ่มด้านล่างเพื่อสร้างผังโต๊ะ 1-10 และเมนูอาหารเริ่มต้นทันที</p>
+            </div>
+            <button
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  await fetch('/api/tables', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'SEED_DEFAULTS' }),
+                  });
+                } catch (e) {}
+                await fetchData();
+              }}
+              className="px-6 py-3.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+            >
+              + สร้างโต๊ะ 1-10 & เมนูอาหารเริ่มต้นทันที
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
             {filteredTables.map((table) => {

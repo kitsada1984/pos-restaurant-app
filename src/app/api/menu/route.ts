@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { ensureDatabaseSeeded } from '@/lib/seed-data';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const categories = await prisma.category.findMany({
+    let categories = await prisma.category.findMany({
       orderBy: { sortOrder: 'asc' },
       include: {
         items: {
@@ -21,6 +22,25 @@ export async function GET() {
         },
       },
     });
+
+    if (categories.length === 0) {
+      await ensureDatabaseSeeded();
+      categories = await prisma.category.findMany({
+        orderBy: { sortOrder: 'asc' },
+        include: {
+          items: {
+            orderBy: { sortOrder: 'asc' },
+            include: {
+              options: {
+                include: {
+                  choices: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
 
     return NextResponse.json(categories);
   } catch (error) {
