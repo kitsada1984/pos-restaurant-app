@@ -117,6 +117,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // Action: Create New Table
+    if (action === 'CREATE_TABLE') {
+      const maxTable = await prisma.table.findFirst({ orderBy: { id: 'desc' } });
+      const nextId = (maxTable?.id || 0) + 1;
+      const tableName = body.name?.trim() || `โต๊ะ ${nextId}`;
+
+      const newTable = await prisma.table.create({
+        data: {
+          id: nextId,
+          name: tableName,
+          status: 'AVAILABLE',
+        },
+      });
+
+      broadcastEvent('TABLE_UPDATED', { action: 'CREATE', table: newTable });
+      return NextResponse.json(newTable);
+    }
+
+    // Action: Delete Table
+    if (action === 'DELETE_TABLE') {
+      const { tableId } = body;
+      const tId = Number(tableId);
+
+      await prisma.order.deleteMany({
+        where: { tableId: tId },
+      });
+
+      await prisma.table.delete({
+        where: { id: tId },
+      });
+
+      broadcastEvent('TABLE_UPDATED', { action: 'DELETE', tableId: tId });
+      return NextResponse.json({ success: true, message: `ลบโต๊ะ ${tId} เรียบร้อย` });
+    }
+
     // Action 1: Move Table
     if (action === 'MOVE_TABLE') {
       const { fromTableId, toTableId } = body;

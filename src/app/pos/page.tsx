@@ -66,6 +66,11 @@ export default function PosPage() {
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
+  // Add Table Modal
+  const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
+  const [newTableName, setNewTableName] = useState('');
+  const [isCreatingTable, setIsCreatingTable] = useState(false);
+
   const fetchData = async () => {
     try {
       const [tablesRes, menuRes, settingsRes] = await Promise.all([
@@ -263,6 +268,50 @@ export default function PosPage() {
     }
   };
 
+  const handleCreateTable = async () => {
+    if (!newTableName.trim()) return;
+    setIsCreatingTable(true);
+    try {
+      const res = await fetch('/api/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE_TABLE',
+          name: newTableName.trim(),
+        }),
+      });
+      if (res.ok) {
+        setNewTableName('');
+        setIsAddTableModalOpen(false);
+        await fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCreatingTable(false);
+    }
+  };
+
+  const handleDeleteTable = async (tableId: number) => {
+    if (!confirm(`ต้องการลบโต๊ะ ${tableId} ใช่หรือไม่?`)) return;
+    try {
+      const res = await fetch('/api/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'DELETE_TABLE',
+          tableId,
+        }),
+      });
+      if (res.ok) {
+        setSelectedTable(null);
+        await fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleClearTable = async (tableId: number) => {
     if (!confirm(`ต้องการเคลียร์โต๊ะ ${tableId} ให้เป็นสถานะว่างใช่หรือไม่?`)) return;
     try {
@@ -414,6 +463,17 @@ export default function PosPage() {
               title="รีเฟรชสถานะ"
             >
               <RefreshCw className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => {
+                setNewTableName(`โต๊ะ ${(tables?.length || 0) + 1}`);
+                setIsAddTableModalOpen(true);
+              }}
+              className="flex items-center space-x-1.5 px-3.5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-sm transition-all whitespace-nowrap active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>เพิ่มโต๊ะ</span>
             </button>
           </div>
         </div>
@@ -696,13 +756,25 @@ export default function PosPage() {
                   </span>
                 </div>
 
-                <button
-                  onClick={() => handleClearTable(selectedTable.id)}
-                  className="px-3 py-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 text-xs font-semibold flex items-center space-x-1 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>เคลียร์โต๊ะ</span>
-                </button>
+                <div className="flex items-center space-x-1.5">
+                  {selectedTable.activeOrdersCount === 0 && (
+                    <button
+                      onClick={() => handleDeleteTable(selectedTable.id)}
+                      className="px-3 py-2 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 text-xs font-bold flex items-center space-x-1 transition-colors"
+                      title="ลบโต๊ะนี้ออกจากผัง"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>ลบโต๊ะ</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleClearTable(selectedTable.id)}
+                    className="px-3 py-2 rounded-xl text-slate-400 hover:text-orange-600 hover:bg-orange-50 text-xs font-semibold flex items-center space-x-1 transition-colors"
+                  >
+                    <span>เคลียร์โต๊ะ</span>
+                  </button>
+                </div>
               </div>
 
               <button
@@ -1112,6 +1184,53 @@ export default function PosPage() {
               <CheckCircle2 className="w-5 h-5" />
               <span>ยืนยันการรับเงิน & ปิดบิล</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ADD NEW TABLE MODAL */}
+      {isAddTableModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="font-extrabold text-slate-900 text-base flex items-center space-x-2">
+                <LayoutGrid className="w-5 h-5 text-orange-500" />
+                <span>เพิ่มโต๊ะอาหารใหม่</span>
+              </h3>
+              <button onClick={() => setIsAddTableModalOpen(false)}>
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                ชื่อหรือหมายเลขโต๊ะ:
+              </label>
+              <input
+                type="text"
+                value={newTableName}
+                onChange={(e) => setNewTableName(e.target.value)}
+                placeholder="เช่น โต๊ะ 11, VIP 1, หน้าร้าน 2"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                autoFocus
+              />
+            </div>
+            <div className="flex space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsAddTableModalOpen(false)}
+                className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={isCreatingTable || !newTableName.trim()}
+                onClick={handleCreateTable}
+                className="flex-1 py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md disabled:opacity-50"
+              >
+                {isCreatingTable ? 'กำลังสร้าง...' : '+ ยืนยันเพิ่มโต๊ะ'}
+              </button>
+            </div>
           </div>
         </div>
       )}
