@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model StoreSetting {
+  id              String   @id @default("default")
+  storeName       String   @default("ร้านอาหารตามสั่ง ลุง-ป้า")
+  promptPayId     String   @default("0812345678") // เบอร์พร้อมเพย์ หรือเลขประจำตัวผู้เสียภาษี
+  promptPayName   String   @default("สมชาย ตามสั่ง")
+  address         String?  @default("123/45 ซอยสุขใจ ถ.เจริญกรุง แขวงบางรัก เขตบางรัก กทม.")
+  phone           String?  @default("081-234-5678")
+  receiptFooter   String?  @default("ขอบคุณที่อุดหนุนครับ/ค่ะ โอกาสหน้าเชิญใหม่")
+  tableCount      Int      @default(10)
+  updatedAt       DateTime @updatedAt
+}
+
+model Table {
+  id               Int      @id // โต๊ะหมายเลข 1 ถึง 10
+  name             String   // "โต๊ะ 1", "โต๊ะ 2"
+  status           String   @default("AVAILABLE") // AVAILABLE, OCCUPIED, PAYMENT_PENDING
+  currentSessionId String?
+  updatedAt        DateTime @updatedAt
+  orders           Order[]
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String     // เช่น "ผัดกะเพรา / ผัดพริกแกง", "ข้าวผัด", "ต้มยำ & แกง", "เครื่องดื่ม"
+  sortOrder Int        @default(0)
+  items     MenuItem[]
+}
+
+model MenuItem {
+  id          String            @id @default(cuid())
+  categoryId  String
+  category    Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  basePrice   Float             @default(50)
+  imageUrl    String?
+  isAvailable Boolean           @default(true) // สำหรับปุ่ม 1-click "ของหมด"
+  sortOrder   Int               @default(0)
+  options     MenuOptionGroup[]
+  orderItems  OrderItem[]
+}
+
+model MenuOptionGroup {
+  id         String             @id @default(cuid())
+  menuItemId String
+  menuItem   MenuItem           @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  title      String             // เช่น "เลือกเนื้อสัตว์", "เพิ่มไข่", "ระดับความเผ็ด"
+  isRequired Boolean            @default(false)
+  isMulti    Boolean            @default(false)
+  choices    MenuOptionChoice[]
+}
+
+model MenuOptionChoice {
+  id            String          @id @default(cuid())
+  optionGroupId String
+  optionGroup   MenuOptionGroup @relation(fields: [optionGroupId], references: [id], onDelete: Cascade)
+  name          String          // เช่น "หมูกรอบ", "ไข่ดาวไม่สุก", "เผ็ดมาก"
+  extraPrice    Float           @default(0)
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  tableId        Int
+  table          Table       @relation(fields: [tableId], references: [id])
+  status         String      @default("PENDING") // PENDING, COOKING, READY, SERVED, COMPLETED, CANCELLED
+  orderType      String      @default("DINE_IN") // DINE_IN, TAKEAWAY
+  totalAmount    Float       @default(0)
+  discountAmount Float       @default(0)
+  netAmount      Float       @default(0)
+  paymentMethod  String?     // CASH, PROMPTPAY
+  paymentStatus  String      @default("UNPAID") // UNPAID, PENDING_CONFIRMATION, PAID
+  slipUrl        String?     // รูปภาพสลิปที่ลูกค้าแนบ
+  cashReceived   Float?
+  changeAmount   Float?
+  customerLineId String?
+  customerName   String?
+  note           String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  paidAt         DateTime?
+  items          OrderItem[]
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId      String
+  menuItem        MenuItem @relation(fields: [menuItemId], references: [id])
+  name            String
+  price           Float
+  quantity        Int      @default(1)
+  selectedOptions String?  // JSON text: e.g. [{"group":"เนื้อสัตว์","choice":"หมูกรอบ","extra":15},{"group":"เพิ่มไข่","choice":"ไข่ดาวไม่สุก","extra":10},{"group":"ความเผ็ด","choice":"เผ็ดมาก","extra":0}]
+  specialNote     String?  // เช่น "ไม่ใส่ผัก ไม่ใส่ชูรส"
+  status          String   @default("PENDING") // PENDING, COOKING, READY, SERVED
+  createdAt       DateTime @default(now())
+}

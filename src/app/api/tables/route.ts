@@ -1,0 +1,195 @@
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { broadcastEvent } from '@/lib/events';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  try {
+    const tables = await prisma.table.findMany({
+      orderBy: { id: 'asc' },
+      include: {
+        orders: {
+          where: {
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          include: {
+            items: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    const formattedTables = tables.map((t) => {
+      const activeOrders = t.orders;
+      const totalAmount = activeOrders.reduce((sum, order) => sum + order.netAmount, 0);
+      const totalItems = activeOrders.reduce(
+        (sum, order) => sum + order.items.reduce((iSum, item) => iSum + item.quantity, 0),
+        0
+      );
+
+      // Determine accurate real-time table status
+      let calculatedStatus = t.status;
+      if (activeOrders.length === 0) {
+        calculatedStatus = 'AVAILABLE';
+      } else {
+        const hasPaymentPending = activeOrders.some(
+          (o) => o.paymentStatus === 'PENDING_CONFIRMATION' || t.status === 'PAYMENT_PENDING'
+        );
+        if (hasPaymentPending) {
+          calculatedStatus = 'PAYMENT_PENDING';
+        } else {
+          calculatedStatus = 'OCCUPIED';
+        }
+      }
+
+      return {
+        id: t.id,
+        name: t.name,
+        status: calculatedStatus,
+        activeOrdersCount: activeOrders.length,
+        totalItems,
+        totalAmount,
+        activeOrders,
+        firstOrderAt: activeOrders.length > 0 ? activeOrders[0].createdAt : null,
+      };
+    });
+
+    return NextResponse.json(formattedTables);
+  } catch (error) {
+    console.error('Error fetching tables:', error);
+    return NextResponse.json({ error: 'Failed to fetch tables' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { action } = body;
+
+    // Action 1: Move Table
+    if (action === 'MOVE_TABLE') {
+      const { fromTableId, toTableId } = body;
+      const fromId = Number(fromTableId);
+      const toId = Number(toTableId);
+
+      if (!fromId || !toId || fromId === toId) {
+        return NextResponse.json({ error: 'Invalid source or target table' }, { status: 400 });
+      }
+
+      // Reassign all active orders to the target table
+      await prisma.order.updateMany({
+        where: {
+          tableId: fromId,
+          status: { notIn: ['COMPLETED', 'CANCELLED'] },
+        },
+        data: {
+          tableId: toId,
+        },
+      });
+
+      // Update statuses
+      await prisma.table.update({
+        where: { id: fromId },
+        data: { status: 'AVAILABLE', currentSessionId: null },
+      });
+      await prisma.table.update({
+        where: { id: toId },
+        data: { status: 'OCCUPIED' },
+      });
+
+      broadcastEvent('TABLE_UPDATED', { fromTableId: fromId, toTableId: toId, action: 'MOVE' });
+      return NextResponse.json({ success: true, message: `ย้ายจากโต๊ะ ${fromId} ไปโต๊ะ ${toId} สำเร็จ` });
+    }
+
+    // Action 2: Merge Tables
+    if (action === 'MERGE_TABLES') {
+      const { sourceTableId, targetTableId } = body;
+      const sourceId = Number(sourceTableId);
+      const targetId = Number(targetTableId);
+
+      if (!sourceId || !targetId || sourceId === targetId) {
+        return NextResponse.json({ error: 'Invalid source or target table' }, { status: 400 });
+      }
+
+      await prisma.order.updateMany({
+        where: {
+          tableId: sourceId,
+          status: { notIn: ['COMPLETED', 'CANCELLED'] },
+        },
+        data: {
+          tableId: targetId,
+        },
+      });
+
+      await prisma.table.update({
+        where: { id: sourceId },
+        data: { status: 'AVAILABLE', currentSessionId: null },
+      });
+
+      broadcastEvent('TABLE_UPDATED', { sourceTableId: sourceId, targetTableId: targetId, action: 'MERGE' });
+      return NextResponse.json({ success: true, message: `รวมโต๊ะ ${sourceId} เข้ากับโต๊ะ ${targetId} สำเร็จ` });
+    }
+
+    // Action 3: Clear / Reset Table
+    if (action === 'CLEAR_TABLE') {
+      const { tableId } = body;
+      const tId = Number(tableId);
+
+      await prisma.table.update({
+        where: { id: tId },
+        data: { status: 'AVAILABLE', currentSessionId: null },
+      });
+
+      // Mark any dangling unpaid orders as cancelled if forced clear
+      if (body.cancelUnpaid) {
+        await prisma.order.updateMany({
+          where: {
+            tableId: tId,
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          data: {
+            status: 'CANCELLED',
+          },
+        });
+      }
+
+      broadcastEvent('TABLE_UPDATED', { tableId: tId, action: 'CLEAR' });
+      return NextResponse.json({ success: true, message: `เคลียร์โต๊ะ ${tId} เรียบร้อย` });
+    }
+
+    // Action 4: Customer Call Bill / Request Payment
+    if (action === 'CALL_BILL') {
+      const { tableId, slipUrl } = body;
+      const tId = Number(tableId);
+
+      await prisma.table.update({
+        where: { id: tId },
+        data: { status: 'PAYMENT_PENDING' },
+      });
+
+      if (slipUrl) {
+        await prisma.order.updateMany({
+          where: {
+            tableId: tId,
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          data: {
+            paymentStatus: 'PENDING_CONFIRMATION',
+            paymentMethod: 'PROMPTPAY',
+            slipUrl: slipUrl,
+          },
+        });
+      }
+
+      broadcastEvent('TABLE_UPDATED', { tableId: tId, action: 'CALL_BILL', slipUrl });
+      return NextResponse.json({ success: true, message: 'ส่งคำขอเช็คบิลไปยังแคชเชียร์เรียบร้อย' });
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  } catch (error) {
+    console.error('Error executing table action:', error);
+    return NextResponse.json({ error: 'Failed to process table action' }, { status: 500 });
+  }
+}
