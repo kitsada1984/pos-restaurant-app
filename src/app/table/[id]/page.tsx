@@ -31,7 +31,7 @@ import { playSuccessChime, playOrderChime } from '@/lib/sound';
 
 export default function TableOrderingPage() {
   const params = useParams();
-  const tableId = parseInt(params.id as string, 10);
+  const tableId = params?.id ? parseInt(params.id as string, 10) || 1 : 1;
 
   const [loading, setLoading] = useState(true);
   const [store, setStore] = useState<any>(null);
@@ -69,14 +69,14 @@ export default function TableOrderingPage() {
       ]);
 
       const [menuData, tData, sData] = await Promise.all([
-        menuRes.json(),
-        tableRes.json(),
-        settingsRes.json(),
+        menuRes.json().catch(() => []),
+        tableRes.json().catch(() => null),
+        settingsRes.json().catch(() => null),
       ]);
 
-      setCategories(menuData || []);
-      setTableData(tData);
-      setStore(sData);
+      setCategories(Array.isArray(menuData) ? menuData : []);
+      setTableData(tData?.error ? null : tData);
+      setStore(sData?.error ? null : sData);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -87,34 +87,46 @@ export default function TableOrderingPage() {
   useEffect(() => {
     fetchData();
 
-    const eventSource = new EventSource('/api/realtime/stream');
-    eventSource.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (
-          payload.type === 'ORDER_UPDATED' ||
-          payload.type === 'ORDER_CREATED' ||
-          payload.type === 'TABLE_UPDATED' ||
-          payload.type === 'PAYMENT_RECEIVED' ||
-          payload.type === 'MENU_UPDATED'
-        ) {
-          fetchData();
-        }
-      } catch (e) {}
-    };
+    let eventSource: EventSource | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'EventSource' in window) {
+        eventSource = new EventSource('/api/realtime/stream');
+        eventSource.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (
+              payload.type === 'ORDER_UPDATED' ||
+              payload.type === 'ORDER_CREATED' ||
+              payload.type === 'TABLE_UPDATED' ||
+              payload.type === 'PAYMENT_RECEIVED' ||
+              payload.type === 'MENU_UPDATED'
+            ) {
+              fetchData();
+            }
+          } catch (e) {}
+        };
+        eventSource.onerror = () => {
+          eventSource?.close();
+        };
+      }
+    } catch (e) {}
 
     return () => {
-      eventSource.close();
+      eventSource?.close();
     };
   }, [tableId]);
 
   const allMenuItems = useMemo(() => {
     const items: any[] = [];
-    categories.forEach((cat) => {
-      cat.items?.forEach((item: any) => {
-        items.push({ ...item, categoryName: cat.name });
+    if (Array.isArray(categories)) {
+      categories.forEach((cat) => {
+        if (Array.isArray(cat?.items)) {
+          cat.items.forEach((item: any) => {
+            items.push({ ...item, categoryName: cat.name });
+          });
+        }
       });
-    });
+    }
     return items;
   }, [categories]);
 
@@ -123,8 +135,8 @@ export default function TableOrderingPage() {
       const matchesCategory = selectedCategory === 'ALL' || item.categoryId === selectedCategory;
       const matchesSearch =
         !searchQuery.trim() ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchQuery.toLowerCase());
+        item?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item?.description?.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [allMenuItems, selectedCategory, searchQuery]);

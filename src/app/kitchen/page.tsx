@@ -28,9 +28,10 @@ export default function KitchenPage() {
     try {
       const res = await fetch('/api/orders?status=kitchen');
       const data = await res.json();
-      setOrders(data || []);
+      setOrders(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching kitchen orders:', err);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -39,25 +40,32 @@ export default function KitchenPage() {
   useEffect(() => {
     fetchOrders();
 
-    const eventSource = new EventSource('/api/realtime/stream');
-
-    eventSource.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === 'ORDER_CREATED') {
-          if (soundEnabled) playOrderChime();
-          fetchOrders();
-        } else if (payload.type === 'ORDER_UPDATED' || payload.type === 'TABLE_UPDATED') {
-          fetchOrders();
-        }
-      } catch (e) {}
-    };
+    let eventSource: EventSource | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'EventSource' in window) {
+        eventSource = new EventSource('/api/realtime/stream');
+        eventSource.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload.type === 'ORDER_CREATED') {
+              if (soundEnabled) playOrderChime();
+              fetchOrders();
+            } else if (payload.type === 'ORDER_UPDATED' || payload.type === 'TABLE_UPDATED') {
+              fetchOrders();
+            }
+          } catch (e) {}
+        };
+        eventSource.onerror = () => {
+          eventSource?.close();
+        };
+      }
+    } catch (e) {}
 
     // Auto poll every 10 seconds as safety net
     const interval = setInterval(fetchOrders, 10000);
 
     return () => {
-      eventSource.close();
+      eventSource?.close();
       clearInterval(interval);
     };
   }, [soundEnabled]);
@@ -78,10 +86,11 @@ export default function KitchenPage() {
   };
 
   const filteredOrders = useMemo(() => {
+    const safeOrders = Array.isArray(orders) ? orders : [];
     if (filterStatus === 'ACTIVE') {
-      return orders.filter((o) => ['PENDING', 'COOKING', 'READY'].includes(o.status));
+      return safeOrders.filter((o) => ['PENDING', 'COOKING', 'READY'].includes(o?.status));
     }
-    return orders.filter((o) => o.status === filterStatus);
+    return safeOrders.filter((o) => o?.status === filterStatus);
   }, [orders, filterStatus]);
 
   // Calculate minutes elapsed

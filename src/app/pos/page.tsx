@@ -74,15 +74,15 @@ export default function PosPage() {
         fetch('/api/settings'),
       ]);
       const [tData, mData, sData] = await Promise.all([
-        tablesRes.json(),
-        menuRes.json(),
-        settingsRes.json(),
+        tablesRes.json().catch(() => []),
+        menuRes.json().catch(() => []),
+        settingsRes.json().catch(() => null),
       ]);
-      setTables(tData || []);
-      setCategories(mData || []);
-      setStore(sData);
+      setTables(Array.isArray(tData) ? tData : []);
+      setCategories(Array.isArray(mData) ? mData : []);
+      setStore(sData?.error ? null : sData);
 
-      if (selectedTable) {
+      if (selectedTable && Array.isArray(tData)) {
         const updated = tData.find((t: any) => t.id === selectedTable.id);
         if (updated) setSelectedTable(updated);
       }
@@ -96,46 +96,59 @@ export default function PosPage() {
   useEffect(() => {
     fetchData();
 
-    const eventSource = new EventSource('/api/realtime/stream');
-    eventSource.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (
-          payload.type === 'ORDER_CREATED' ||
-          payload.type === 'ORDER_UPDATED' ||
-          payload.type === 'TABLE_UPDATED' ||
-          payload.type === 'PAYMENT_RECEIVED'
-        ) {
-          fetchData();
-        }
-      } catch (e) {}
-    };
+    let eventSource: EventSource | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'EventSource' in window) {
+        eventSource = new EventSource('/api/realtime/stream');
+        eventSource.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (
+              payload.type === 'ORDER_CREATED' ||
+              payload.type === 'ORDER_UPDATED' ||
+              payload.type === 'TABLE_UPDATED' ||
+              payload.type === 'PAYMENT_RECEIVED'
+            ) {
+              fetchData();
+            }
+          } catch (e) {}
+        };
+        eventSource.onerror = () => {
+          eventSource?.close();
+        };
+      }
+    } catch (e) {}
 
     return () => {
-      eventSource.close();
+      eventSource?.close();
     };
   }, [selectedTable?.id]);
 
   const allMenuItems = useMemo(() => {
     const list: any[] = [];
-    categories.forEach((cat) => {
-      cat.items?.forEach((item: any) => {
-        list.push({ ...item, categoryName: cat.name });
+    if (Array.isArray(categories)) {
+      categories.forEach((cat) => {
+        if (Array.isArray(cat?.items)) {
+          cat.items.forEach((item: any) => {
+            list.push({ ...item, categoryName: cat.name });
+          });
+        }
       });
-    });
+    }
     return list;
   }, [categories]);
 
   const filteredMenuItems = useMemo(() => {
     if (!searchMenu.trim()) return allMenuItems;
     return allMenuItems.filter((i) =>
-      i.name.toLowerCase().includes(searchMenu.toLowerCase())
+      i?.name?.toLowerCase().includes(searchMenu.toLowerCase())
     );
   }, [allMenuItems, searchMenu]);
 
   const filteredTables = useMemo(() => {
-    if (statusFilter === 'ALL') return tables;
-    return tables.filter((t) => t.status === statusFilter);
+    const safeT = Array.isArray(tables) ? tables : [];
+    if (statusFilter === 'ALL') return safeT;
+    return safeT.filter((t) => t?.status === statusFilter);
   }, [tables, statusFilter]);
 
   const handleOpenDish = (item: any) => {

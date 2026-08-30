@@ -33,9 +33,12 @@ export default function ReportsPage() {
         fetch(`/api/reports/daily?date=${selectedDate}`),
         fetch('/api/settings'),
       ]);
-      const [repData, sData] = await Promise.all([repRes.json(), settingsRes.json()]);
-      setReport(repData);
-      setStore(sData);
+      const [repData, sData] = await Promise.all([
+        repRes.json().catch(() => null),
+        settingsRes.json().catch(() => null),
+      ]);
+      setReport(repData?.error ? null : repData);
+      setStore(sData?.error ? null : sData);
     } catch (err) {
       console.error('Error fetching report:', err);
     } finally {

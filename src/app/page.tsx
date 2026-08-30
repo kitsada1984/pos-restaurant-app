@@ -33,18 +33,18 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/settings')
       .then((r) => r.json())
-      .then((d) => setStore(d))
-      .catch(() => {});
+      .then((d) => setStore(d?.error ? null : d))
+      .catch(() => setStore(null));
 
     fetch('/api/tables')
       .then((r) => r.json())
-      .then((d) => setTables(d || []))
-      .catch(() => {});
+      .then((d) => setTables(Array.isArray(d) ? d : []))
+      .catch(() => setTables([]));
 
     fetch('/api/reports/daily')
       .then((r) => r.json())
-      .then((d) => setReport(d))
-      .catch(() => {});
+      .then((d) => setReport(d?.error ? null : d))
+      .catch(() => setReport(null));
 
     const timer = setInterval(() => {
       const now = new Date();
@@ -56,8 +56,9 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  const occupiedCount = tables.filter((t) => t.status !== 'AVAILABLE').length;
-  const pendingPaymentCount = tables.filter((t) => t.status === 'PAYMENT_PENDING').length;
+  const safeTables = Array.isArray(tables) ? tables : [];
+  const occupiedCount = safeTables.filter((t) => t?.status && t.status !== 'AVAILABLE').length;
+  const pendingPaymentCount = safeTables.filter((t) => t?.status === 'PAYMENT_PENDING').length;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-orange-500 selection:text-white">
@@ -128,7 +129,7 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center space-x-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-            {tables.length === 0
+            {safeTables.length === 0
               ? Array.from({ length: 10 }, (_, i) => ({ id: i + 1, status: 'AVAILABLE' })).map((t) => (
                   <Link
                     key={t.id}
@@ -139,7 +140,7 @@ export default function HomePage() {
                     {t.id}
                   </Link>
                 ))
-              : tables.map((t) => {
+              : safeTables.map((t) => {
                   const isAvail = t.status === 'AVAILABLE';
                   const isPending = t.status === 'PAYMENT_PENDING';
                   return (

@@ -26,8 +26,8 @@ export default function QrCodesPage() {
 
     fetch('/api/tables')
       .then((res) => res.json())
-      .then((data) => setTables(data || []))
-      .catch(() => {});
+      .then((data) => setTables(Array.isArray(data) ? data : []))
+      .catch(() => setTables([]));
   }, []);
 
   const handlePrint = () => {
@@ -35,7 +35,8 @@ export default function QrCodesPage() {
   };
 
   const currentBaseUrl = customHost.trim() || origin || 'http://localhost:3000';
-  const tableList = tables.length > 0 ? tables : Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `โต๊ะ ${i + 1}` }));
+  const safeTables = Array.isArray(tables) ? tables : [];
+  const tableList = safeTables.length > 0 ? safeTables : Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `โต๊ะ ${i + 1}` }));
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">

@@ -37,13 +37,15 @@ export default function MenuAdminPage() {
   const fetchMenu = async () => {
     try {
       const res = await fetch('/api/menu');
-      const data = await res.json();
-      setCategories(data || []);
-      if (data && data.length > 0 && !itemCategory) {
-        setItemCategory(data[0].id);
+      const data = await res.json().catch(() => []);
+      const safeData = Array.isArray(data) ? data : [];
+      setCategories(safeData);
+      if (safeData.length > 0 && !itemCategory) {
+        setItemCategory(safeData[0].id);
       }
     } catch (err) {
       console.error('Error fetching menu:', err);
+      setCategories([]);
     } finally {
       setLoading(false);
     }

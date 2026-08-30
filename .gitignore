@@ -22,10 +22,6 @@ yarn-error.log*
 .env*.local
 .env
 
-# SQLite local database (optional: keep schema and seed in git, ignore live dev database)
-prisma/dev.db
-prisma/dev.db-journal
-
 # Vercel
 .vercel
 
