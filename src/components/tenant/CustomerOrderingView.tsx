@@ -22,13 +22,23 @@ import {
   BellRing,
   ChefHat,
   Check,
-  HeartHandshake,
   Receipt,
-  Store,
+  Banknote,
+  Volume2,
 } from 'lucide-react';
 import { formatPrice, formatTime } from '@/lib/utils';
 import { playSuccessChime, playOrderChime } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
+
+const QUICK_NOTES = [
+  'ไม่ใส่ผงชูรส',
+  'เผ็ดน้อย',
+  'ข้าวน้อย',
+  'ไม่ใส่กระเทียม',
+  'ไม่ใส่ผัก',
+  'แยกน้ำปลาพริก',
+  'ขอช้อนส้อมเพิ่ม',
+];
 
 export default function CustomerOrderingView({
   slug = 'lung-pa',
@@ -60,6 +70,8 @@ export default function CustomerOrderingView({
 
   // Payment Modal State
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [payMethod, setPayMethod] = useState<'PROMPTPAY' | 'CASH'>('PROMPTPAY');
+  const [isCashCalled, setIsCashCalled] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -124,13 +136,6 @@ export default function CustomerOrderingView({
   const activeOrders = useMemo(() => {
     return tableData?.orders || [];
   }, [tableData]);
-
-  // Auto-switch to status tab if there are active orders and no previous tab selected
-  useEffect(() => {
-    if (activeOrders.length > 0 && cart.length === 0) {
-      // Optional: keep status accessible
-    }
-  }, [activeOrders.length]);
 
   const totalAmountToPay = useMemo(() => {
     return activeOrders.reduce((sum: number, o: any) => sum + (o.netAmount || 0), 0);
@@ -279,6 +284,20 @@ export default function CustomerOrderingView({
   };
 
   const cartTotalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const toggleQuickNote = (tag: string) => {
+    if (specialNote.includes(tag)) {
+      setSpecialNote(
+        specialNote
+          .replace(tag, '')
+          .replace(/,\s*,/g, ',')
+          .replace(/^,\s*|,\s*$/g, '')
+          .trim()
+      );
+    } else {
+      setSpecialNote(specialNote ? `${specialNote}, ${tag}` : tag);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 flex justify-center pb-24 text-slate-100 selection:bg-orange-500 selection:text-white">
@@ -556,7 +575,7 @@ export default function CustomerOrderingView({
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setActiveTab('menu')}
-                    className="px-3 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition-all flex items-center space-x-1"
+                    className="px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition-all flex items-center space-x-1"
                   >
                     <Plus className="w-3.5 h-3.5 text-orange-400" />
                     <span>สั่งเพิ่ม</span>
@@ -564,8 +583,11 @@ export default function CustomerOrderingView({
 
                   {totalAmountToPay > 0 && (
                     <button
-                      onClick={() => setIsPayModalOpen(true)}
-                      className="px-4 py-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center space-x-1.5 transition-all"
+                      onClick={() => {
+                        setIsCashCalled(false);
+                        setIsPayModalOpen(true);
+                      }}
+                      className="px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center space-x-1.5 transition-all"
                     >
                       <QrCode className="w-4 h-4" />
                       <span>เช็คบิล</span>
@@ -695,7 +717,7 @@ export default function CustomerOrderingView({
         {/* Item Customizer Pop-up */}
         {selectedMenuItem && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-slate-900 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-800 text-white">
+            <div className="bg-slate-900 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-800 text-white max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 className="font-black text-base text-white">{selectedMenuItem.name}</h3>
                 <button onClick={() => setSelectedMenuItem(null)} className="text-slate-400 hover:text-white p-1">
@@ -748,11 +770,35 @@ export default function CustomerOrderingView({
                 </div>
               ))}
 
+              {/* Quick Note Tags */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-300 block">หมายเหตุยอดนิยม (แตะเพื่อเลือก):</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_NOTES.map((tag) => {
+                    const active = specialNote.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleQuickNote(tag)}
+                        className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all ${
+                          active
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-sm'
+                            : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {tag} {active && '✓'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">หมายเหตุพิเศษ</label>
+                <label className="text-xs font-bold text-slate-300 block mb-1">หมายเหตุเพิ่มเติม</label>
                 <input
                   type="text"
-                  placeholder="เช่น เผ็ดน้อย, ไม่ใส่กระเทียม"
+                  placeholder="พิมพ์ข้อความ เช่น เผ็ดน้อย, ไม่ใส่กระเทียม"
                   value={specialNote}
                   onChange={(e) => setSpecialNote(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -836,38 +882,99 @@ export default function CustomerOrderingView({
           </div>
         )}
 
-        {/* PromptPay Bill QR Modal */}
+        {/* Payment & Bill Checkout Modal (PromptPay & Cash options) */}
         {isPayModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-slate-900 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-800 text-center text-white">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h3 className="font-black text-base text-white">สแกนจ่ายพร้อมเพย์ (โต๊ะ {tableId})</h3>
+                <h3 className="font-black text-base text-white">เช็คบิลชำระเงิน (โต๊ะ {tableId})</h3>
                 <button onClick={() => setIsPayModalOpen(false)} className="text-slate-400 hover:text-white p-1">
                   ✕
                 </button>
               </div>
 
-              <div className="p-3 bg-orange-500/10 rounded-2xl border border-orange-500/20">
+              {/* Total Summary */}
+              <div className="p-3.5 bg-orange-500/10 rounded-2xl border border-orange-500/20">
                 <span className="text-xs font-bold text-orange-300 block">ยอดสุทธิที่ต้องชำระ:</span>
-                <span className="text-2xl font-black text-orange-400">฿{totalAmountToPay.toLocaleString()}</span>
+                <span className="text-3xl font-black text-orange-400">฿{totalAmountToPay.toLocaleString()}</span>
               </div>
 
-              {promptPayQr ? (
-                <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex flex-col items-center">
-                  <div className="p-3 bg-white rounded-2xl shadow-md">
-                    <QRCodeSVG value={promptPayQr} size={180} />
-                  </div>
-                  <span className="text-xs font-bold text-slate-300 mt-3">
-                    พร้อมเพย์: {store?.promptPayId} ({store?.promptPayName})
-                  </span>
-                </div>
-              ) : (
-                <p className="text-xs text-rose-400">ร้านยังไม่ได้ตั้งค่าพร้อมเพย์</p>
-              )}
+              {/* Payment Method Selector */}
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setPayMethod('PROMPTPAY')}
+                  className={`py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-1.5 ${
+                    payMethod === 'PROMPTPAY'
+                      ? 'bg-orange-500 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <QrCode className="w-4 h-4" />
+                  <span>สแกนพร้อมเพย์</span>
+                </button>
 
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                สแกนจ่ายผ่านแอปธนาคารใดก็ได้ แล้วแจ้งพนักงานที่หน้าร้านได้เลยครับ
-              </p>
+                <button
+                  type="button"
+                  onClick={() => setPayMethod('CASH')}
+                  className={`py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-1.5 ${
+                    payMethod === 'CASH'
+                      ? 'bg-orange-500 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Banknote className="w-4 h-4" />
+                  <span>จ่ายเงินสด</span>
+                </button>
+              </div>
+
+              {payMethod === 'PROMPTPAY' ? (
+                /* PromptPay Option */
+                promptPayQr ? (
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex flex-col items-center space-y-2">
+                    <div className="p-3 bg-white rounded-2xl shadow-md">
+                      <QRCodeSVG value={promptPayQr} size={170} />
+                    </div>
+                    <span className="text-xs font-bold text-slate-300">
+                      พร้อมเพย์: {store?.promptPayId} ({store?.promptPayName})
+                    </span>
+                    <p className="text-[11px] text-slate-400">
+                      สแกนจ่ายผ่านแอปธนาคารใดก็ได้ แล้วแจ้งพนักงานที่หน้าร้านได้เลยครับ
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-rose-400">ร้านยังไม่ได้ตั้งค่าพร้อมเพย์</p>
+                )
+              ) : (
+                /* Cash Option */
+                <div className="p-5 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                  <Banknote className="w-12 h-12 text-emerald-400 mx-auto animate-bounce" />
+                  <div>
+                    <h4 className="font-extrabold text-sm text-white">ชำระด้วยเงินสด</h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      กรุณาเรียกพนักงาน หรือนำยอด <strong className="text-orange-400 font-bold">฿{totalAmountToPay}</strong> ไปชำระที่เคาน์เตอร์แคชเชียร์
+                    </p>
+                  </div>
+
+                  {!isCashCalled ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCashCalled(true);
+                        playSuccessChime();
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-md shadow-emerald-500/25 transition-all"
+                    >
+                      🔔 กดเรียกพนักงานมาเก็บเงินสดที่โต๊ะ
+                    </button>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30 flex items-center justify-center space-x-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>แจ้งพนักงานแล้ว พนักงานกำลังเดินไปที่โต๊ะครับ</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
