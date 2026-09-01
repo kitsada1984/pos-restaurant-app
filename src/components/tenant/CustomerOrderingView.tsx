@@ -117,6 +117,16 @@ export default function CustomerOrderingView({
               if (payload.type === 'ORDER_UPDATED') {
                 playOrderChime();
               }
+              if (payload.type === 'PAYMENT_RECEIVED') {
+                setIsPayModalOpen(false);
+                setIsCashCalled(false);
+                playSuccessChime();
+                confetti({
+                  particleCount: 120,
+                  spread: 90,
+                  origin: { y: 0.5 },
+                });
+              }
               fetchData();
             }
           } catch (e) {}
