@@ -75,6 +75,7 @@ export async function PUT(req: NextRequest) {
     }
 
     broadcastEvent('MENU_UPDATED', { type: 'SETTINGS_UPDATED' });
+    broadcastEvent('TABLE_UPDATED', { type: 'SETTINGS_UPDATED', tableCount: count });
 
     return NextResponse.json(setting);
   } catch (error) {

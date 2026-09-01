@@ -103,14 +103,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Update table status to OCCUPIED
-    await prisma.table.update({
+    // Ensure table exists and update status to OCCUPIED
+    await prisma.table.upsert({
       where: { id: tId },
-      data: { status: 'OCCUPIED' },
+      update: { status: 'OCCUPIED' },
+      create: { id: tId, name: `โต๊ะ ${tId}`, status: 'OCCUPIED' },
     });
 
     // Broadcast to Kitchen & POS
     broadcastEvent('ORDER_CREATED', order);
+    broadcastEvent('TABLE_UPDATED', { action: 'ORDER_PLACED', tableId: tId });
 
     return NextResponse.json(order);
   } catch (error) {

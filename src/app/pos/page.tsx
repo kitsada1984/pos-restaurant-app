@@ -68,6 +68,7 @@ export default function PosPage() {
 
   // Add Table Modal
   const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
+  const [newTableId, setNewTableId] = useState('');
   const [newTableName, setNewTableName] = useState('');
   const [isCreatingTable, setIsCreatingTable] = useState(false);
 
@@ -277,16 +278,22 @@ export default function PosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'CREATE_TABLE',
+          id: newTableId ? parseInt(newTableId, 10) : undefined,
           name: newTableName.trim(),
         }),
       });
-      if (res.ok) {
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'เกิดข้อผิดพลาดในการสร้างโต๊ะ');
+      } else {
         setNewTableName('');
+        setNewTableId('');
         setIsAddTableModalOpen(false);
         await fetchData();
       }
     } catch (err) {
       console.error(err);
+      alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
     } finally {
       setIsCreatingTable(false);
     }
@@ -303,12 +310,16 @@ export default function PosPage() {
           tableId,
         }),
       });
-      if (res.ok) {
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'ไม่สามารถลบโต๊ะได้');
+      } else {
         setSelectedTable(null);
         await fetchData();
       }
     } catch (err) {
       console.error(err);
+      alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
     }
   };
 
@@ -467,13 +478,19 @@ export default function PosPage() {
 
             <button
               onClick={() => {
-                setNewTableName(`โต๊ะ ${(tables?.length || 0) + 1}`);
+                const existingIds = new Set(tables.map((t) => t.id));
+                let nextId = 1;
+                while (existingIds.has(nextId)) {
+                  nextId++;
+                }
+                setNewTableId(String(nextId));
+                setNewTableName(`โต๊ะ ${nextId}`);
                 setIsAddTableModalOpen(true);
               }}
               className="flex items-center space-x-1.5 px-3.5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-sm transition-all whitespace-nowrap active:scale-95"
             >
               <Plus className="w-4 h-4" />
-              <span>เพิ่มโต๊ะ</span>
+              <span>+ เพิ่มโต๊ะ</span>
             </button>
           </div>
         </div>
@@ -1201,19 +1218,53 @@ export default function PosPage() {
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                ชื่อหรือหมายเลขโต๊ะ:
-              </label>
-              <input
-                type="text"
-                value={newTableName}
-                onChange={(e) => setNewTableName(e.target.value)}
-                placeholder="เช่น โต๊ะ 11, VIP 1, หน้าร้าน 2"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                autoFocus
-              />
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  หมายเลขโต๊ะ (ID):
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="999"
+                  value={newTableId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewTableId(val);
+                    if (newTableName.startsWith('โต๊ะ ') || !newTableName.trim()) {
+                      setNewTableName(`โต๊ะ ${val}`);
+                    }
+                  }}
+                  placeholder="เช่น 11, 12, 20"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  ชื่อโต๊ะ:
+                </label>
+                <input
+                  type="text"
+                  value={newTableName}
+                  onChange={(e) => setNewTableName(e.target.value)}
+                  placeholder="เช่น โต๊ะ 11, VIP 1, หน้าร้าน 2"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  autoFocus
+                />
+              </div>
+
+              <div className="text-right">
+                <a
+                  href="/admin/tables"
+                  className="text-[11px] font-bold text-orange-600 hover:underline"
+                >
+                  ⚙️ จัดการผังโต๊ะ & เพิ่มทีเดียวหลายโต๊ะ
+                </a>
+              </div>
             </div>
+
             <div className="flex space-x-2 pt-2">
               <button
                 type="button"

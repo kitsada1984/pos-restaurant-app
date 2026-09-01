@@ -179,12 +179,20 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Receipt Footer Message Card */}
+            {/* Receipt Footer Message & Tables Card */}
             <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-              <h2 className="font-bold text-base text-slate-800 flex items-center space-x-2 pb-2 border-b border-slate-100">
-                <Receipt className="w-5 h-5 text-orange-500" />
-                <span>ข้อความท้ายใบเสร็จ & จำนวนโต๊ะ</span>
-              </h2>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h2 className="font-bold text-base text-slate-800 flex items-center space-x-2">
+                  <Receipt className="w-5 h-5 text-orange-500" />
+                  <span>ข้อความท้ายใบเสร็จ & จำนวนโต๊ะ</span>
+                </h2>
+                <a
+                  href="/admin/tables"
+                  className="text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-xl border border-orange-200 flex items-center space-x-1 transition-colors"
+                >
+                  <span>⚙️ จัดการผังโต๊ะ & เพิ่ม/ลบโต๊ะ</span>
+                </a>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -201,17 +209,28 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    จำนวนโต๊ะในร้าน (ค่าเริ่มต้น 10 โต๊ะ):
-                  </label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      จำนวนโต๊ะในร้าน (สร้างอัตโนมัติ 1 ถึง N):
+                    </label>
+                    <span className="text-[11px] font-bold text-orange-600">
+                      ปัจจุบัน {form.tableCount} โต๊ะ
+                    </span>
+                  </div>
                   <input
                     type="number"
                     min="1"
-                    max="50"
+                    max="100"
                     value={form.tableCount}
                     onChange={(e) => setForm({ ...form, tableCount: parseInt(e.target.value, 10) || 10 })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:ring-2 focus:ring-orange-500 focus:outline-none"
                   />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    หากต้องการเพิ่มโต๊ะแบบกำหนดชื่อเอง (เช่น VIP 1, ระเบียง) ให้ไปที่หน้า{' '}
+                    <a href="/admin/tables" className="text-orange-500 font-bold underline">
+                      จัดการผังโต๊ะ
+                    </a>
+                  </p>
                 </div>
               </div>
             </div>

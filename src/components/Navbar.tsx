@@ -32,8 +32,9 @@ export default function Navbar() {
   }, []);
 
   const navItems = [
-    { href: '/pos', label: 'ผังโต๊ะ & แคชเชียร์', icon: LayoutGrid },
+    { href: '/pos', label: 'ผังโต๊ะ & POS', icon: LayoutGrid },
     { href: '/kitchen', label: 'ห้องครัว (KDS)', icon: ChefHat },
+    { href: '/admin/tables', label: 'จัดการโต๊ะ', icon: LayoutGrid },
     { href: '/admin/menu', label: 'เมนู & ของหมด', icon: UtensilsCrossed },
     { href: '/admin/reports', label: 'ยอดขาย & ปิดกะ', icon: BarChart3 },
     { href: '/admin/qr-codes', label: 'พิมพ์ QR โต๊ะ', icon: QrCode },
