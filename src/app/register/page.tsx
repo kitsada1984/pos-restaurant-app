@@ -73,7 +73,7 @@ export default function RegisterPage() {
         <div className="mt-4 text-center">
           <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300 text-xs font-bold mb-3">
             <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-            <span>ทดลองใช้งานฟรี 14 วันเต็ม ไม่ต้องผูกบัตร</span>
+            <span>ทดลองใช้งานฟรี 90 วันเต็ม ไม่ต้องผูกบัตร</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
             เปิดร้านใหม่กับ ORDEO POS
@@ -204,7 +204,7 @@ export default function RegisterPage() {
                   </>
                 ) : (
                   <>
-                    <span>เริ่มเปิดร้านฟรี 14 วัน</span>
+                    <span>เริ่มเปิดร้านฟรี 90 วัน</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

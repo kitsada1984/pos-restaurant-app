@@ -47,10 +47,9 @@ export async function POST(request: Request) {
       slug = generateSlug(storeName);
     }
 
-    // 14 Days Free Trial
-    const now = new Date();
-    const trialEnd = new Date(now);
-    trialEnd.setDate(trialEnd.getDate() + 14);
+    // 90 Days Free Trial
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 90);
 
     const passwordHash = await hashPassword(password);
 

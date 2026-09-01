@@ -26,11 +26,11 @@ async function main() {
   const plans = [
     {
       id: 'plan_trial',
-      name: 'ทดลองใช้ฟรี (Trial 14 วัน)',
+      name: 'ทดลองใช้ฟรี (Trial 90 วัน)',
       price: 0,
-      durationDays: 14,
+      durationDays: 90,
       maxTables: 10,
-      description: 'ทดลองใช้งานระบบครบทุกฟังก์ชันฟรี 14 วัน',
+      description: 'สำหรับร้านค้าใหม่ ทดลองใช้งานฟรีทุกฟังก์ชัน 90 วันเต็ม',
       sortOrder: 1,
     },
     {
