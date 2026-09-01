@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword, createSessionToken, COOKIE_NAME } from '@/lib/auth';
 
 function generateSlug(storeName: string): string {
-  // Convert Thai / English name into URL-safe slug or fallback
   const clean = storeName
     .toLowerCase()
     .trim()
@@ -53,116 +52,121 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password);
 
-    // Create Store and User in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      const store = await tx.store.create({
-        data: {
-          slug,
-          name: storeName.trim(),
-          phone: phone || null,
-          status: 'TRIAL',
-          trialEndsAt: trialEnd,
-          subscriptionEnd: trialEnd,
-          planId: 'plan_trial',
-          tableCount: 10,
-          receiptFooter: 'ขอบคุณที่อุดหนุนครับ/ค่ะ โอกาสหน้าเชิญใหม่',
-        },
-      });
-
-      const user = await tx.user.create({
-        data: {
-          name: name.trim(),
-          email: email.toLowerCase().trim(),
-          passwordHash,
-          phone: phone || null,
-          role: 'STORE_OWNER',
-          storeId: store.id,
-        },
-      });
-
-      // Provision 10 tables
-      for (let i = 1; i <= 10; i++) {
-        await tx.table.create({
+    // Create Store and User in a single transaction with extended timeout and batch inserts
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const store = await tx.store.create({
           data: {
-            storeId: store.id,
-            tableNo: i,
-            name: `โต๊ะ ${i}`,
-            status: 'AVAILABLE',
+            slug,
+            name: storeName.trim(),
+            phone: phone || null,
+            status: 'TRIAL',
+            trialEndsAt: trialEnd,
+            subscriptionEnd: trialEnd,
+            planId: 'plan_trial',
+            tableCount: 10,
+            receiptFooter: 'ขอบคุณที่อุดหนุนครับ/ค่ะ โอกาสหน้าเชิญใหม่',
           },
         });
-      }
 
-      // Provision initial Category and Sample Items
-      const cat = await tx.category.create({
-        data: {
-          storeId: store.id,
-          name: 'เมนูแนะนำ / ผัดกะเพรา',
-          sortOrder: 1,
-        },
-      });
-
-      const item1 = await tx.menuItem.create({
-        data: {
-          storeId: store.id,
-          categoryId: cat.id,
-          name: 'ผัดกะเพราราดข้าว (สูตรเด็ด)',
-          basePrice: 50,
-          description: 'ผัดกะเพราหอมกรุ่นคั่วพริกแห้งเข้มข้น',
-          imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80',
-          options: {
-            create: [
-              {
-                title: 'เลือกเนื้อสัตว์',
-                isRequired: true,
-                choices: {
-                  create: [
-                    { name: 'หมูสับ/หมูชิ้น', extraPrice: 0 },
-                    { name: 'ไก่ชิ้น', extraPrice: 0 },
-                    { name: 'หมูกรอบ', extraPrice: 15 },
-                    { name: 'ทะเลรวม (กุ้ง+หมึก)', extraPrice: 20 },
-                  ],
-                },
-              },
-              {
-                title: 'ระดับความเผ็ด',
-                isRequired: true,
-                choices: {
-                  create: [
-                    { name: 'เผ็ดน้อย', extraPrice: 0 },
-                    { name: 'เผ็ดกลาง', extraPrice: 0 },
-                    { name: 'เผ็ดมาก', extraPrice: 0 },
-                  ],
-                },
-              },
-              {
-                title: 'เพิ่มไข่',
-                isRequired: false,
-                choices: {
-                  create: [
-                    { name: 'ไข่ดาวไม่สุก', extraPrice: 10 },
-                    { name: 'ไข่ดาวสุก', extraPrice: 10 },
-                    { name: 'ไข่เจียว', extraPrice: 15 },
-                  ],
-                },
-              },
-            ],
+        const user = await tx.user.create({
+          data: {
+            name: name.trim(),
+            email: email.toLowerCase().trim(),
+            passwordHash,
+            phone: phone || null,
+            role: 'STORE_OWNER',
+            storeId: store.id,
           },
-        },
-      });
+        });
 
-      const item2 = await tx.menuItem.create({
-        data: {
-          storeId: store.id,
-          categoryId: cat.id,
-          name: 'ข้าวผัดโบราณ',
-          basePrice: 50,
-          description: 'ข้าวผัดไข่หอมกระทะ คะน้ากรอบ มะนาวผ่าซีก',
-          imageUrl: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80',
-        },
-      });
+        // Batch provision 10 tables in one query
+        await tx.table.createMany({
+          data: Array.from({ length: 10 }, (_, i) => ({
+            storeId: store.id,
+            tableNo: i + 1,
+            name: `โต๊ะ ${i + 1}`,
+            status: 'AVAILABLE',
+          })),
+        });
 
-      return { user, store };
-    });
+        // Provision initial Category
+        const cat = await tx.category.create({
+          data: {
+            storeId: store.id,
+            name: 'เมนูแนะนำ / ผัดกะเพรา',
+            sortOrder: 1,
+          },
+        });
+
+        // Provision initial Sample Items
+        await tx.menuItem.create({
+          data: {
+            storeId: store.id,
+            categoryId: cat.id,
+            name: 'ผัดกะเพราราดข้าว (สูตรเด็ด)',
+            basePrice: 50,
+            description: 'ผัดกะเพราหอมกรุ่นคั่วพริกแห้งเข้มข้น',
+            imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80',
+            options: {
+              create: [
+                {
+                  title: 'เลือกเนื้อสัตว์',
+                  isRequired: true,
+                  choices: {
+                    create: [
+                      { name: 'หมูสับ/หมูชิ้น', extraPrice: 0 },
+                      { name: 'ไก่ชิ้น', extraPrice: 0 },
+                      { name: 'หมูกรอบ', extraPrice: 15 },
+                      { name: 'ทะเลรวม (กุ้ง+หมึก)', extraPrice: 20 },
+                    ],
+                  },
+                },
+                {
+                  title: 'ระดับความเผ็ด',
+                  isRequired: true,
+                  choices: {
+                    create: [
+                      { name: 'เผ็ดน้อย', extraPrice: 0 },
+                      { name: 'เผ็ดกลาง', extraPrice: 0 },
+                      { name: 'เผ็ดมาก', extraPrice: 0 },
+                    ],
+                  },
+                },
+                {
+                  title: 'เพิ่มไข่',
+                  isRequired: false,
+                  choices: {
+                    create: [
+                      { name: 'ไข่ดาวไม่สุก', extraPrice: 10 },
+                      { name: 'ไข่ดาวสุก', extraPrice: 10 },
+                      { name: 'ไข่เจียว', extraPrice: 15 },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        });
+
+        await tx.menuItem.create({
+          data: {
+            storeId: store.id,
+            categoryId: cat.id,
+            name: 'ข้าวผัดโบราณ',
+            basePrice: 50,
+            description: 'ข้าวผัดไข่หอมกระทะ คะน้ากรอบ มะนาวผ่าซีก',
+            imageUrl: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80',
+          },
+        });
+
+        return { user, store };
+      },
+      {
+        maxWait: 15000,
+        timeout: 30000,
+      }
+    );
 
     // Create session token
     const token = await createSessionToken({
