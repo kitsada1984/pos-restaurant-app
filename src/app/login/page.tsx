@@ -1,0 +1,177 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Store, Lock, Mail, ArrowRight, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'เข้าสู่ระบบไม่สำเร็จ');
+      }
+
+      if (data.user.role === 'SUPER_ADMIN') {
+        router.push('/platform-admin');
+      } else if (data.user.storeSlug) {
+        router.push(`/r/${data.user.storeSlug}/pos`);
+      } else {
+        router.push('/store/dashboard');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = (demoEmail: string, demoPass: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background Glows */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-orange-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-[350px] h-[350px] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="flex justify-center">
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-xl shadow-orange-500/20 group-hover:scale-105 transition-transform">
+              <Store className="w-6 h-6" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-2xl font-black text-white tracking-tight">ORDEO POS</span>
+              <span className="text-[11px] text-orange-400 font-bold uppercase tracking-wider">Multi-Tenant Platform</span>
+            </div>
+          </Link>
+        </div>
+
+        <h2 className="mt-6 text-center text-2xl sm:text-3xl font-extrabold text-white">
+          เข้าสู่ระบบร้านค้า &amp; ผู้ดูแล
+        </h2>
+        <p className="mt-2 text-center text-xs sm:text-sm text-slate-400">
+          ยังไม่มีร้านค้า?{' '}
+          <Link href="/register" className="font-bold text-orange-400 hover:text-orange-300 underline underline-offset-4">
+            สมัครเปิดร้านใหม่ ทดลองใช้ฟรี 14 วัน
+          </Link>
+        </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4 sm:px-0">
+        <div className="bg-slate-900/80 backdrop-blur-xl py-8 px-6 sm:px-10 shadow-2xl rounded-3xl border border-slate-800">
+          {error && (
+            <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold">
+              ⚠️ {error}
+            </div>
+          )}
+
+          <form className="space-y-5" onSubmit={handleLogin}>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                อีเมล (Email)
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent placeholder-slate-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                รหัสผ่าน (Password)
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent placeholder-slate-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 px-4 rounded-xl text-white text-sm font-extrabold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>กำลังตรวจสอบ...</span>
+                </>
+              ) : (
+                <>
+                  <span>เข้าสู่ระบบ</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Quick Demo Access Credentials */}
+          <div className="mt-8 pt-6 border-t border-slate-800">
+            <span className="text-[11px] font-bold text-slate-400 block mb-3 text-center">
+              🔑 รหัสผ่านทดลองเข้าระบบ (Demo Logins):
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('admin@ordeopos.com', 'adminpassword123')}
+                className="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-left border border-slate-700/80 hover:border-orange-500/40 transition-all"
+              >
+                <span className="text-[11px] font-extrabold text-orange-400 block">👑 Super Admin</span>
+                <span className="text-[10px] text-slate-400 block truncate">admin@ordeopos.com</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('owner@lungpa.com', 'password123')}
+                className="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-left border border-slate-700/80 hover:border-orange-500/40 transition-all"
+              >
+                <span className="text-[11px] font-extrabold text-emerald-400 block">👨‍🍳 ร้านลุง-ป้า</span>
+                <span className="text-[10px] text-slate-400 block truncate">owner@lungpa.com</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

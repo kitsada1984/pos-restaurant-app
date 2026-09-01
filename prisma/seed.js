@@ -1,16 +1,115 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('--- Seeding Database for Small Thai Restaurant POS ---');
+  console.log('--- Seeding Database for Multi-Tenant SaaS Restaurant POS ---');
 
-  // 1. Store Settings
-  await prisma.storeSetting.upsert({
+  // 1. Platform Settings (สำหรับรับชำระค่าบริการ SaaS)
+  await prisma.platformSetting.upsert({
     where: { id: 'default' },
     update: {},
     create: {
       id: 'default',
-      storeName: 'กะเพราถาดยายสม & อาหารตามสั่ง',
+      platformName: 'ORDEO SaaS Restaurant POS Platform',
+      bankName: 'ธนาคารกสิกรไทย (KBANK)',
+      bankAccountNo: '123-4-56789-0',
+      bankAccountName: 'บจก. ออร์เดียโอ โซลูชั่นส์ (ORDEO Co., Ltd.)',
+      promptPayId: '0812345678',
+      contactLine: '@ordeopos',
+      contactPhone: '081-234-5678',
+    },
+  });
+
+  // 2. Subscription Plans
+  const plans = [
+    {
+      id: 'plan_trial',
+      name: 'ทดลองใช้ฟรี (Trial 14 วัน)',
+      price: 0,
+      durationDays: 14,
+      maxTables: 10,
+      description: 'ทดลองใช้งานระบบครบทุกฟังก์ชันฟรี 14 วัน',
+      sortOrder: 1,
+    },
+    {
+      id: 'plan_monthly',
+      name: 'Basic รายเดือน (1 เดือน)',
+      price: 290,
+      durationDays: 30,
+      maxTables: 15,
+      description: 'เหมาะสำหรับร้านอาหารตามสั่งขนาดเล็ก ไม่เกิน 15 โต๊ะ',
+      sortOrder: 2,
+    },
+    {
+      id: 'plan_halfyear',
+      name: 'Pro (6 เดือน)',
+      price: 1590,
+      durationDays: 180,
+      maxTables: 30,
+      description: 'ประหยัด 150 บาท สำหรับร้านอาหารขนาดกลาง ไม่เกิน 30 โต๊ะ',
+      sortOrder: 3,
+    },
+    {
+      id: 'plan_yearly',
+      name: 'Unlimited รายปี (1 ปี)',
+      price: 2900,
+      durationDays: 365,
+      maxTables: 99,
+      description: 'สุดคุ้ม! ฟรี 2 เดือนเต็ม รองรับโต๊ะไม่จำกัด บริการ Support พิเศษ',
+      sortOrder: 4,
+    },
+  ];
+
+  for (const plan of plans) {
+    await prisma.plan.upsert({
+      where: { id: plan.id },
+      update: {
+        name: plan.name,
+        price: plan.price,
+        durationDays: plan.durationDays,
+        maxTables: plan.maxTables,
+        description: plan.description,
+        sortOrder: plan.sortOrder,
+      },
+      create: plan,
+    });
+  }
+
+  // 3. Super Admin User
+  const adminPasswordHash = await bcrypt.hash('adminpassword123', 10);
+  await prisma.user.upsert({
+    where: { email: 'admin@ordeopos.com' },
+    update: {
+      passwordHash: adminPasswordHash,
+      role: 'SUPER_ADMIN',
+      name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
+    },
+    create: {
+      email: 'admin@ordeopos.com',
+      passwordHash: adminPasswordHash,
+      name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
+      phone: '081-234-5678',
+      role: 'SUPER_ADMIN',
+    },
+  });
+
+  // 4. Demo Store Owner & Store
+  const trialEnd = new Date();
+  trialEnd.setDate(trialEnd.getDate() + 30);
+
+  const demoStore = await prisma.store.upsert({
+    where: { slug: 'lung-pa' },
+    update: {},
+    create: {
+      slug: 'lung-pa',
+      name: 'กะเพราถาดยายสม & อาหารตามสั่ง',
+      description: 'ร้านอาหารตามสั่งยอดนิยม ผัดกะเพราโบราณ ข้าวผัด ต้มยำน้ำข้น',
+      status: 'ACTIVE',
+      trialEndsAt: trialEnd,
+      subscriptionEnd: trialEnd,
+      planId: 'plan_monthly',
       promptPayId: '0891234567',
       promptPayName: 'นายสมชาย พัฒนาสุข (ร้านตามสั่ง)',
       address: '88/9 หมู่ 3 ถนนสุขุมวิท ต.เสม็ด อ.เมือง จ.ชลบุรี 20000',
@@ -20,49 +119,72 @@ async function main() {
     },
   });
 
-  // 2. Tables (1-10)
+  const ownerPasswordHash = await bcrypt.hash('password123', 10);
+  await prisma.user.upsert({
+    where: { email: 'owner@lungpa.com' },
+    update: {
+      storeId: demoStore.id,
+      passwordHash: ownerPasswordHash,
+      role: 'STORE_OWNER',
+    },
+    create: {
+      email: 'owner@lungpa.com',
+      passwordHash: ownerPasswordHash,
+      name: 'สมชาย พัฒนาสุข (เจ้าของร้าน)',
+      phone: '089-123-4567',
+      role: 'STORE_OWNER',
+      storeId: demoStore.id,
+    },
+  });
+
+  // 5. Tables for Demo Store (1-10)
   for (let i = 1; i <= 10; i++) {
     await prisma.table.upsert({
-      where: { id: i },
+      where: {
+        storeId_tableNo: {
+          storeId: demoStore.id,
+          tableNo: i,
+        },
+      },
       update: {},
       create: {
-        id: i,
+        storeId: demoStore.id,
+        tableNo: i,
         name: `โต๊ะ ${i}`,
         status: 'AVAILABLE',
       },
     });
   }
 
-  // Clear existing menu for clean re-seed
+  // Clear existing menu items for demo store to reseed clean
   await prisma.menuOptionChoice.deleteMany({});
   await prisma.menuOptionGroup.deleteMany({});
   await prisma.orderItem.deleteMany({});
   await prisma.order.deleteMany({});
-  await prisma.menuItem.deleteMany({});
-  await prisma.category.deleteMany({});
+  await prisma.menuItem.deleteMany({ where: { storeId: demoStore.id } });
+  await prisma.category.deleteMany({ where: { storeId: demoStore.id } });
 
-  // 3. Categories & Menu Items
+  // 6. Categories & Menu Items for Demo Store
   const catKaprow = await prisma.category.create({
-    data: { name: 'เมนูผัดกะเพรา / ผัดพริก', sortOrder: 1 },
+    data: { storeId: demoStore.id, name: 'เมนูผัดกะเพรา / ผัดพริก', sortOrder: 1 },
   });
 
   const catFriedRice = await prisma.category.create({
-    data: { name: 'เมนูข้าวผัด / จานเดียว', sortOrder: 2 },
+    data: { storeId: demoStore.id, name: 'เมนูข้าวผัด / จานเดียว', sortOrder: 2 },
   });
 
   const catSoup = await prisma.category.create({
-    data: { name: 'เมนูต้มยำ & แกงจืด', sortOrder: 3 },
+    data: { storeId: demoStore.id, name: 'เมนูต้มยำ & แกงจืด', sortOrder: 3 },
   });
 
   const catFriedNoodle = await prisma.category.create({
-    data: { name: 'เมนูเส้น & ผัดซีอิ๊ว', sortOrder: 4 },
+    data: { storeId: demoStore.id, name: 'เมนูเส้น & ผัดซีอิ๊ว', sortOrder: 4 },
   });
 
   const catDrinks = await prisma.category.create({
-    data: { name: 'เครื่องดื่ม & ของหวาน', sortOrder: 5 },
+    data: { storeId: demoStore.id, name: 'เครื่องดื่ม & ของหวาน', sortOrder: 5 },
   });
 
-  // Reusable option sets
   const standardMeatOptions = [
     { name: 'หมูสับ/หมูชิ้น', extraPrice: 0 },
     { name: 'ไก่ชิ้น', extraPrice: 0 },
@@ -97,6 +219,7 @@ async function main() {
   // Item 1: ผัดกะเพราโบราณ
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catKaprow.id,
       name: 'ผัดกะเพราสูตรโบราณ (ราดข้าว)',
       description: 'ผัดกะเพราแท้ ผัดแห้งหอมกระทะ ไม่ใส่ถั่วฝักยาวและหัวหอม พริกแห้งพริกสดหอมฟุ้ง',
@@ -130,9 +253,10 @@ async function main() {
     },
   });
 
-  // Item 2: ผัดพริกแกงถั่วฝักยาว
+  // Item 2: ผัดพริกแกง
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catKaprow.id,
       name: 'ผัดพริกแกงราดข้าว',
       description: 'พริกแกงใต้หอมเข้มข้น ผัดกับถั่วฝักยาวกรอบๆ และใบมะกรูดซอย',
@@ -161,9 +285,10 @@ async function main() {
     },
   });
 
-  // Item 3: ผัดกระเทียมพริกไทย
+  // Item 3: ทอดกระเทียมพริกไทย
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catKaprow.id,
       name: 'ทอดกระเทียมพริกไทยราดข้าว',
       description: 'กระเทียมเจียวสดกรอบเหลืองทอง คลุกเคล้าซอสสูตรเด็ด หอมพริกไทย',
@@ -190,6 +315,7 @@ async function main() {
   // Item 4: ผัดคะน้าหมูกรอบ
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catKaprow.id,
       name: 'ผัดคะน้าหมูกรอบราดข้าว',
       description: 'คะน้าฮ่องกงยอดอ่อน ผัดไฟแดงเสียงดังฉ่า หมูกรอบหนังพองกรุบกรอบ',
@@ -213,9 +339,10 @@ async function main() {
     },
   });
 
-  // Item 5: ข้าวผัดรถไฟ / ข้าวผัดโบราณ
+  // Item 5: ข้าวผัดโบราณ
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catFriedRice.id,
       name: 'ข้าวผัดโบราณ / ข้าวผัดไข่',
       description: 'ข้าวเรียงเม็ดสวย หอมกลิ่นคั่วกระทะ ใส่ไข่ คะน้า และมะเขือเทศ มะนาวผ่าซีก',
@@ -239,9 +366,10 @@ async function main() {
     },
   });
 
-  // Item 6: ข้าวไข่เจียวทรงเครื่อง
+  // Item 6: ข้าวไข่เจียว
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catFriedRice.id,
       name: 'ข้าวไข่เจียวฟูปูอัด/หมูสับ (2 ฟอง)',
       description: 'ไข่เจียวกรอบนอกนุ่มใน ไม่อมน้ำมัน เสิร์ฟคู่ซอสพริกศรีราชา',
@@ -269,9 +397,10 @@ async function main() {
     },
   });
 
-  // Item 7: ต้มยำรวมมิตรทะเลน้ำข้น
+  // Item 7: ต้มยำกุ้ง
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catSoup.id,
       name: 'ต้มยำกุ้ง / ทะเลน้ำข้น (หม้อ/ถ้วย)',
       description: 'เครื่องต้มยำสด กุ้งสดตัวโต เห็ดฟาง น้ำพริกเผานมสด เข้มข้นแซ่บถึงใจ',
@@ -306,24 +435,26 @@ async function main() {
     },
   });
 
-  // Item 8: ต้มจืดเต้าหู้หมูสับสาหร่าย
+  // Item 8: ต้มจืดเต้าหู้หมูสับ
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catSoup.id,
       name: 'ต้มจืดเต้าหู้หมูสับสาหร่าย',
-      description: 'น้ำซุปใสกลมกล่อม หมูสับปั้นก้อนนุ่ม เต้าหู้ไข่ สาหร่ายวากาเมะ และผักกาดขาว',
+      description: 'น้ำซุปใสกลมกล่อม หมูสับปั้นก้อนนุ่ม เต้าหู้ไข่ สาหร่ายวากาเมะ',
       basePrice: 70,
       imageUrl: 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=600&q=80',
       isAvailable: true,
     },
   });
 
-  // Item 9: ผัดซีอิ๊วเส้นใหญ่
+  // Item 9: ผัดซีอิ๊ว
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catFriedNoodle.id,
       name: 'ผัดซีอิ๊วเส้นใหญ่กระทะเหล็ก',
-      description: 'เส้นเหนียวนุ่ม ผัดเคล้าซีอิ๊วดำหอมกลิ่นไหม้กระทะ คะน้ากรอบ ไข่เคลือบเส้น',
+      description: 'เส้นเหนียวนุ่ม ผัดเคล้าซีอิ๊วดำหอมกลิ่นไหม้กระทะ คะน้ากรอบ',
       basePrice: 50,
       imageUrl: 'https://images.unsplash.com/photo-1552611052-33e04de081de?auto=format&fit=crop&w=600&q=80',
       isAvailable: true,
@@ -339,64 +470,23 @@ async function main() {
     },
   });
 
-  // Item 10-13: เครื่องดื่ม
+  // Item 10: ชาไทยเย็น
   await prisma.menuItem.create({
     data: {
+      storeId: demoStore.id,
       categoryId: catDrinks.id,
       name: 'ชาไทยเย็น / ชานมเย็นโบราณ',
       description: 'ใบชาเข้มข้น หวานมันกลมกล่อม',
       basePrice: 25,
       imageUrl: 'https://images.unsplash.com/photo-1558857563-b37cf0c458a2?auto=format&fit=crop&w=600&q=80',
       isAvailable: true,
-      options: {
-        create: [
-          {
-            title: 'ระดับความหวาน',
-            isRequired: true,
-            choices: {
-              create: [
-                { name: 'หวานปกติ (100%)', extraPrice: 0 },
-                { name: 'หวานน้อย (50%)', extraPrice: 0 },
-                { name: 'ไม่หวานเลย (0%)', extraPrice: 0 },
-              ],
-            },
-          },
-        ],
-      },
     },
   });
 
-  await prisma.menuItem.create({
-    data: {
-      categoryId: catDrinks.id,
-      name: 'น้ำเก๊กฮวยเย็น / กระเจี๊ยบเย็น',
-      description: 'ต้มสดใหม่ หอมสดชื่น ดับกระหายคลายเผ็ด',
-      basePrice: 20,
-      isAvailable: true,
-    },
-  });
-
-  await prisma.menuItem.create({
-    data: {
-      categoryId: catDrinks.id,
-      name: 'โค้ก / เป๊ปซี่ + น้ำแข็งเปล่า',
-      description: 'กระป๋องเย็นเจี๊ยบ เสิร์ฟพร้อมแก้วน้ำแข็ง',
-      basePrice: 20,
-      isAvailable: true,
-    },
-  });
-
-  await prisma.menuItem.create({
-    data: {
-      categoryId: catDrinks.id,
-      name: 'น้ำเปล่าขวด (พร้อมน้ำแข็ง)',
-      description: 'น้ำดื่มสะอาด 600ml',
-      basePrice: 10,
-      isAvailable: true,
-    },
-  });
-
-  console.log('✅ Database seeded successfully with 10 tables, settings, categories and rich a-la-carte menu items!');
+  console.log('✅ Multi-Tenant SaaS Seed Completed:');
+  console.log(' - Super Admin: admin@ordeopos.com / adminpassword123');
+  console.log(' - Demo Store Owner: owner@lungpa.com / password123 (Slug: lung-pa)');
+  console.log(' - 4 Subscription Plans created');
 }
 
 main()

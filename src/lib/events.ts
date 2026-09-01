@@ -6,7 +6,7 @@ const globalForEvents = globalThis as unknown as {
 };
 
 export const eventBus = globalForEvents.posEventBus ?? new EventEmitter();
-eventBus.setMaxListeners(100);
+eventBus.setMaxListeners(200);
 
 if (process.env.NODE_ENV !== 'production') {
   globalForEvents.posEventBus = eventBus;
@@ -15,14 +15,20 @@ if (process.env.NODE_ENV !== 'production') {
 export type EventPayload = {
   type: 'ORDER_CREATED' | 'ORDER_UPDATED' | 'TABLE_UPDATED' | 'PAYMENT_RECEIVED' | 'MENU_UPDATED';
   data: any;
+  storeId?: string;
   timestamp: number;
 };
 
-export function broadcastEvent(type: EventPayload['type'], data: any) {
+export function broadcastEvent(type: EventPayload['type'], data: any, storeId?: string) {
   const payload: EventPayload = {
     type,
     data,
+    storeId,
     timestamp: Date.now(),
   };
+  // Broadcast to global bus and store-specific bus
   eventBus.emit('pos-event', payload);
+  if (storeId) {
+    eventBus.emit(`pos-event-${storeId}`, payload);
+  }
 }

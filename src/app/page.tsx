@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
 import {
   LayoutGrid,
   ChefHat,
@@ -21,352 +20,267 @@ import {
   Activity,
   Receipt,
   Flame,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
-import { formatPrice } from '@/lib/utils';
 
 export default function HomePage() {
-  const [store, setStore] = useState<any>(null);
-  const [tables, setTables] = useState<any[]>([]);
-  const [report, setReport] = useState<any>(null);
-  const [currentTime, setCurrentTime] = useState<string>('');
+  const [plans, setPlans] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/settings')
+    fetch('/api/platform-admin/plans')
       .then((r) => r.json())
-      .then((d) => setStore(d?.error ? null : d))
-      .catch(() => setStore(null));
-
-    fetch('/api/tables')
-      .then((r) => r.json())
-      .then((d) => setTables(Array.isArray(d) ? d : []))
-      .catch(() => setTables([]));
-
-    fetch('/api/reports/daily')
-      .then((r) => r.json())
-      .then((d) => setReport(d?.error ? null : d))
-      .catch(() => setReport(null));
-
-    const timer = setInterval(() => {
-      const now = new Date();
-      setCurrentTime(
-        now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      );
-    }, 1000);
-
-    return () => clearInterval(timer);
+      .then((d) => setPlans(d.plans || []))
+      .catch(() => {});
   }, []);
 
-  const safeTables = Array.isArray(tables) ? tables : [];
-  const occupiedCount = safeTables.filter((t) => t?.status && t.status !== 'AVAILABLE').length;
-  const pendingPaymentCount = safeTables.filter((t) => t?.status === 'PAYMENT_PENDING').length;
-
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-orange-500 selection:text-white">
-      <Navbar />
-
-      {/* HERO / WELCOME BANNER (Linear/Apple Bento Style) */}
-      <section className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
-        <div className="relative rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-10 overflow-hidden shadow-2xl border border-slate-800">
-          {/* Subtle Ambient Light Gradients */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-3 max-w-2xl">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-orange-300">
-                <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                <span>ระบบ POS ร้านอาหารตามสั่ง & สแกนสั่งอาหารที่โต๊ะ</span>
-                {currentTime && (
-                  <>
-                    <span className="text-white/30">•</span>
-                    <span className="font-mono text-white/90">{currentTime} น.</span>
-                  </>
-                )}
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-orange-500 selection:text-white">
+      {/* SaaS Navigation */}
+      <header className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-500 flex items-center justify-center text-white shadow-xl shadow-orange-500/20 group-hover:scale-105 transition-transform">
+              <Store className="w-6 h-6" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center space-x-2">
+                <span className="text-xl font-black text-white tracking-tight">ORDEO POS</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/20 text-orange-400 border border-orange-500/30 uppercase tracking-wider">
+                  SaaS Multi-Tenant
+                </span>
               </div>
+              <span className="text-[11px] text-slate-400 font-medium">
+                ระบบจัดการร้านอาหารตามสั่ง &amp; สแกนสั่งที่โต๊ะ
+              </span>
+            </div>
+          </Link>
 
-              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-                {store?.storeName || 'ร้านอาหารตามสั่ง'}
-              </h1>
+          <div className="flex items-center space-x-3">
+            <Link
+              href="/login"
+              className="px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white hover:bg-slate-900 border border-slate-800 transition-all"
+            >
+              เข้าสู่ระบบ
+            </Link>
 
-              <p className="text-xs sm:text-sm text-slate-300 font-normal leading-relaxed">
-                จัดการออเดอร์หน้าร้าน • ลูกค้าสแกนสั่งผ่าน LINE/Web • จอครัว Real-time มีเสียงเตือน • คิดเงิน Dynamic PromptPay QR อัตโนมัติ
+            <Link
+              href="/register"
+              className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25 transition-all flex items-center space-x-1.5"
+            >
+              <span>เปิดร้านฟรี 14 วัน</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden pt-16 pb-20 px-4 sm:px-6 lg:px-8">
+        {/* Glow Circles */}
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-orange-500/15 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute top-10 right-10 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
+
+        <div className="max-w-5xl mx-auto text-center space-y-6 relative z-10">
+          <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300 text-xs font-extrabold">
+            <Sparkles className="w-4 h-4 text-orange-400" />
+            <span>ระบบ POS ร้านอาหารตามสั่งที่ดีที่สุด • รองรับหลายร้านในแพลตฟอร์มเดียว</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">
+            ยกระดับร้านอาหารตามสั่ง <br />
+            <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-orange-500 bg-clip-text text-transparent">
+              สแกนสั่งที่โต๊ะ • จอครัว Realtime • คิดเงินพร้อมเพย์
+            </span>
+          </h1>
+
+          <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-400 leading-relaxed">
+            เปิดร้านของคุณเองได้ใน 1 นาที! มีระบบผังโต๊ะสด, จอห้องครัวมีเสียงเตือน, ตรวจของหมดแบบ 1-Click และรายงานยอดขายปิดกะครบวงจร
+          </p>
+
+          {/* Action CTAs */}
+          <div className="pt-4 flex flex-wrap items-center justify-center gap-3.5">
+            <Link
+              href="/register"
+              className="px-7 py-4 rounded-2xl text-sm font-black text-white bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 hover:scale-105 shadow-xl shadow-orange-500/30 transition-all flex items-center space-x-2"
+            >
+              <span>🚀 สมัครเปิดร้านใหม่ ทดลองใช้ฟรี 14 วัน</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+
+            <Link
+              href="/r/lung-pa/pos"
+              target="_blank"
+              className="px-6 py-4 rounded-2xl text-sm font-extrabold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all flex items-center space-x-2"
+            >
+              <span>🖥️ ทดลองใช้งานหน้าร้านตัวอย่าง (Demo POS)</span>
+            </Link>
+
+            <Link
+              href="/r/lung-pa/table/1"
+              target="_blank"
+              className="px-6 py-4 rounded-2xl text-sm font-extrabold text-orange-400 bg-slate-900 hover:bg-slate-800 border border-orange-500/20 transition-all flex items-center space-x-2"
+            >
+              <span>📱 จำลองลูกค้าสแกนสั่ง (โต๊ะ 1)</span>
+            </Link>
+          </div>
+
+          {/* Highlights Badge Bar */}
+          <div className="pt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-bold text-slate-400">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>ไม่ต้องติดตั้งแอป ใช้งานผ่านเบราว์เซอร์ได้ทันที</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>แยกฐานข้อมูลร้านชัดเจน ปลอดภัยสูง</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>รองรับ PromptPay Dynamic QR ทุกธนาคาร</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature Highlights Grid */}
+      <section className="py-16 bg-slate-900/50 border-y border-slate-800/80 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-12">
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+              ครบทุกฟังก์ชันที่ร้านอาหารตามสั่งต้องการ
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              ออกแบบมาเพื่อความรวดเร็ว ใช้งานง่ายทั้งบนมือถือ แท็บเล็ต และคอมพิวเตอร์หน้าร้าน
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="p-7 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 text-orange-400 flex items-center justify-center">
+                <Smartphone className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-extrabold text-white">ลูกค้าสแกนสั่งที่โต๊ะ (QR Ordering)</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                ลูกค้าสแกน QR Code ประจำโต๊ะเพื่อดูเมนู เลือกความเผ็ด ท็อปปิ้งไข่ดาว และติดตามสถานะอาหารได้สดๆ ไม่ต้องกวักมือเรียกพนักงาน
               </p>
             </div>
 
-            {/* Quick Metrics Pills */}
-            <div className="flex flex-wrap sm:flex-nowrap gap-3">
-              <div className="flex-1 sm:flex-none px-5 py-3.5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 min-w-[150px]">
-                <span className="text-[11px] font-semibold text-slate-400 block">ยอดขายวันนี้</span>
-                <span className="text-xl font-black text-white mt-0.5 block">
-                  {formatPrice(report?.totalSales || 0)}
-                </span>
-                <span className="text-[10px] text-emerald-400 font-bold">
-                  {report?.orderCount || 0} บิลสำเร็จ
-                </span>
+            <div className="p-7 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                <ChefHat className="w-6 h-6" />
               </div>
+              <h3 className="text-base font-extrabold text-white">จอห้องครัว Real-time (KDS)</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                ตั๋วออเดอร์ใหม่เด้งเข้าจอห้องครัวทันทีพร้อมเสียงกระดิ่งเตือน พ่อครัวกดเปลี่ยนสถานะ กำลังปรุง และ ปรุงเสร็จ ได้ด้วย 1-Click
+              </p>
+            </div>
 
-              <div className="flex-1 sm:flex-none px-5 py-3.5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 min-w-[150px]">
-                <span className="text-[11px] font-semibold text-slate-400 block">สถานะโต๊ะ (10 โต๊ะ)</span>
-                <div className="flex items-center space-x-2 mt-1">
-                  <span className="text-xl font-black text-white">{occupiedCount}/10</span>
-                  <span className="text-[11px] font-bold text-orange-400">กำลังทาน</span>
-                </div>
-                <span className="text-[10px] text-slate-400">
-                  ว่าง {10 - occupiedCount} โต๊ะ {pendingPaymentCount > 0 && `• รอคิดเงิน ${pendingPaymentCount}`}
-                </span>
+            <div className="p-7 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <CreditCard className="w-6 h-6" />
               </div>
+              <h3 className="text-base font-extrabold text-white">คิดเงินพร้อมเพย์ Dynamic QR</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                สร้าง QR Code พร้อมเพย์ตามยอดบิลของแต่ละโต๊ะอัตโนมัติ ลูกค้าสแกนจ่ายได้ทันที หรือคิดเงินสดพร้อมระบบคำนวณเงินทอน
+              </p>
+            </div>
+
+            <div className="p-7 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                <LayoutGrid className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-extrabold text-white">จัดการผังโต๊ะ ย้ายโต๊ะ รวมโต๊ะ</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                ผังโต๊ะแสดงสถานะว่าง/มีลูกค้าสดๆ เพิ่มโต๊ะได้ไม่จำกัด รองรับการย้ายโต๊ะและรวมโต๊ะได้อย่างรวดเร็ว
+              </p>
+            </div>
+
+            <div className="p-7 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-400 flex items-center justify-center">
+                <UtensilsCrossed className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-extrabold text-white">สวิตช์ 1-Click "ของหมด"</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                วัตถุดิบหมดเมื่อไหร่ กดสวิตช์ปิดเมนูได้ทันทีจากมือถือ ระบบจะปิดไม่ให้ลูกค้าสั่งเมนูนั้นแบบเรียลไทม์ทุกหน้าจอ
+              </p>
+            </div>
+
+            <div className="p-7 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
+                <BarChart3 className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-extrabold text-white">รายงานยอดขาย &amp; ปิดกะ</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                สรุปยอดขายเงินสด vs พร้อมเพย์ เมนูขายดี Top 5 และพิมพ์ใบสรุปปิดกะส่งเจ้าของร้านได้ทุกวัน
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* QUICK TABLE STATUS STRIP */}
-      <section className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center space-x-2.5 text-xs font-bold text-slate-700">
-            <Activity className="w-4 h-4 text-orange-500" />
-            <span>ผังสถานะโต๊ะด่วน:</span>
-          </div>
+      {/* Pricing Plans Showcase */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-12">
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
+            แพ็กเกจราคาค่าบริการ (Pricing Plans)
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400">
+            คุ้มค่า ไม่คิดเปอร์เซ็นต์ส่วนแบ่งยอดขาย จ่ายค่าบริการรายเดือน/รายปีคงที่
+          </p>
+        </div>
 
-          <div className="flex items-center space-x-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-            {safeTables.length === 0
-              ? Array.from({ length: 10 }, (_, i) => ({ id: i + 1, status: 'AVAILABLE' })).map((t) => (
-                  <Link
-                    key={t.id}
-                    href={`/table/${t.id}`}
-                    target="_blank"
-                    className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center hover:bg-orange-500 hover:text-white transition-all flex-shrink-0"
-                  >
-                    {t.id}
-                  </Link>
-                ))
-              : safeTables.map((t) => {
-                  const isAvail = t.status === 'AVAILABLE';
-                  const isPending = t.status === 'PAYMENT_PENDING';
-                  return (
-                    <Link
-                      key={t.id}
-                      href="/pos"
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 border transition-all flex-shrink-0 ${
-                        isAvail
-                          ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                          : isPending
-                          ? 'bg-amber-50 border-amber-400 text-amber-900 animate-pulse'
-                          : 'bg-orange-50 border-orange-300 text-orange-900'
-                      }`}
-                    >
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          isAvail ? 'bg-emerald-500' : isPending ? 'bg-amber-500' : 'bg-orange-500'
-                        }`}
-                      />
-                      <span>โต๊ะ {t.id}</span>
-                    </Link>
-                  );
-                })}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {plans.map((plan) => (
+            <div
+              key={plan.id}
+              className="p-7 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-6 hover:border-orange-500/50 transition-all shadow-xl"
+            >
+              <div className="space-y-4">
+                <span className="text-xs font-bold text-orange-400 uppercase tracking-wider block">
+                  {plan.name}
+                </span>
 
-          <Link
-            href="/table/1"
-            target="_blank"
-            className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center space-x-1 self-end md:self-auto"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>จำลองสแกนสั่งที่โต๊ะ</span>
-          </Link>
+                <div>
+                  <span className="text-3xl sm:text-4xl font-black text-white">฿{plan.price.toLocaleString()}</span>
+                  <span className="text-xs text-slate-400 ml-1">/ {plan.durationDays} วัน</span>
+                </div>
+
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {plan.description || 'ใช้งานครบทุกฟังก์ชัน'}
+                </p>
+
+                <div className="space-y-2 pt-4 border-t border-slate-800 text-xs text-slate-300">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>รองรับสูงสุด {plan.maxTables} โต๊ะ</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>สแกนสั่งที่โต๊ะ &amp; จอครัว Realtime</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>PromptPay Dynamic QR</span>
+                  </div>
+                </div>
+              </div>
+
+              <Link
+                href="/register"
+                className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-orange-500 text-white font-extrabold text-xs text-center transition-all shadow-md"
+              >
+                เริ่มเปิดร้านเลย
+              </Link>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* 6 BENTO CARDS GRID */}
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {/* Card 1: POS Cashier */}
-          <Link
-            href="/pos"
-            className="group relative rounded-3xl bg-white p-7 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-orange-300 transition-all duration-300 flex flex-col justify-between overflow-hidden"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20 group-hover:scale-110 transition-transform">
-                  <LayoutGrid className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-200/60">
-                  {occupiedCount}/10 กำลังทาน
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-orange-600 transition-colors">
-                  ผังโต๊ะ & แคชเชียร์ (POS)
-                </h3>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                  ดูผังโต๊ะ 1-10 สด, รับออเดอร์หน้าร้าน, ย้ายโต๊ะ/รวมโต๊ะ, เช็คบิลเงินสด (คำนวณเงินทอน) และสแกน PromptPay พร้อมพิมพ์ใบเสร็จ
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-orange-600">
-              <span>เปิดหน้าจอแคชเชียร์</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 2: Kitchen KDS */}
-          <Link
-            href="/kitchen"
-            className="group relative rounded-3xl bg-white p-7 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-amber-300 transition-all duration-300 flex flex-col justify-between overflow-hidden"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 group-hover:scale-110 transition-transform">
-                  <ChefHat className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60">
-                  🔔 เสียงกระดิ่งเตือน
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-orange-600 transition-colors">
-                  จอห้องครัว Real-time (KDS)
-                </h3>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                  ออเดอร์ใหม่เด้งเข้าครัวทันทีพร้อมเสียงกระดิ่งเตือน แยกรายละเอียดเนื้อสัตว์/ไข่ดาว/ระดับเผ็ดชัดเจน กดเปลี่ยนสถานะ 1-Click
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-amber-700">
-              <span>เปิดหน้าจอห้องครัว</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 3: Menu & Stock */}
-          <Link
-            href="/admin/menu"
-            className="group relative rounded-3xl bg-white p-7 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300 transition-all duration-300 flex flex-col justify-between overflow-hidden"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-110 transition-transform">
-                  <UtensilsCrossed className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                  1-Click ของหมด
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                  จัดการเมนู & ของหมด
-                </h3>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                  เพิ่ม/แก้ไขเมนูตามสั่ง ราคา ท็อปปิ้ง และกดสวิตช์ 1-Click ปิดรับออเดอร์เมนูที่วัตถุดิบหมดได้ทันทีจากมือถือ
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700">
-              <span>จัดการเมนูอาหาร</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 4: Reports & Daily Close */}
-          <Link
-            href="/admin/reports"
-            className="group relative rounded-3xl bg-white p-7 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex flex-col justify-between overflow-hidden"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-110 transition-transform">
-                  <BarChart3 className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60">
-                  {formatPrice(report?.totalSales || 0)}
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors">
-                  รายงานยอดขาย & ปิดกะ
-                </h3>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                  วิเคราะห์ยอดขายประจำวัน สัดส่วนเงินสด vs PromptPay โอนเงิน สถิติ 10 เมนูขายดี และพิมพ์ใบสรุปปิดกะ
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600">
-              <span>ดูสถิติและปิดกะ</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 5: Table QR Codes Print */}
-          <Link
-            href="/admin/qr-codes"
-            className="group relative rounded-3xl bg-white p-7 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-purple-300 transition-all duration-300 flex flex-col justify-between overflow-hidden"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 text-white flex items-center justify-center shadow-md shadow-purple-500/20 group-hover:scale-110 transition-transform">
-                  <QrCode className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200/60">
-                  พร้อมพิมพ์ A4
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-purple-600 transition-colors">
-                  พิมพ์ป้าย QR Code โต๊ะ
-                </h3>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                  พิมพ์ป้ายตั้งโต๊ะ QR Code สำหรับโต๊ะ 1 ถึง 10 ในขนาด A4 ตัดวางที่โต๊ะให้ลูกค้าสแกนสั่งอาหารผ่าน Wi-Fi ได้ทันที
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-purple-600">
-              <span>พิมพ์ป้าย QR Code</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 6: Settings */}
-          <Link
-            href="/admin/settings"
-            className="group relative rounded-3xl bg-white p-7 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-slate-400 transition-all duration-300 flex flex-col justify-between overflow-hidden"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-800 to-slate-950 text-white flex items-center justify-center shadow-md shadow-slate-900/20 group-hover:scale-110 transition-transform">
-                  <Settings className="w-6 h-6" />
-                </div>
-                <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                  PromptPay
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-slate-700 transition-colors">
-                  ตั้งค่าร้าน & พร้อมเพย์
-                </h3>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                  ตั้งค่าชื่อร้าน, เบอร์โทร, เบอร์ PromptPay รับเงินสแกนจ่าย และข้อความท้ายใบเสร็จ
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
-              <span>ตั้งค่าข้อมูลร้านค้า</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-            </div>
-          </Link>
-        </div>
-      </main>
+      {/* Footer */}
+      <footer className="mt-auto border-t border-slate-800 bg-slate-950 py-8 px-4 text-center text-xs text-slate-500">
+        <p>© 2026 ORDEO POS Platform — ระบบบริหารจัดการร้านอาหารตามสั่งแบบ Multi-Tenant สงวนลิขสิทธิ์</p>
+      </footer>
     </div>
   );
 }

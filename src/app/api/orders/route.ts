@@ -1,31 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { ensureDatabaseSeeded } from '@/lib/seed-data';
 
 export const dynamic = 'force-dynamic';
 
+async function getDefaultStore() {
+  await ensureDatabaseSeeded();
+  let store = await prisma.store.findFirst({ where: { slug: 'lung-pa' } });
+  if (!store) store = await prisma.store.findFirst();
+  return store;
+}
+
 export async function GET(req: NextRequest) {
   try {
+    const store = await getDefaultStore();
+    if (!store) return NextResponse.json([]);
+
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status'); // e.g. 'active', 'kitchen', 'completed'
-    const tableId = searchParams.get('tableId');
+    const tableIdParam = searchParams.get('tableId');
+    const statusParam = searchParams.get('status');
 
-    let whereClause: any = {};
+    const where: any = { storeId: store.id };
 
-    if (tableId) {
-      whereClause.tableId = parseInt(tableId, 10);
+    if (tableIdParam) {
+      const tNo = parseInt(tableIdParam);
+      where.OR = [
+        { tableId: tableIdParam },
+        { tableNo: isNaN(tNo) ? undefined : tNo },
+      ];
     }
 
-    if (status === 'kitchen') {
-      whereClause.status = { in: ['PENDING', 'COOKING', 'READY'] };
-    } else if (status === 'active') {
-      whereClause.status = { notIn: ['COMPLETED', 'CANCELLED'] };
-    } else if (status === 'completed') {
-      whereClause.status = 'COMPLETED';
+    if (statusParam === 'kitchen') {
+      where.status = {
+        in: ['PENDING', 'COOKING', 'READY'],
+      };
+    } else if (statusParam) {
+      where.status = statusParam;
     }
 
     const orders = await prisma.order.findMany({
-      where: whereClause,
+      where,
+      orderBy: { createdAt: 'asc' },
       include: {
         table: true,
         items: {
@@ -34,7 +50,6 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
     });
 
     return NextResponse.json(orders);
@@ -46,77 +61,75 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const store = await getDefaultStore();
+    if (!store) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+
     const body = await req.json();
-    const { tableId, items, orderType, customerLineId, customerName, note } = body;
+    const { tableId, items, orderType, note, customerName, customerLineId } = body;
 
-    const tId = parseInt(tableId, 10);
-    if (isNaN(tId)) {
-      return NextResponse.json({ error: 'Invalid Table ID' }, { status: 400 });
-    }
+    const tableNo = parseInt(tableId || 1);
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'No items in order' }, { status: 400 });
-    }
+    const table = await prisma.table.upsert({
+      where: {
+        storeId_tableNo: {
+          storeId: store.id,
+          tableNo,
+        },
+      },
+      update: {
+        status: 'OCCUPIED',
+      },
+      create: {
+        storeId: store.id,
+        tableNo,
+        name: `โต๊ะ ${tableNo}`,
+        status: 'OCCUPIED',
+      },
+    });
 
-    // Calculate total
     let totalAmount = 0;
-    const formattedItems = items.map((item: any) => {
-      const price = parseFloat(item.price) || 0;
-      const quantity = parseInt(item.quantity, 10) || 1;
-      totalAmount += price * quantity;
+    const orderItemsData = (items || []).map((item: any) => {
+      const itemTotal = (item.price || 0) * (item.quantity || 1);
+      totalAmount += itemTotal;
 
       return {
         menuItemId: item.menuItemId,
         name: item.name,
-        price: price,
-        quantity: quantity,
-        selectedOptions: typeof item.selectedOptions === 'object' ? JSON.stringify(item.selectedOptions) : item.selectedOptions,
-        specialNote: item.specialNote?.trim() || null,
+        price: item.price || 0,
+        quantity: item.quantity || 1,
+        selectedOptions: item.selectedOptions ? JSON.stringify(item.selectedOptions) : null,
+        specialNote: item.specialNote || null,
         status: 'PENDING',
       };
     });
 
-    // Create Order with Items
-    const order = await prisma.order.create({
+    const newOrder = await prisma.order.create({
       data: {
-        tableId: tId,
+        storeId: store.id,
+        tableId: table.id,
+        tableNo: table.tableNo,
         orderType: orderType || 'DINE_IN',
         totalAmount,
-        discountAmount: 0,
         netAmount: totalAmount,
-        paymentStatus: 'UNPAID',
-        customerLineId: customerLineId || null,
-        customerName: customerName || null,
-        note: note?.trim() || null,
-        status: 'PENDING',
+        note,
+        customerName,
+        customerLineId,
         items: {
-          create: formattedItems,
+          create: orderItemsData,
         },
       },
       include: {
         table: true,
-        items: {
-          include: {
-            menuItem: true,
-          },
-        },
+        items: true,
       },
     });
 
-    // Ensure table exists and update status to OCCUPIED
-    await prisma.table.upsert({
-      where: { id: tId },
-      update: { status: 'OCCUPIED' },
-      create: { id: tId, name: `โต๊ะ ${tId}`, status: 'OCCUPIED' },
-    });
+    broadcastEvent('ORDER_CREATED', newOrder, store.id);
+    broadcastEvent('TABLE_UPDATED', { tableNo: table.tableNo, status: 'OCCUPIED' }, store.id);
 
-    // Broadcast to Kitchen & POS
-    broadcastEvent('ORDER_CREATED', order);
-    broadcastEvent('TABLE_UPDATED', { action: 'ORDER_PLACED', tableId: tId });
-
-    return NextResponse.json(order);
-  } catch (error) {
+    return NextResponse.json(newOrder);
+  } catch (error: any) {
     console.error('Error creating order:', error);
-    return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to create order' }, { status: 500 });
   }
 }

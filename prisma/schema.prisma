@@ -7,36 +7,127 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model StoreSetting {
+// ----------------------------------------------------
+// 1. ระบบจัดการแพลตฟอร์ม & สมาชิก (Platform & SaaS Auth)
+// ----------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         String    @default("STORE_OWNER") // SUPER_ADMIN, STORE_OWNER, STORE_STAFF
+  storeId      String?
+  store        Store?    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Store {
+  id              String         @id @default(cuid())
+  slug            String         @unique // เช่น "lung-pa", "zaab-cafe"
+  name            String         // เช่น "ร้านอาหารตามสั่ง ลุง-ป้า"
+  description     String?
+  status          String         @default("TRIAL") // TRIAL, ACTIVE, PENDING_PAYMENT, SUSPENDED, EXPIRED
+  trialEndsAt     DateTime
+  subscriptionEnd DateTime
+  planId          String?
+  plan            Plan?          @relation(fields: [planId], references: [id])
+  
+  // การตั้งค่าร้านค้า & บัญชีรับเงินของร้านนั้นๆ
+  promptPayId     String         @default("")
+  promptPayName   String         @default("")
+  phone           String?
+  address         String?
+  receiptFooter   String?        @default("ขอบคุณที่อุดหนุนครับ/ค่ะ โอกาสหน้าเชิญใหม่")
+  tableCount      Int            @default(10)
+  
+  // ความสัมพันธ์ข้อมูลของร้าน
+  users           User[]
+  categories      Category[]
+  menuItems       MenuItem[]
+  tables          Table[]
+  orders          Order[]
+  subscriptions   SubscriptionHistory[]
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Plan {
+  id           String                @id @default(cuid())
+  name         String                // เช่น "Basic รายเดือน (1 เดือน)", "Pro (6 เดือน)", "Unlimited รายปี (1 ปี)"
+  price        Float                 @default(0) // ราคาแพ็กเกจ (บาท)
+  durationDays Int                   @default(30)
+  maxTables    Int                   @default(15)
+  description  String?
+  isActive     Boolean               @default(true)
+  sortOrder    Int                   @default(0)
+  stores       Store[]
+  subscriptions SubscriptionHistory[]
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+}
+
+model SubscriptionHistory {
+  id         String    @id @default(cuid())
+  storeId    String
+  store      Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  planId     String
+  plan       Plan      @relation(fields: [planId], references: [id])
+  amount     Float
+  slipUrl    String?   // สลิปหลักฐานโอนเงิน
+  note       String?
+  status     String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedAt DateTime?
+  approvedBy String?   // ชื่อหรือ ID ของ Super Admin
+  createdAt  DateTime  @default(now())
+}
+
+model PlatformSetting {
   id              String   @id @default("default")
-  storeName       String   @default("ร้านอาหารตามสั่ง ลุง-ป้า")
-  promptPayId     String   @default("0812345678") // เบอร์พร้อมเพย์ หรือเลขประจำตัวผู้เสียภาษี
-  promptPayName   String   @default("สมชาย ตามสั่ง")
-  address         String?  @default("123/45 ซอยสุขใจ ถ.เจริญกรุง แขวงบางรัก เขตบางรัก กทม.")
-  phone           String?  @default("081-234-5678")
-  receiptFooter   String?  @default("ขอบคุณที่อุดหนุนครับ/ค่ะ โอกาสหน้าเชิญใหม่")
-  tableCount      Int      @default(10)
+  platformName    String   @default("ORDEO SaaS POS")
+  bankName        String   @default("ธนาคารกสิกรไทย (KBANK)")
+  bankAccountNo   String   @default("123-4-56789-0")
+  bankAccountName String   @default("บจก. ออร์เดียโอ โซลูชั่นส์")
+  promptPayId     String   @default("0812345678")
+  contactLine     String   @default("@ordeopos")
+  contactPhone    String   @default("081-234-5678")
   updatedAt       DateTime @updatedAt
 }
 
+// ----------------------------------------------------
+// 2. ข้อมูลเฉพาะของแต่ละร้าน (Tenant Scoped Models)
+// ----------------------------------------------------
+
 model Table {
-  id               Int      @id // โต๊ะหมายเลข 1 ถึง 10
-  name             String   // "โต๊ะ 1", "โต๊ะ 2"
+  id               String   @id @default(cuid())
+  storeId          String
+  store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  tableNo          Int      // โต๊ะหมายเลข 1, 2, 3...
+  name             String   // "โต๊ะ 1", "VIP 1"
   status           String   @default("AVAILABLE") // AVAILABLE, OCCUPIED, PAYMENT_PENDING
   currentSessionId String?
   updatedAt        DateTime @updatedAt
   orders           Order[]
+
+  @@unique([storeId, tableNo])
 }
 
 model Category {
   id        String     @id @default(cuid())
-  name      String     // เช่น "ผัดกะเพรา / ผัดพริกแกง", "ข้าวผัด", "ต้มยำ & แกง", "เครื่องดื่ม"
+  storeId   String
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String     // เช่น "ผัดกะเพรา / ผัดพริกแกง", "ข้าวผัด", "เครื่องดื่ม"
   sortOrder Int        @default(0)
   items     MenuItem[]
 }
 
 model MenuItem {
   id          String            @id @default(cuid())
+  storeId     String
+  store       Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
   categoryId  String
   category    Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   name        String
@@ -69,8 +160,11 @@ model MenuOptionChoice {
 
 model Order {
   id             String      @id @default(cuid())
-  tableId        Int
-  table          Table       @relation(fields: [tableId], references: [id])
+  storeId        String
+  store          Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  tableId        String?
+  table          Table?      @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableNo        Int         @default(1)
   status         String      @default("PENDING") // PENDING, COOKING, READY, SERVED, COMPLETED, CANCELLED
   orderType      String      @default("DINE_IN") // DINE_IN, TAKEAWAY
   totalAmount    Float       @default(0)
@@ -99,7 +193,7 @@ model OrderItem {
   name            String
   price           Float
   quantity        Int      @default(1)
-  selectedOptions String?  // JSON text: e.g. [{"group":"เนื้อสัตว์","choice":"หมูกรอบ","extra":15},{"group":"เพิ่มไข่","choice":"ไข่ดาวไม่สุก","extra":10},{"group":"ความเผ็ด","choice":"เผ็ดมาก","extra":0}]
+  selectedOptions String?  // JSON text: e.g. [{"group":"เนื้อสัตว์","choice":"หมูกรอบ","extra":15}]
   specialNote     String?  // เช่น "ไม่ใส่ผัก ไม่ใส่ชูรส"
   status          String   @default("PENDING") // PENDING, COOKING, READY, SERVED
   createdAt       DateTime @default(now())

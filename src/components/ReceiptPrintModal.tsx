@@ -8,7 +8,7 @@ interface ReceiptPrintModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: any;
-  store: any;
+  store?: any;
 }
 
 export default function ReceiptPrintModal({ isOpen, onClose, order, store }: ReceiptPrintModalProps) {
@@ -18,7 +18,8 @@ export default function ReceiptPrintModal({ isOpen, onClose, order, store }: Rec
     window.print();
   };
 
-  const items = order.items || [];
+  const storeInfo = store || order;
+  const items = order.items || (order.orders ? order.orders.flatMap((o: any) => o.items || []) : []);
   const totalAmount = order.totalAmount || 0;
   const discountAmount = order.discountAmount || 0;
   const netAmount = order.netAmount || totalAmount - discountAmount;
@@ -49,142 +50,119 @@ export default function ReceiptPrintModal({ isOpen, onClose, order, store }: Rec
           >
             {/* Store Info */}
             <div className="text-center pb-3 border-b border-dashed border-slate-300">
-              <h2 className="font-bold text-sm tracking-wide">{store?.storeName || 'ร้านอาหารตามสั่ง'}</h2>
-              {store?.address && <p className="text-[11px] text-slate-600 mt-0.5">{store.address}</p>}
-              {store?.phone && <p className="text-[11px] text-slate-600">โทร: {store.phone}</p>}
+              <h2 className="font-bold text-sm tracking-wide">{storeInfo?.storeName || 'ร้านอาหารตามสั่ง'}</h2>
+              {storeInfo?.address && <p className="text-[11px] text-slate-600 mt-0.5">{storeInfo.address}</p>}
+              {storeInfo?.phone && <p className="text-[11px] text-slate-600">โทร: {storeInfo.phone}</p>}
             </div>
 
             {/* Bill Meta */}
             <div className="py-2.5 border-b border-dashed border-slate-300 text-[11px] space-y-1">
               <div className="flex justify-between">
                 <span>โต๊ะ:</span>
-                <span className="font-bold text-xs">{order.table?.name || `โต๊ะ ${order.tableId}`}</span>
+                <span className="font-bold">{order.tableName || `โต๊ะ ${order.tableId}`}</span>
               </div>
               <div className="flex justify-between">
-                <span>เลขที่บิล:</span>
-                <span>#{order.id.slice(-6).toUpperCase()}</span>
+                <span>วันที่:</span>
+                <span>{formatDateTime(order.paidAt || new Date())}</span>
               </div>
               <div className="flex justify-between">
-                <span>วันที่-เวลา:</span>
-                <span>{formatDateTime(order.paidAt || order.createdAt)}</span>
+                <span>วิธีชำระ:</span>
+                <span>{order.paymentMethod === 'PROMPTPAY' ? 'PromptPay QR' : 'เงินสด'}</span>
               </div>
-              {order.customerName && (
-                <div className="flex justify-between">
-                  <span>ลูกค้า:</span>
-                  <span>{order.customerName}</span>
-                </div>
-              )}
             </div>
 
-            {/* Items List */}
+            {/* Item List */}
             <div className="py-3 border-b border-dashed border-slate-300 space-y-2">
-              <div className="flex justify-between font-bold text-[11px] text-slate-700 pb-1 border-b border-slate-200">
-                <span>รายการ</span>
-                <span>จำนวน/ราคา</span>
-              </div>
               {items.map((item: any, idx: number) => {
-                let optionsList: any[] = [];
-                try {
-                  if (item.selectedOptions) {
-                    optionsList = typeof item.selectedOptions === 'string'
-                      ? JSON.parse(item.selectedOptions)
-                      : item.selectedOptions;
-                  }
-                } catch {}
+                let parsedOptions: any[] = [];
+                if (item.selectedOptions) {
+                  try {
+                    parsedOptions = typeof item.selectedOptions === 'string' ? JSON.parse(item.selectedOptions) : item.selectedOptions;
+                  } catch (e) {}
+                }
 
                 return (
                   <div key={idx} className="space-y-0.5">
-                    <div className="flex justify-between items-start font-medium">
-                      <span className="flex-1 pr-2">
-                        {item.name}
+                    <div className="flex justify-between">
+                      <span className="font-medium">
+                        {item.quantity}x {item.name}
                       </span>
-                      <span className="whitespace-nowrap">
-                        {item.quantity} x {item.price} = {formatPrice(item.price * item.quantity)}
-                      </span>
+                      <span>{formatPrice(item.price * item.quantity)}</span>
                     </div>
 
-                    {/* Selected Options */}
-                    {optionsList && optionsList.length > 0 && (
-                      <div className="text-[10px] text-slate-500 pl-2">
-                        {optionsList.map((opt: any, oIdx: number) => (
-                          <span key={oIdx} className="mr-2">
-                            • {opt.choice || opt.name} {opt.extraPrice > 0 ? `(+${opt.extraPrice})` : ''}
+                    {parsedOptions.length > 0 && (
+                      <div className="pl-4 text-[10px] text-slate-500">
+                        {parsedOptions.map((opt: any, oIdx: number) => (
+                          <span key={oIdx} className="mr-1">
+                            +{opt.choice || opt.name}
+                            {opt.extra > 0 && `(฿${opt.extra})`}
                           </span>
                         ))}
                       </div>
                     )}
                     {item.specialNote && (
-                      <div className="text-[10px] text-orange-600 pl-2 italic">
-                        *{item.specialNote}
-                      </div>
+                      <div className="pl-4 text-[10px] text-amber-600 italic">*{item.specialNote}</div>
                     )}
                   </div>
                 );
               })}
             </div>
 
-            {/* Totals Calculation */}
-            <div className="py-3 border-b border-dashed border-slate-300 space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-600">
-                <span>ยอดรวมสินค้า:</span>
+            {/* Pricing Summary */}
+            <div className="py-2.5 border-b border-dashed border-slate-300 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span>รวมเงิน:</span>
                 <span>{formatPrice(totalAmount)}</span>
               </div>
+
               {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-600">
+                <div className="flex justify-between text-rose-600">
                   <span>ส่วนลด:</span>
                   <span>-{formatPrice(discountAmount)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-sm text-slate-900 pt-1 border-t border-slate-200">
-                <span>ยอดสุทธิ (NET):</span>
-                <span className="text-orange-600">{formatPrice(netAmount)}</span>
+
+              <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-200">
+                <span>ยอดสุทธิ:</span>
+                <span>{formatPrice(netAmount)}</span>
               </div>
 
-              {/* Payment Details */}
-              <div className="pt-2 text-[11px] text-slate-600 space-y-1 border-t border-slate-100">
-                <div className="flex justify-between">
-                  <span>วิธีชำระเงิน:</span>
-                  <span className="font-semibold text-slate-800">
-                    {order.paymentMethod === 'PROMPTPAY' ? 'สแกน PromptPay' : 'เงินสด (Cash)'}
-                  </span>
-                </div>
-                {order.paymentMethod === 'CASH' && order.cashReceived && (
-                  <>
-                    <div className="flex justify-between">
-                      <span>รับเงินสด:</span>
-                      <span>{formatPrice(order.cashReceived)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-slate-800">
-                      <span>เงินทอน:</span>
-                      <span>{formatPrice(order.changeAmount || 0)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
+              {order.paymentMethod === 'CASH' && order.cashReceived && (
+                <>
+                  <div className="flex justify-between text-[11px] pt-1 text-slate-600">
+                    <span>รับเงินสด:</span>
+                    <span>{formatPrice(order.cashReceived)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] font-bold text-emerald-700">
+                    <span>เงินทอน:</span>
+                    <span>{formatPrice(order.changeAmount || 0)}</span>
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Footer Message */}
-            <div className="text-center pt-4 pb-2 text-[11px] text-slate-500 space-y-1">
-              <p>{store?.receiptFooter || 'ขอบคุณที่ใช้บริการครับ/ค่ะ'}</p>
-              <p className="text-[10px] text-slate-400">--- Powered by Small POS System ---</p>
+            {/* Footer */}
+            <div className="text-center pt-3 text-[11px] text-slate-500 space-y-1">
+              <p>{storeInfo?.receiptFooter || 'ขอบคุณที่มาอุดหนุนครับ 🙏'}</p>
+              <p className="text-[9px] text-slate-400">Powered by ORDEO POS</p>
             </div>
           </div>
         </div>
 
-        {/* Footer Actions (No Print) */}
-        <div className="p-4 border-t border-slate-100 bg-white flex items-center space-x-3 no-print">
+        {/* Action Buttons (No Print) */}
+        <div className="p-4 bg-slate-50 border-t border-slate-100 flex space-x-3 no-print">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 text-sm transition-colors"
+            className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors"
           >
-            ปิดหน้าต่าง
+            ปิด
           </button>
           <button
             onClick={handlePrint}
-            className="flex-1 py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all"
+            className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 shadow-md transition-colors flex items-center justify-center space-x-1.5"
           >
             <Printer className="w-4 h-4" />
-            <span>สั่งพิมพ์ใบเสร็จ</span>
+            <span>พิมพ์ใบเสร็จ</span>
           </button>
         </div>
       </div>

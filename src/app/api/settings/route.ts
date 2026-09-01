@@ -1,31 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { ensureDatabaseSeeded } from '@/lib/seed-data';
 
 export const dynamic = 'force-dynamic';
 
+async function getDefaultStore() {
+  await ensureDatabaseSeeded();
+  let store = await prisma.store.findFirst({ where: { slug: 'lung-pa' } });
+  if (!store) store = await prisma.store.findFirst();
+  return store;
+}
+
 export async function GET() {
   try {
-    let setting = await prisma.storeSetting.findUnique({
-      where: { id: 'default' },
+    const store = await getDefaultStore();
+    if (!store) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+
+    return NextResponse.json({
+      id: store.id,
+      storeName: store.name,
+      promptPayId: store.promptPayId,
+      promptPayName: store.promptPayName,
+      address: store.address,
+      phone: store.phone,
+      receiptFooter: store.receiptFooter,
+      tableCount: store.tableCount,
     });
-
-    if (!setting) {
-      setting = await prisma.storeSetting.create({
-        data: {
-          id: 'default',
-          storeName: 'กะเพราถาดยายสม & อาหารตามสั่ง',
-          promptPayId: '0891234567',
-          promptPayName: 'นายสมชาย พัฒนาสุข (ร้านตามสั่ง)',
-          address: '88/9 หมู่ 3 ถนนสุขุมวิท ต.เสม็ด อ.เมือง จ.ชลบุรี 20000',
-          phone: '089-123-4567',
-          receiptFooter: 'ขอบคุณที่มาอุดหนุนครับ 🙏 โอกาสหน้าเชิญใหม่ครับ',
-          tableCount: 10,
-        },
-      });
-    }
-
-    return NextResponse.json(setting);
   } catch (error) {
     console.error('Error fetching settings:', error);
     return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
@@ -34,50 +35,38 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
+    const store = await getDefaultStore();
+    if (!store) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+
     const body = await req.json();
     const { storeName, promptPayId, promptPayName, address, phone, receiptFooter, tableCount } = body;
 
-    const setting = await prisma.storeSetting.upsert({
-      where: { id: 'default' },
-      update: {
-        storeName: storeName || 'ร้านอาหารตามสั่ง',
-        promptPayId: promptPayId || '',
-        promptPayName: promptPayName || '',
-        address: address || '',
-        phone: phone || '',
-        receiptFooter: receiptFooter || '',
-        tableCount: Number(tableCount) || 10,
-      },
-      create: {
-        id: 'default',
-        storeName: storeName || 'ร้านอาหารตามสั่ง',
-        promptPayId: promptPayId || '',
-        promptPayName: promptPayName || '',
-        address: address || '',
-        phone: phone || '',
-        receiptFooter: receiptFooter || '',
-        tableCount: Number(tableCount) || 10,
+    const updated = await prisma.store.update({
+      where: { id: store.id },
+      data: {
+        name: storeName || store.name,
+        promptPayId: promptPayId !== undefined ? promptPayId : store.promptPayId,
+        promptPayName: promptPayName !== undefined ? promptPayName : store.promptPayName,
+        address: address !== undefined ? address : store.address,
+        phone: phone !== undefined ? phone : store.phone,
+        receiptFooter: receiptFooter !== undefined ? receiptFooter : store.receiptFooter,
+        tableCount: Number(tableCount) || store.tableCount,
       },
     });
 
-    // If table count changed, ensure tables exist
-    const count = Number(tableCount) || 10;
-    for (let i = 1; i <= count; i++) {
-      await prisma.table.upsert({
-        where: { id: i },
-        update: {},
-        create: {
-          id: i,
-          name: `โต๊ะ ${i}`,
-          status: 'AVAILABLE',
-        },
-      });
-    }
+    broadcastEvent('MENU_UPDATED', { type: 'SETTINGS_UPDATED' }, store.id);
+    broadcastEvent('TABLE_UPDATED', { type: 'SETTINGS_UPDATED' }, store.id);
 
-    broadcastEvent('MENU_UPDATED', { type: 'SETTINGS_UPDATED' });
-    broadcastEvent('TABLE_UPDATED', { type: 'SETTINGS_UPDATED', tableCount: count });
-
-    return NextResponse.json(setting);
+    return NextResponse.json({
+      id: updated.id,
+      storeName: updated.name,
+      promptPayId: updated.promptPayId,
+      promptPayName: updated.promptPayName,
+      address: updated.address,
+      phone: updated.phone,
+      receiptFooter: updated.receiptFooter,
+      tableCount: updated.tableCount,
+    });
   } catch (error) {
     console.error('Error updating settings:', error);
     return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 });

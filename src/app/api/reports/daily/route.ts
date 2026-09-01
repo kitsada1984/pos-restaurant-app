@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
+import { ensureDatabaseSeeded } from '@/lib/seed-data';
 
 export const dynamic = 'force-dynamic';
 
+async function getDefaultStore() {
+  await ensureDatabaseSeeded();
+  let store = await prisma.store.findFirst({ where: { slug: 'lung-pa' } });
+  if (!store) store = await prisma.store.findFirst();
+  return store;
+}
+
 export async function GET(req: NextRequest) {
   try {
+    const store = await getDefaultStore();
+    if (!store) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+
     const { searchParams } = new URL(req.url);
-    const dateParam = searchParams.get('date'); // optional YYYY-MM-DD
+    const dateParam = searchParams.get('date');
 
     let startOfDay = new Date();
     if (dateParam) {
@@ -17,9 +28,9 @@ export async function GET(req: NextRequest) {
     let endOfDay = new Date(startOfDay);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Get all completed orders for today
     const completedOrders = await prisma.order.findMany({
       where: {
+        storeId: store.id,
         status: 'COMPLETED',
         paymentStatus: 'PAID',
         paidAt: {
@@ -40,7 +51,6 @@ export async function GET(req: NextRequest) {
     const orderCount = completedOrders.length;
     const avgPerBill = orderCount > 0 ? totalSales / orderCount : 0;
 
-    // Payment breakdown
     const cashSales = completedOrders
       .filter((o) => o.paymentMethod === 'CASH')
       .reduce((sum, o) => sum + o.netAmount, 0);
@@ -48,7 +58,6 @@ export async function GET(req: NextRequest) {
       .filter((o) => o.paymentMethod === 'PROMPTPAY')
       .reduce((sum, o) => sum + o.netAmount, 0);
 
-    // Top selling items
     const itemMap = new Map<string, { name: string; quantity: number; revenue: number }>();
 
     for (const order of completedOrders) {
@@ -76,6 +85,7 @@ export async function GET(req: NextRequest) {
       cashCount: completedOrders.filter((o) => o.paymentMethod === 'CASH').length,
       promptPayCount: completedOrders.filter((o) => o.paymentMethod === 'PROMPTPAY').length,
       topSellingItems,
+      orders: completedOrders,
       recentBills: completedOrders.slice(0, 20),
     });
   } catch (error) {

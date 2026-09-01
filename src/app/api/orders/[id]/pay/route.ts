@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
 
 export const dynamic = 'force-dynamic';
@@ -8,11 +8,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     const body = await req.json();
     const {
-      paymentMethod, // 'CASH' | 'PROMPTPAY'
+      paymentMethod,
       cashReceived,
       discountAmount,
       slipUrl,
-      payAllTableOrders, // boolean: pay all active orders for this table at once
+      payAllTableOrders,
     } = body;
 
     const orderId = params.id;
@@ -28,8 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const tableId = currentOrder.tableId;
     const now = new Date();
 
-    if (payAllTableOrders) {
-      // Find all active orders for this table
+    if (payAllTableOrders && tableId) {
       const activeOrders = await prisma.order.findMany({
         where: {
           tableId,
@@ -83,19 +82,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       });
     }
 
-    // Check if table has any remaining active orders
-    const remainingOrders = await prisma.order.count({
-      where: {
-        tableId,
-        status: { notIn: ['COMPLETED', 'CANCELLED'] },
-      },
-    });
-
-    if (remainingOrders === 0) {
-      await prisma.table.update({
-        where: { id: tableId },
-        data: { status: 'AVAILABLE', currentSessionId: null },
+    let remainingOrders = 0;
+    if (tableId) {
+      remainingOrders = await prisma.order.count({
+        where: {
+          tableId,
+          status: { notIn: ['COMPLETED', 'CANCELLED'] },
+        },
       });
+
+      if (remainingOrders === 0) {
+        await prisma.table.update({
+          where: { id: tableId },
+          data: { status: 'AVAILABLE', currentSessionId: null },
+        });
+      }
     }
 
     broadcastEvent('PAYMENT_RECEIVED', {
@@ -103,8 +104,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       tableId,
       paymentMethod,
       timestamp: now.getTime(),
-    });
-    broadcastEvent('TABLE_UPDATED', { tableId, action: 'PAYMENT_COMPLETE' });
+    }, currentOrder.storeId);
+    broadcastEvent('TABLE_UPDATED', { tableId, action: 'PAYMENT_COMPLETE' }, currentOrder.storeId);
 
     return NextResponse.json({
       success: true,
