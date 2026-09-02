@@ -811,8 +811,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
       {/* Checkout / Pay Modal */}
       {isPayModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 sm:space-y-5 shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-black text-lg text-slate-900">เช็คบิล {selectedTable?.name}</h3>
