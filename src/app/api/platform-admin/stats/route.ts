@@ -23,13 +23,13 @@ export async function GET() {
       prisma.subscriptionHistory.count({ where: { status: 'PENDING' } }),
       prisma.user.count(),
       prisma.order.count(),
-      prisma.subscriptionHistory.findMany({
+      prisma.subscriptionHistory.aggregate({
         where: { status: 'APPROVED' },
-        select: { amount: true },
+        _sum: { amount: true },
       }),
     ]);
 
-    const totalRevenue = subscriptions.reduce((sum, s) => sum + s.amount, 0);
+    const totalRevenue = subscriptions._sum.amount || 0;
 
     return NextResponse.json({
       totalStores,
