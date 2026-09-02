@@ -68,7 +68,7 @@ export default function HomePage() {
               href="/register"
               className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25 transition-all flex items-center space-x-1.5"
             >
-              <span>เปิดร้านฟรี 90 วัน</span>
+              <span>สมัครทดลองใช้ฟรี</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -104,7 +104,7 @@ export default function HomePage() {
               href="/register"
               className="px-7 py-4 rounded-2xl text-sm font-black text-white bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 hover:scale-105 shadow-xl shadow-orange-500/30 transition-all flex items-center space-x-2"
             >
-              <span>🚀 สมัครเปิดร้านใหม่ ทดลองใช้ฟรี 90 วัน</span>
+              <span>🚀 สมัครเปิดร้านใหม่ ทดลองใช้ฟรี</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 

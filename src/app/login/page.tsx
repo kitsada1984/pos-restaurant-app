@@ -74,7 +74,7 @@ export default function LoginPage() {
         <p className="mt-2 text-center text-xs sm:text-sm text-slate-400">
           ยังไม่มีร้านค้า?{' '}
           <Link href="/register" className="font-bold text-orange-400 hover:text-orange-300 underline underline-offset-4">
-            สมัครเปิดร้านใหม่ ทดลองใช้ฟรี 90 วัน
+            สมัครเปิดร้านใหม่ ทดลองใช้ฟรี
           </Link>
         </p>
       </div>
