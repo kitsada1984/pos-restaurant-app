@@ -276,24 +276,6 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
         </div>
       </div>
 
-      {/* Feedback Banner */}
-      {feedback && (
-        <div
-          className={`p-4 rounded-2xl flex items-center space-x-2 text-xs font-bold transition-all shadow-sm ${
-            feedback.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border border-rose-200'
-          }`}
-        >
-          {feedback.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-          )}
-          <span>{feedback.message}</span>
-        </div>
-      )}
-
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row items-center gap-2.5 sm:gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm w-full">
         <div className="relative flex-1 w-full">
