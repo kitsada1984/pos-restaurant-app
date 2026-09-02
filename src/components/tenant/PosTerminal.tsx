@@ -481,8 +481,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         </div>
       </div>
 
-      {/* Tables Grid with Full-Width Equal Proportions */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4 auto-rows-fr w-full">
+      {/* Tables Grid - Full Width matching Header on Mobile */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 auto-rows-fr w-full">
         {filteredTables.map((table) => {
           const isOccupied = table.status === 'OCCUPIED' || table.activeOrdersCount > 0;
           const isSelected = selectedTable?.id === table.id || selectedTable?.tableNo === table.tableNo;
@@ -491,7 +491,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             <div
               key={table.tableNo || table.id}
               onClick={() => setSelectedTable(table)}
-              className={`relative p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border cursor-pointer transition-all duration-200 flex flex-col justify-between min-h-[140px] sm:min-h-[160px] group w-full ${
+              className={`relative p-4 sm:p-5 rounded-2xl sm:rounded-3xl border cursor-pointer transition-all duration-200 flex flex-col justify-between group w-full min-h-[90px] sm:min-h-[150px] ${
                 isSelected
                   ? 'ring-4 ring-orange-500/30 border-orange-500 shadow-xl bg-white scale-[1.01]'
                   : isOccupied
@@ -499,37 +499,36 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   : 'bg-white border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300'
               }`}
             >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-base sm:text-lg font-black text-slate-900 truncate">{table.name}</span>
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      isOccupied ? 'bg-orange-500 animate-pulse' : 'bg-emerald-400'
-                    }`}
-                  />
+              {/* Card Content (Responsive for 1 col on mobile & grid on desktop) */}
+              <div className="flex items-center justify-between gap-3 w-full">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center font-black text-base sm:text-lg flex-shrink-0 ${
+                    isOccupied ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'bg-slate-100 text-slate-800'
+                  }`}>
+                    {table.tableNo || table.id}
+                  </div>
+                  <div className="truncate">
+                    <span className="text-base sm:text-lg font-black text-slate-900 block truncate">{table.name}</span>
+                    <div className="flex items-center space-x-1.5 mt-0.5">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isOccupied ? 'bg-orange-500 animate-pulse' : 'bg-emerald-400'}`} />
+                      <span className={`text-[11px] sm:text-xs font-bold truncate ${isOccupied ? 'text-orange-700' : 'text-emerald-600'}`}>
+                        {isOccupied ? `${table.totalItems || 0} รายการ` : 'โต๊ะว่าง'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                {isOccupied ? (
-                  <div className="mt-2 sm:mt-3 space-y-0.5 sm:space-y-1">
-                    <div className="text-[11px] sm:text-xs font-bold text-orange-700 flex items-center space-x-1">
-                      <ShoppingBag className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>{table.totalItems || 0} รายการ</span>
-                    </div>
-                    <div className="text-sm sm:text-base font-black text-slate-900">
+                <div className="text-right flex flex-col items-end flex-shrink-0">
+                  {isOccupied ? (
+                    <div className="text-base sm:text-lg font-black text-slate-900">
                       ฿{(table.totalAmount || 0).toLocaleString()}
                     </div>
-                  </div>
-                ) : (
-                  <div className="mt-3 sm:mt-4 text-[11px] sm:text-xs font-bold text-emerald-600 flex items-center space-x-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>โต๊ะว่าง</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-slate-400">
-                <span>{isOccupied ? 'มีออเดอร์' : 'พร้อมรับ'}</span>
-                <span className="text-orange-500 group-hover:underline font-extrabold">เปิดดู →</span>
+                  ) : null}
+                  <span className="text-[11px] sm:text-xs font-bold text-orange-600 group-hover:underline flex items-center gap-1 mt-0.5">
+                    <span>{isOccupied ? 'เปิดดู / คิดเงิน' : 'สั่งอาหาร'}</span>
+                    <span>→</span>
+                  </span>
+                </div>
               </div>
             </div>
           );
