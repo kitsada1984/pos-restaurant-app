@@ -479,8 +479,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         </div>
       </div>
 
-      {/* Tables Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      {/* Tables Grid with Equal Width & Auto Height */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4 auto-rows-fr">
         {filteredTables.map((table) => {
           const isOccupied = table.status === 'OCCUPIED' || table.activeOrdersCount > 0;
           const isSelected = selectedTable?.id === table.id || selectedTable?.tableNo === table.tableNo;

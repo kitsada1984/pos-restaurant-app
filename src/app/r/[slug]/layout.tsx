@@ -101,8 +101,8 @@ export default function TenantStoreLayout({
               </div>
             </Link>
 
-            {/* Desktop Navigation (XL screens) */}
-            <nav className="hidden xl:flex items-center p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/60 text-xs font-bold whitespace-nowrap flex-shrink-0">
+            {/* Desktop Navigation (XL screens - Equal Width Grid) */}
+            <nav className="hidden xl:grid grid-cols-9 gap-1 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/60 text-xs font-bold whitespace-nowrap flex-1 max-w-[860px]">
               {allNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href || (item.href !== `/r/${slug}` && pathname.startsWith(item.href));
@@ -111,21 +111,21 @@ export default function TenantStoreLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl whitespace-nowrap transition-all duration-200 ${
+                    className={`flex items-center justify-center space-x-1 px-2.5 py-2 rounded-xl text-center transition-all duration-200 ${
                       isActive
                         ? 'bg-white text-slate-900 shadow-sm shadow-slate-200/50 font-extrabold'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-400'}`} />
-                    <span className="whitespace-nowrap">{item.label}</span>
+                    <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-400'}`} />
+                    <span className="truncate text-[11.5px]">{item.label}</span>
                   </Link>
                 );
               })}
             </nav>
 
             {/* Actions & Links */}
-            <div className="flex items-center space-x-1.5 sm:space-x-2.5 flex-shrink-0 whitespace-nowrap">
+            <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0 whitespace-nowrap">
               {/* Sound toggle */}
               <button
                 onClick={() => {
@@ -146,7 +146,7 @@ export default function TenantStoreLayout({
               <Link
                 href={`/r/${slug}/table/1`}
                 target="_blank"
-                className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-extrabold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all whitespace-nowrap flex-shrink-0"
+                className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-extrabold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all whitespace-nowrap flex-shrink-0"
               >
                 <span className="whitespace-nowrap">ทดลองสั่ง (โต๊ะ 1)</span>
                 <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-400 flex-shrink-0" />
@@ -166,12 +166,12 @@ export default function TenantStoreLayout({
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col w-full">
         {children}
       </div>
 
-      {/* Mobile Bottom Navigation Bar (Visible only on < XL screens) */}
-      <div className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-2xl py-1.5 px-2 flex items-center justify-around no-print">
+      {/* Mobile Bottom Navigation Bar (5 equal columns) */}
+      <div className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-2xl py-1 px-2 grid grid-cols-5 gap-1 no-print">
         {primaryMobileNav.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || (item.href !== `/r/${slug}` && pathname.startsWith(item.href));
@@ -180,24 +180,24 @@ export default function TenantStoreLayout({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+              className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all w-full ${
                 isActive
-                  ? 'text-orange-600 font-black scale-105'
+                  ? 'text-orange-600 font-black'
                   : 'text-slate-500 hover:text-slate-900 font-semibold'
               }`}
             >
               <div className={`p-1.5 rounded-xl ${isActive ? 'bg-orange-100' : ''}`}>
                 <Icon className={`w-5 h-5 ${isActive ? 'text-orange-600' : 'text-slate-500'}`} />
               </div>
-              <span className="text-[10px] tracking-tight mt-0.5">{item.label}</span>
+              <span className="text-[10px] tracking-tight mt-0.5 truncate w-full text-center">{item.label}</span>
             </Link>
           );
         })}
 
-        {/* More Menu Button */}
+        {/* More Menu Button (Column 5) */}
         <button
           onClick={() => setIsMoreMenuOpen(true)}
-          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+          className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all w-full ${
             isMoreMenuOpen ? 'text-orange-600 font-black' : 'text-slate-500 font-semibold'
           }`}
         >
