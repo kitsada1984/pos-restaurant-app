@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSuperAdmin } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     let setting = await prisma.platformSetting.findUnique({
@@ -62,4 +64,8 @@ export async function PUT(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+export async function POST(request: Request) {
+  return PUT(request);
 }
