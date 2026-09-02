@@ -37,72 +37,74 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-orange-500 selection:text-white">
       {/* SaaS Navigation */}
-      <header className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-500 flex items-center justify-center text-white shadow-xl shadow-orange-500/20 group-hover:scale-105 transition-transform">
-              <Store className="w-6 h-6" />
+      <header className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/80 w-full">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2">
+          {/* Brand Logo & Name */}
+          <Link href="/" className="flex items-center space-x-2.5 sm:space-x-3 group flex-shrink-0 min-w-0">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-105 transition-transform flex-shrink-0">
+              <Store className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center space-x-2">
-                <span className="text-xl font-black text-white tracking-tight">ORDEO POS</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/20 text-orange-400 border border-orange-500/30 uppercase tracking-wider">
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center space-x-1.5">
+                <span className="text-base sm:text-xl font-black text-white tracking-tight whitespace-nowrap">ORDEO POS</span>
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/20 text-orange-400 border border-orange-500/30 uppercase tracking-wider whitespace-nowrap">
                   SaaS Multi-Tenant
                 </span>
               </div>
-              <span className="text-[11px] text-slate-400 font-medium">
+              <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap hidden md:block">
                 ระบบจัดการร้านอาหารตามสั่ง &amp; สแกนสั่งที่โต๊ะ
               </span>
             </div>
           </Link>
 
-          <div className="flex items-center space-x-3">
+          {/* Action Buttons (Equal Height & Single Line) */}
+          <div className="flex items-center space-x-1.5 sm:space-x-3 flex-shrink-0">
             <Link
               href="/login"
-              className="px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white hover:bg-slate-900 border border-slate-800 transition-all"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-200 hover:text-white hover:bg-slate-900 border border-slate-700/80 bg-slate-900/60 transition-all whitespace-nowrap flex items-center justify-center h-9 sm:h-10"
             >
               เข้าสู่ระบบ
             </Link>
 
             <Link
               href="/register"
-              className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25 transition-all flex items-center space-x-1.5"
+              className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-md shadow-orange-500/20 transition-all flex items-center justify-center space-x-1 whitespace-nowrap h-9 sm:h-10"
             >
-              <span>สมัครทดลองใช้ฟรี</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>ทดลองใช้ฟรี</span>
+              <ArrowRight className="w-3.5 h-3.5 hidden sm:inline" />
             </Link>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden pt-10 sm:pt-16 pb-16 sm:pb-20 px-3.5 sm:px-6 lg:px-8">
         {/* Glow Circles */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-orange-500/15 rounded-full blur-[140px] pointer-events-none" />
-        <div className="absolute top-10 right-10 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-orange-500/15 rounded-full blur-[100px] sm:blur-[140px] pointer-events-none" />
+        <div className="absolute top-10 right-10 w-[200px] sm:w-[400px] h-[200px] sm:h-[400px] bg-indigo-500/10 rounded-full blur-[80px] sm:blur-[120px] pointer-events-none" />
 
-        <div className="max-w-5xl mx-auto text-center space-y-6 relative z-10">
-          <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300 text-xs font-extrabold">
-            <Sparkles className="w-4 h-4 text-orange-400" />
-            <span>ระบบ POS ร้านอาหารตามสั่งที่ดีที่สุด • รองรับหลายร้านในแพลตฟอร์มเดียว</span>
+        <div className="max-w-5xl mx-auto text-center space-y-4 sm:space-y-6 relative z-10">
+          <div className="inline-flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300 text-[11px] sm:text-xs font-extrabold max-w-full text-center leading-normal">
+            <Sparkles className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+            <span className="truncate sm:whitespace-normal">ระบบ POS ร้านอาหารตามสั่งที่ดีที่สุด • รองรับหลายร้าน</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight sm:leading-tight">
             ยกระดับร้านอาหารตามสั่ง <br />
             <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-orange-500 bg-clip-text text-transparent">
               สแกนสั่งที่โต๊ะ • จอครัว Realtime • คิดเงินพร้อมเพย์
             </span>
           </h1>
 
-          <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-400 leading-relaxed">
+          <p className="max-w-2xl mx-auto text-xs sm:text-base text-slate-400 leading-relaxed">
             เปิดร้านของคุณเองได้ใน 1 นาที! มีระบบผังโต๊ะสด, จอห้องครัวมีเสียงเตือน, ตรวจของหมดแบบ 1-Click และรายงานยอดขายปิดกะครบวงจร
           </p>
 
           {/* Action CTAs */}
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-3.5">
+          <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3.5 w-full max-w-md sm:max-w-none mx-auto">
             <Link
               href="/register"
-              className="px-7 py-4 rounded-2xl text-sm font-black text-white bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 hover:scale-105 shadow-xl shadow-orange-500/30 transition-all flex items-center space-x-2"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 hover:scale-[1.02] shadow-xl shadow-orange-500/30 transition-all flex items-center justify-center space-x-2"
             >
               <span>🚀 สมัครเปิดร้านใหม่ ทดลองใช้ฟรี</span>
               <ArrowRight className="w-4 h-4" />
@@ -111,7 +113,7 @@ export default function HomePage() {
             <Link
               href="/r/lung-pa/pos"
               target="_blank"
-              className="px-6 py-4 rounded-2xl text-sm font-extrabold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all flex items-center space-x-2"
+              className="w-full sm:w-auto px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-extrabold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all flex items-center justify-center space-x-2"
             >
               <span>🖥️ ทดลองใช้งานหน้าร้านตัวอย่าง (Demo POS)</span>
             </Link>
@@ -119,7 +121,7 @@ export default function HomePage() {
             <Link
               href="/r/lung-pa/table/1"
               target="_blank"
-              className="px-6 py-4 rounded-2xl text-sm font-extrabold text-orange-400 bg-slate-900 hover:bg-slate-800 border border-orange-500/20 transition-all flex items-center space-x-2"
+              className="w-full sm:w-auto px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-extrabold text-orange-400 bg-slate-900 hover:bg-slate-800 border border-orange-500/20 transition-all flex items-center justify-center space-x-2"
             >
               <span>📱 จำลองลูกค้าสแกนสั่ง (โต๊ะ 1)</span>
             </Link>
