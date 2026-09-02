@@ -78,19 +78,18 @@ async function main() {
   }
 
   // 3. Super Admin User
-  const adminPasswordHash = await bcrypt.hash('adminpassword123', 10);
+  const adminPasswordHash = await bcrypt.hash('11072526#Kit', 10);
   await prisma.user.upsert({
-    where: { email: 'admin@ordeopos.com' },
+    where: { email: 'kitsada1984@gmail.com' },
     update: {
       passwordHash: adminPasswordHash,
       role: 'SUPER_ADMIN',
-      name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
+      name: 'ผู้ดูแลระบบสูงสุด (Kitsada Admin)',
     },
     create: {
-      email: 'admin@ordeopos.com',
+      email: 'kitsada1984@gmail.com',
       passwordHash: adminPasswordHash,
-      name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
-      phone: '081-234-5678',
+      name: 'ผู้ดูแลระบบสูงสุด (Kitsada Admin)',
       role: 'SUPER_ADMIN',
     },
   });
@@ -665,7 +664,7 @@ async function main() {
   });
 
   console.log('✅ Multi-Tenant SaaS Seed Completed:');
-  console.log(' - Super Admin: admin@ordeopos.com / adminpassword123');
+  console.log(' - Super Admin: kitsada1984@gmail.com / [CONFIGURED]');
   console.log(' - Demo Store Owner: owner@lungpa.com / password123 (Slug: lung-pa)');
   console.log(' - 4 Subscription Plans created');
   console.log(' - Enterprise Recipe BOM & Inventory seeded');
