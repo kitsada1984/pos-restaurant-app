@@ -147,6 +147,18 @@ export default function CustomerOrderingView({
     return tableData?.orders || [];
   }, [tableData]);
 
+  // Device-to-Table Session Binding (Anti-Tampering)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storageKey = `pos_active_table_${slug}`;
+      if (activeOrders.length === 0) {
+        localStorage.removeItem(storageKey);
+      } else {
+        localStorage.setItem(storageKey, tableId.toString());
+      }
+    }
+  }, [slug, tableId, activeOrders.length]);
+
   const totalAmountToPay = useMemo(() => {
     return activeOrders.reduce((sum: number, o: any) => sum + (o.netAmount || 0), 0);
   }, [activeOrders]);
