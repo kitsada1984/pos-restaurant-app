@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2 } from 'lucide-react';
+import { useToast } from '@/context/ToastContext';
 
 export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string }) {
+  const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -50,11 +52,14 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
 
       if (res.ok) {
         setSavedSuccess(true);
+        showSuccess('บันทึกการตั้งค่าสำเร็จ ✨', 'ข้อมูลร้านค้าและพร้อมเพย์ได้รับการอัปเดตแล้ว');
         setTimeout(() => setSavedSuccess(false), 3000);
+      } else {
+        showError('บันทึกไม่สำเร็จ', 'กรุณาลองใหม่อีกครั้ง');
       }
     } catch (err) {
       console.error(err);
-      alert('บันทึกไม่สำเร็จ');
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกการตั้งค่าได้');
     } finally {
       setSaving(false);
     }

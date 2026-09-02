@@ -22,8 +22,10 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { useToast } from '@/context/ToastContext';
 
 export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string }) {
+  const { showSuccess, showError, showInfo, showWarning } = useToast();
   const [tables, setTables] = useState<any[]>([]);
   const [store, setStore] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -43,11 +45,13 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
   const [selectedQrTable, setSelectedQrTable] = useState<any>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
-    setFeedback({ type, message });
-    setTimeout(() => setFeedback(null), 4000);
+    if (type === 'success') {
+      showSuccess('สำเร็จ ✨', message);
+    } else {
+      showError('ไม่สำเร็จ', message);
+    }
   };
 
   const fetchData = async () => {

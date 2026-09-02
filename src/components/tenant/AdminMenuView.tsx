@@ -14,8 +14,10 @@ import {
   Search,
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { useToast } from '@/context/ToastContext';
 
 export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
+  const { showSuccess, showError, showWarning } = useToast();
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -70,14 +72,22 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
   // Quick 1-Click Toggle "ของหมด"
   const handleToggleStock = async (itemId: string, currentAvailable: boolean) => {
     try {
-      await fetch(`/api/r/${slug}/menu/toggle-availability`, {
+      const res = await fetch(`/api/r/${slug}/menu/toggle-availability`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: itemId, isAvailable: !currentAvailable }),
       });
-      fetchMenu();
+      if (res.ok) {
+        if (currentAvailable) {
+          showWarning('เปลี่ยนสถานะเป็น "ของหมด"', 'เมนูนี้จะไม่สามารถสั่งได้ชั่วคราว');
+        } else {
+          showSuccess('เปิดขายเมนูแล้ว', 'พร้อมรับออเดอร์ตามปกติ');
+        }
+        fetchMenu();
+      }
     } catch (err) {
       console.error(err);
+      showError('ไม่สามารถเปลี่ยนสถานะได้', 'กรุณาลองใหม่อีกครั้ง');
     }
   };
 
@@ -97,15 +107,19 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
         }),
       });
       if (res.ok) {
+        showSuccess('เพิ่มเมนูใหม่สำเร็จ 🎉', `เพิ่ม "${itemName}" ในระบบเรียบร้อย`);
         setIsAddModalOpen(false);
         setItemName('');
         setItemDesc('');
         setItemPrice('');
         setItemImage('');
         fetchMenu();
+      } else {
+        showError('ไม่สามารถเพิ่มเมนูได้', 'กรุณาตรวจสอบข้อมูล');
       }
     } catch (err) {
       console.error(err);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถเพิ่มเมนูได้');
     }
   };
 
@@ -139,12 +153,16 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
       });
 
       if (res.ok) {
+        showSuccess('บันทึกการแก้ไขสำเร็จ ✨', `อัปเดตข้อมูล "${editName}" เรียบร้อย`);
         setIsEditModalOpen(false);
         setEditingItem(null);
         fetchMenu();
+      } else {
+        showError('บันทึกไม่สำเร็จ', 'กรุณาตรวจสอบข้อมูล');
       }
     } catch (err) {
       console.error(err);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกการแก้ไขได้');
     }
   };
 
@@ -165,12 +183,16 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
       });
 
       if (res.ok) {
+        showSuccess('ลบเมนูเรียบร้อย 🗑️', `ลบ "${deletingItem.name}" ออกจากระบบแล้ว`);
         setIsDeleteModalOpen(false);
         setDeletingItem(null);
         fetchMenu();
+      } else {
+        showError('ไม่สามารถลบเมนูได้', 'กรุณาลองใหม่อีกครั้ง');
       }
     } catch (err) {
       console.error(err);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถลบเมนูได้');
     } finally {
       setIsDeleting(false);
     }

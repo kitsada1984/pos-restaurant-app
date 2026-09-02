@@ -31,8 +31,10 @@ import {
 import { formatPrice, formatDateTime, formatTime } from '@/lib/utils';
 import { playOrderChime, playSuccessChime } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
+import { useToast } from '@/context/ToastContext';
 
 export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
+  const { showSuccess, showError, showInfo } = useToast();
   const [tables, setTables] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [store, setStore] = useState<any>(null);
@@ -245,13 +247,17 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         }),
       });
       if (res.ok) {
+        showSuccess('ส่งรายการอาหารเข้าครัวแล้ว 🍳', `${selectedTable.name} • ${cashierCart.length} รายการ`);
         setCashierCart([]);
         setIsCashierOrderOpen(false);
         playOrderChime();
         fetchData();
+      } else {
+        showError('ไม่สามารถส่งออเดอร์ได้', 'กรุณาลองใหม่อีกครั้ง');
       }
     } catch (err) {
       console.error(err);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถส่งออเดอร์ได้');
     }
   };
 
@@ -269,12 +275,16 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         }),
       });
       if (res.ok) {
+        showSuccess('ย้ายโต๊ะสำเร็จ 🪑', `ย้ายจาก ${selectedTable.name} ไป โต๊ะ ${targetTableId} เรียบร้อย`);
         setIsMoveModalOpen(false);
         setTargetTableId('');
         fetchData();
+      } else {
+        showError('ไม่สามารถย้ายโต๊ะได้', 'โต๊ะปลายทางอาจไม่ว่าง');
       }
     } catch (err) {
       console.error(err);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถย้ายโต๊ะได้');
     }
   };
 
@@ -288,6 +298,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         const data = await res.json();
         if (data.member) {
           setMemberData(data.member);
+          showInfo(`พบข้อมูลสมาชิก ⭐`, `คุณ ${data.member.name || phone} (แต้มคงเหลือ: ${data.member.points} แต้ม)`);
         } else {
           setMemberData(null);
         }
@@ -308,11 +319,12 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       const data = await res.json();
       if (data.valid) {
         setAppliedPromo(data.promo);
+        showSuccess('ใช้คูปองส่วนลดแล้ว 🎉', `รับส่วนลด ฿${data.promo.calculatedDiscount}`);
       } else {
-        alert(data.error || 'โค้ดส่วนลดไม่ถูกต้อง');
+        showError('โค้ดส่วนลดไม่ถูกต้อง', data.error || 'กรุณาตรวจสอบเงื่อนไข');
       }
     } catch (e) {
-      alert('เกิดข้อผิดพลาดในการตรวจสอบโค้ด');
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบโค้ดได้');
     }
   };
 
@@ -351,6 +363,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       }
 
       playSuccessChime();
+      showSuccess('ชำระเงินสำเร็จ 💰', `${selectedTable.name} • ยอดรับเงิน ฿${finalNetAmount}`);
 
       setReceiptOrder({
         storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',

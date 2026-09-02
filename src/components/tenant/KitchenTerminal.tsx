@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { playOrderChime, playSuccessChime } from '@/lib/sound';
+import { useToast } from '@/context/ToastContext';
 
 export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string }) {
+  const { showSuccess, showInfo, showWarning, showError } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('ACTIVE'); // 'ACTIVE' | 'PENDING' | 'COOKING' | 'READY'
@@ -52,6 +54,7 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
             const payload = JSON.parse(event.data);
             if (payload.type === 'ORDER_CREATED') {
               if (soundEnabled) playOrderChime();
+              showInfo('มีออเดอร์ใหม่เข้าครัว 🛎️', `โต๊ะ ${payload.order?.tableNo || 'สั่งใหม่'}`);
               fetchOrders();
             } else if (payload.type === 'ORDER_UPDATED' || payload.type === 'TABLE_UPDATED') {
               fetchOrders();
@@ -82,29 +85,50 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
 
   const updateItemStatus = async (orderId: string, itemId: string, newStatus: string) => {
     try {
-      await fetch(`/api/r/${slug}/orders/${orderId}`, {
+      const res = await fetch(`/api/r/${slug}/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId, itemStatus: newStatus }),
       });
-      if (newStatus === 'READY') playSuccessChime();
-      fetchOrders();
+      if (res.ok) {
+        if (newStatus === 'READY') {
+          playSuccessChime();
+          showSuccess('ปรุงเสร็จแล้ว 🔔', 'พร้อมนำไปเสิร์ฟที่โต๊ะ');
+        } else if (newStatus === 'SERVED') {
+          showSuccess('เสิร์ฟเรียบร้อย ✨');
+        } else if (newStatus === 'COOKING') {
+          showInfo('เริ่มทำรายการ 👨‍🍳');
+        }
+        fetchOrders();
+      }
     } catch (err) {
       console.error('Error updating item status:', err);
+      showError('ไม่สามารถอัปเดตสถานะได้');
     }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      await fetch(`/api/r/${slug}/orders/${orderId}`, {
+      const res = await fetch(`/api/r/${slug}/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (newStatus === 'READY' || newStatus === 'SERVED') playSuccessChime();
-      fetchOrders();
+      if (res.ok) {
+        if (newStatus === 'READY') {
+          playSuccessChime();
+          showSuccess('ออเดอร์พร้อมเสิร์ฟครบทุกจาน 🔔');
+        } else if (newStatus === 'SERVED') {
+          playSuccessChime();
+          showSuccess('เสิร์ฟออเดอร์ครบถ้วน ✨');
+        } else if (newStatus === 'CANCELLED') {
+          showWarning('ยกเลิกออเดอร์เรียบร้อย');
+        }
+        fetchOrders();
+      }
     } catch (err) {
       console.error('Error updating order status:', err);
+      showError('ไม่สามารถอัปเดตสถานะได้');
     }
   };
 

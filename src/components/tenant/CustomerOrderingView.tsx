@@ -29,6 +29,7 @@ import {
 import { formatPrice, formatTime } from '@/lib/utils';
 import { playSuccessChime, playOrderChime } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
+import { useToast } from '@/context/ToastContext';
 
 const QUICK_NOTES = [
   'ไม่ใส่ผงชูรส',
@@ -47,6 +48,7 @@ export default function CustomerOrderingView({
   slug?: string;
   tableId?: number;
 }) {
+  const { showSuccess, showError, showInfo } = useToast();
   const [loading, setLoading] = useState(true);
   const [store, setStore] = useState<any>(null);
   const [categories, setCategories] = useState<any[]>([]);
@@ -279,11 +281,14 @@ export default function CustomerOrderingView({
     };
 
     setCart([...cart, cartItem]);
+    showSuccess('เพิ่มลงตะกร้าแล้ว 🛒', `${dishQuantity}x ${selectedMenuItem.name}`);
     setSelectedMenuItem(null);
   };
 
   const handleRemoveCartItem = (idx: number) => {
+    const item = cart[idx];
     setCart(cart.filter((_, i) => i !== idx));
+    if (item) showInfo('นำออกจากตะกร้าแล้ว', item.name);
   };
 
   const handleSendOrderToKitchen = async () => {
@@ -302,6 +307,7 @@ export default function CustomerOrderingView({
       });
 
       if (res.ok) {
+        showSuccess('ส่งรายการอาหารเข้าครัวแล้ว! 🍳', `โต๊ะ ${tableId} • ส่งรายการเรียบร้อย`);
         setCart([]);
         setIsCartOpen(false);
         setActiveTab('status');
@@ -312,9 +318,12 @@ export default function CustomerOrderingView({
           origin: { y: 0.6 },
         });
         fetchData();
+      } else {
+        showError('ไม่สามารถส่งรายการได้', 'กรุณาลองใหม่อีกครั้ง');
       }
     } catch (err) {
       console.error(err);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถส่งรายการอาหารได้');
     } finally {
       setIsSubmittingOrder(false);
     }

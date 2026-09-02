@@ -18,8 +18,10 @@ import {
   DollarSign,
   Sparkles,
 } from 'lucide-react';
+import { useToast } from '@/context/ToastContext';
 
 export default function AdminLoyaltyView({ slug }: { slug: string }) {
+  const { showSuccess, showError, showWarning } = useToast();
   const [activeTab, setActiveTab] = useState<'members' | 'promotions'>('members');
   const [members, setMembers] = useState<any[]>([]);
   const [promotions, setPromotions] = useState<any[]>([]);
@@ -78,15 +80,19 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
         }),
       });
       if (res.ok) {
+        showSuccess('สร้างคูปองส่วนลดสำเร็จ 🎉', `โค้ด "${promoCode}" พร้อมใช้งานแล้ว`);
         setIsPromoModalOpen(false);
         setPromoCode('');
         setPromoTitle('');
         setPromoDiscountValue('');
         setPromoMinSpend('0');
         fetchData();
+      } else {
+        showError('ไม่สามารถสร้างคูปองได้', 'โค้ดส่วนลดนี้อาจมีอยู่แล้ว');
       }
     } catch (e) {
       console.error(e);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างคูปองได้');
     } finally {
       setSaving(false);
     }
@@ -98,9 +104,15 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
       const res = await fetch(`/api/r/${slug}/promotions?id=${id}`, {
         method: 'DELETE',
       });
-      if (res.ok) fetchData();
+      if (res.ok) {
+        showSuccess('ลบคูปองส่วนลดเรียบร้อย 🗑️');
+        fetchData();
+      } else {
+        showError('ไม่สามารถลบคูปองได้');
+      }
     } catch (e) {
       console.error(e);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถลบคูปองได้');
     }
   };
 

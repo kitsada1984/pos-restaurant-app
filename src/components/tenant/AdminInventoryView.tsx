@@ -19,8 +19,10 @@ import {
   Loader2,
   X,
 } from 'lucide-react';
+import { useToast } from '@/context/ToastContext';
 
 export default function AdminInventoryView({ slug }: { slug: string }) {
+  const { showSuccess, showError, showWarning } = useToast();
   const [activeTab, setActiveTab] = useState<'stock' | 'recipes' | 'logs'>('stock');
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [menuItems, setMenuItems] = useState<any[]>([]);
@@ -110,13 +112,17 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
         }),
       });
       if (res.ok) {
+        showSuccess('รับเข้าวัตถุดิบสำเร็จ 📦', `เพิ่ม "${selectedIng.name}" จำนวน +${stockInQty} ${selectedIng.unit}`);
         setIsStockInModalOpen(false);
         setStockInQty('');
         setStockInNote('');
         fetchData();
+      } else {
+        showError('ไม่สามารถบันทึกรับเข้าได้', 'กรุณาลองใหม่อีกครั้ง');
       }
     } catch (e) {
       console.error(e);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกรับเข้าได้');
     } finally {
       setSaving(false);
     }
@@ -139,14 +145,18 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
         }),
       });
       if (res.ok) {
+        showSuccess('เพิ่มวัตถุดิบใหม่สำเร็จ ✨', `เพิ่ม "${newIngName}" เข้าสู่คลังเรียบร้อย`);
         setIsNewIngModalOpen(false);
         setNewIngName('');
         setNewIngCost('');
         setNewIngStock('');
         fetchData();
+      } else {
+        showError('ไม่สามารถเพิ่มวัตถุดิบได้', 'กรุณาลองใหม่อีกครั้ง');
       }
     } catch (e) {
       console.error(e);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถเพิ่มวัตถุดิบได้');
     } finally {
       setSaving(false);
     }
@@ -165,11 +175,14 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
         }),
       });
       if (res.ok) {
-        alert('บันทึกสูตรอาหารเรียบร้อยแล้ว!');
+        showSuccess('บันทึกสูตรอาหารสำเร็จ 🥗', `สูตรสำหรับ "${selectedMenuItem.name}" (${recipeIngredients.length} วัตถุดิบ)`);
         fetchData();
+      } else {
+        showError('บันทึกสูตรไม่สำเร็จ', 'กรุณาลองใหม่อีกครั้ง');
       }
     } catch (e) {
       console.error(e);
+      showError('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกสูตรอาหารได้');
     } finally {
       setSaving(false);
     }

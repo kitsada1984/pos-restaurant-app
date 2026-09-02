@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { ToastProvider } from '@/context/ToastContext';
 
 export const metadata: Metadata = {
   title: 'ORDEO POS — ระบบจัดการร้านอาหารตามสั่ง & สแกนสั่งอาหาร',
@@ -22,7 +23,9 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased font-sans text-slate-900 bg-[#F8FAFC] selection:bg-orange-500 selection:text-white">
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
