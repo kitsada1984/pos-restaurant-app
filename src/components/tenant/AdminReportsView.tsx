@@ -50,31 +50,31 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
   }, [slug, selectedDate]);
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm no-print">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm no-print w-full">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <div className="flex items-center space-x-2">
+            <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">
               รายงานยอดขาย &amp; ปิดกะประจำวัน
             </h1>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
             ร้าน: <span className="font-bold text-slate-800">{store?.storeName || store?.name || slug}</span> • สรุปยอดขายประจำวัน สัดส่วนเงินสด vs พร้อมเพย์ และประวัติบิล
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-slate-50"
+            className="p-2 sm:p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-slate-50 w-full sm:w-auto"
           />
 
           <button
             onClick={() => window.print()}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center space-x-1.5 shadow-sm transition-all"
+            className="w-full sm:w-auto px-4 py-2 sm:py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all"
           >
             <Printer className="w-4 h-4" />
             <span>พิมพ์รายงานปิดกะ</span>
@@ -82,48 +82,56 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
         </div>
       </div>
 
-      {/* Enterprise KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-2">
-          <span className="text-xs font-bold text-slate-400">ยอดขายรวมสุทธิ</span>
-          <div className="text-2xl font-black text-slate-900">
-            ฿{(report?.totalSales || 0).toLocaleString()}
+      {/* Enterprise KPI Cards (Equal Height Grid) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 auto-rows-fr w-full">
+        <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-1.5 sm:space-y-2 flex flex-col justify-between h-full">
+          <div>
+            <span className="text-xs font-bold text-slate-400">ยอดขายรวมสุทธิ</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+              ฿{(report?.totalSales || 0).toLocaleString()}
+            </div>
           </div>
-          <span className="text-xs text-emerald-600 font-bold block">
+          <span className="text-[11px] sm:text-xs text-emerald-600 font-bold block pt-1.5 border-t border-slate-100">
             {report?.totalBills || 0} บิลสำเร็จ
           </span>
         </div>
 
-        <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-2">
-          <span className="text-xs font-bold text-amber-500">ต้นทุนวัตถุดิบรวม (COGS)</span>
-          <div className="text-2xl font-black text-amber-600">
-            ฿{(report?.totalCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-1.5 sm:space-y-2 flex flex-col justify-between h-full">
+          <div>
+            <span className="text-xs font-bold text-amber-500">ต้นทุนวัตถุดิบ (COGS)</span>
+            <div className="text-xl sm:text-2xl font-black text-amber-600 mt-1">
+              ฿{(report?.totalCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
           </div>
-          <span className="text-xs text-slate-400 font-bold block">
-            คำนวณตามสูตรตัดสต็อกจริง
+          <span className="text-[11px] sm:text-xs text-slate-400 font-bold block pt-1.5 border-t border-slate-100">
+            คำนวณตามสูตรตัดสต็อก
           </span>
         </div>
 
-        <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-2">
-          <span className="text-xs font-bold text-emerald-600">กำไรขั้นต้นสุทธิ (Gross Profit)</span>
-          <div className="text-2xl font-black text-emerald-600">
-            ฿{(report?.grossProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-1.5 sm:space-y-2 flex flex-col justify-between h-full">
+          <div>
+            <span className="text-xs font-bold text-emerald-600">กำไรขั้นต้น (GP)</span>
+            <div className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">
+              ฿{(report?.grossProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
           </div>
-          <span className="text-xs text-emerald-600 font-extrabold block">
+          <span className="text-[11px] sm:text-xs text-emerald-600 font-bold block pt-1.5 border-t border-slate-100">
             อัตรากำไร {report?.profitMargin || 0}%
           </span>
         </div>
 
-        <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-2">
-          <span className="text-xs font-bold text-slate-400">สัดส่วนช่องทางชำระ</span>
-          <div className="text-xs space-y-1 mt-1 font-extrabold">
-            <div className="flex justify-between text-orange-600">
-              <span>พร้อมเพย์:</span>
-              <span>฿{(report?.promptPaySales || 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-emerald-600">
-              <span>เงินสด:</span>
-              <span>฿{(report?.cashSales || 0).toLocaleString()}</span>
+        <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-1.5 sm:space-y-2 flex flex-col justify-between h-full">
+          <div>
+            <span className="text-xs font-bold text-slate-400">สัดส่วนช่องทางชำระ</span>
+            <div className="text-xs space-y-1 mt-1 font-extrabold">
+              <div className="flex justify-between text-orange-600">
+                <span>พร้อมเพย์:</span>
+                <span>฿{(report?.promptPaySales || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-emerald-600">
+                <span>เงินสด:</span>
+                <span>฿{(report?.cashSales || 0).toLocaleString()}</span>
+              </div>
             </div>
           </div>
         </div>

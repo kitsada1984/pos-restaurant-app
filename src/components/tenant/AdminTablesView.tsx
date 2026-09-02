@@ -232,30 +232,30 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
   }, [tables, searchTerm, statusFilter]);
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header & Quick Action Buttons */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <div className="flex items-center space-x-2">
+            <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">
               จัดการผังโต๊ะอาหาร (Table Management)
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-orange-100 text-orange-700">
+            <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-black bg-orange-100 text-orange-700">
               {tables.length} โต๊ะทั้งหมด
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
             ร้าน: <span className="font-bold text-slate-800">{store?.storeName || store?.name || slug}</span> • เพิ่มโต๊ะเดี่ยว, เพิ่มหลายโต๊ะด่วน, แก้ไขชื่อโต๊ะ และพิมพ์ QR Code ประจำโต๊ะ
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full md:w-auto">
           <button
             onClick={() => setIsBatchModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs flex items-center space-x-1.5 transition-all"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-[11px] sm:text-xs flex items-center justify-center space-x-1.5 transition-all"
           >
-            <Layers className="w-4 h-4 text-orange-500" />
-            <span>+ เพิ่มหลายโต๊ะด่วน</span>
+            <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
+            <span>+ เพิ่มหลายโต๊ะ</span>
           </button>
 
           <button
@@ -264,9 +264,9 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
               setAddForm({ id: String(highest + 1), name: `โต๊ะ ${highest + 1}` });
               setIsAddModalOpen(true);
             }}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 flex items-center space-x-1.5 transition-all"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-[11px] sm:text-xs shadow-md shadow-orange-500/25 flex items-center justify-center space-x-1.5 transition-all"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>+ เพิ่มโต๊ะใหม่</span>
           </button>
         </div>

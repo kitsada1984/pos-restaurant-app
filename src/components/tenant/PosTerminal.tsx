@@ -425,44 +425,46 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   };
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Top Header & Table Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <div className="flex items-center space-x-2">
+            <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">
               ผังโต๊ะ &amp; แคชเชียร์ (POS)
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-orange-100 text-orange-700">
+            <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-black bg-orange-100 text-orange-700">
               {tables.length} โต๊ะ
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
             ร้าน: <span className="font-bold text-slate-800">{store?.storeName || store?.name || slug}</span> • กำลังทาน{' '}
             <span className="text-orange-600 font-bold">{totalOccupied} โต๊ะ</span> • ว่าง{' '}
             <span className="text-emerald-600 font-bold">{totalAvailable} โต๊ะ</span>
           </p>
         </div>
 
-        {/* Filter Pills & Add Table Button */}
-        <div className="flex flex-wrap items-center gap-2">
-          {[
-            { id: 'ALL', label: 'ทั้งหมด' },
-            { id: 'OCCUPIED', label: `กำลังทาน (${totalOccupied})`, activeClass: 'bg-orange-500 text-white' },
-            { id: 'AVAILABLE', label: `ว่าง (${totalAvailable})`, activeClass: 'bg-emerald-500 text-white' },
-          ].map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setStatusFilter(f.id as any)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                statusFilter === f.id
-                  ? f.activeClass || 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* Filter Pills & Add Table Button - Full Width on Mobile */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+          <div className="grid grid-cols-3 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full">
+            {[
+              { id: 'ALL', label: 'ทั้งหมด' },
+              { id: 'OCCUPIED', label: `กำลังทาน (${totalOccupied})`, activeClass: 'bg-orange-500 text-white shadow-sm' },
+              { id: 'AVAILABLE', label: `ว่าง (${totalAvailable})`, activeClass: 'bg-emerald-500 text-white shadow-sm' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setStatusFilter(f.id as any)}
+                className={`py-2 px-2 sm:px-4 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
+                  statusFilter === f.id
+                    ? f.activeClass || 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
 
           <button
             onClick={() => {
@@ -471,7 +473,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               setNewTableName(`โต๊ะ ${highestNo + 1}`);
               setIsAddTableModalOpen(true);
             }}
-            className="px-4 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 flex items-center space-x-1.5 transition-all"
+            className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 flex items-center justify-center space-x-1.5 transition-all"
           >
             <Plus className="w-4 h-4" />
             <span>+ เพิ่มโต๊ะ</span>
@@ -479,8 +481,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         </div>
       </div>
 
-      {/* Tables Grid with Equal Width & Auto Height */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4 auto-rows-fr">
+      {/* Tables Grid with Full-Width Equal Proportions */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4 auto-rows-fr w-full">
         {filteredTables.map((table) => {
           const isOccupied = table.status === 'OCCUPIED' || table.activeOrdersCount > 0;
           const isSelected = selectedTable?.id === table.id || selectedTable?.tableNo === table.tableNo;
@@ -489,9 +491,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             <div
               key={table.tableNo || table.id}
               onClick={() => setSelectedTable(table)}
-              className={`relative p-5 rounded-3xl border cursor-pointer transition-all duration-200 flex flex-col justify-between min-h-[160px] group ${
+              className={`relative p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border cursor-pointer transition-all duration-200 flex flex-col justify-between min-h-[140px] sm:min-h-[160px] group w-full ${
                 isSelected
-                  ? 'ring-4 ring-orange-500/30 border-orange-500 shadow-xl bg-white scale-[1.02]'
+                  ? 'ring-4 ring-orange-500/30 border-orange-500 shadow-xl bg-white scale-[1.01]'
                   : isOccupied
                   ? 'bg-gradient-to-br from-white to-orange-50/40 border-orange-200/90 shadow-sm hover:shadow-md hover:border-orange-400'
                   : 'bg-white border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300'
@@ -499,35 +501,35 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-black text-slate-900">{table.name}</span>
+                  <span className="text-base sm:text-lg font-black text-slate-900 truncate">{table.name}</span>
                   <span
-                    className={`w-2.5 h-2.5 rounded-full ${
+                    className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                       isOccupied ? 'bg-orange-500 animate-pulse' : 'bg-emerald-400'
                     }`}
                   />
                 </div>
 
                 {isOccupied ? (
-                  <div className="mt-3 space-y-1">
-                    <div className="text-xs font-bold text-orange-700 flex items-center space-x-1">
-                      <ShoppingBag className="w-3.5 h-3.5" />
+                  <div className="mt-2 sm:mt-3 space-y-0.5 sm:space-y-1">
+                    <div className="text-[11px] sm:text-xs font-bold text-orange-700 flex items-center space-x-1">
+                      <ShoppingBag className="w-3.5 h-3.5 flex-shrink-0" />
                       <span>{table.totalItems || 0} รายการ</span>
                     </div>
-                    <div className="text-base font-black text-slate-900">
+                    <div className="text-sm sm:text-base font-black text-slate-900">
                       ฿{(table.totalAmount || 0).toLocaleString()}
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-4 text-xs font-bold text-emerald-600 flex items-center space-x-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  <div className="mt-3 sm:mt-4 text-[11px] sm:text-xs font-bold text-emerald-600 flex items-center space-x-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
                     <span>โต๊ะว่าง</span>
                   </div>
                 )}
               </div>
 
-              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-400">
-                <span>{isOccupied ? 'มีออเดอร์' : 'พร้อมรับลูกค้า'}</span>
-                <span className="text-orange-500 group-hover:underline">เปิดดู →</span>
+              <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-slate-400">
+                <span>{isOccupied ? 'มีออเดอร์' : 'พร้อมรับ'}</span>
+                <span className="text-orange-500 group-hover:underline font-extrabold">เปิดดู →</span>
               </div>
             </div>
           );

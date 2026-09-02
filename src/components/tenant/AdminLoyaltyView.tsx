@@ -111,15 +111,15 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
   );
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 flex items-center gap-3">
-            <Gift className="w-8 h-8 text-orange-500" />
-            ระบบสมาชิกสะสมแต้ม CRM & คูปองส่วนลด
+          <h1 className="text-lg sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
+            <Gift className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500 flex-shrink-0" />
+            ระบบสมาชิกสะสมแต้ม CRM &amp; คูปอง
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
             สะสมแต้มลูกค้าประจำด้วยเบอร์โทรศัพท์ และสร้างคูปองส่วนลดเพื่อกระตุ้นยอดขาย
           </p>
         </div>
@@ -127,7 +127,7 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
         {activeTab === 'promotions' && (
           <button
             onClick={() => setIsPromoModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 transition-all"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 transition-all"
           >
             <Plus className="w-4 h-4" />
             + สร้างคูปองส่วนลดใหม่
@@ -136,36 +136,36 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
       </div>
 
       {/* KPI Cards (Equal Height Grid) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 auto-rows-fr">
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4 auto-rows-fr w-full">
+        <div className="p-3.5 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-400">สมาชิกทั้งหมด</span>
-            <div className="text-2xl font-black text-slate-900 mt-1">{members.length} คน</div>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{members.length} คน</div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-black">
-            <Users className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-black">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
 
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+        <div className="p-3.5 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-400">อัตราสะสมแต้มปัจจุบัน</span>
-            <div className="text-2xl font-black text-slate-900 mt-1">฿{pointsRate} = 1 แต้ม</div>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">฿{pointsRate} = 1 แต้ม</div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
-            <Sparkles className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
 
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+        <div className="p-3.5 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-400">คูปองโปรโมชั่นที่เปิดใช้งาน</span>
-            <div className="text-2xl font-black text-emerald-600 mt-1">
+            <div className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">
               {promotions.filter((p) => p.isActive).length} โค้ด
             </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
-            <Tag className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
+            <Tag className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
       </div>

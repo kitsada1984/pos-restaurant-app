@@ -37,38 +37,38 @@ export default function AdminQrCodesView({ slug = 'lung-pa' }: { slug?: string }
   const tableList = safeTables.length > 0 ? safeTables : Array.from({ length: 10 }, (_, i) => ({ id: i + 1, tableNo: i + 1, name: `โต๊ะ ${i + 1}` }));
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header Bar */}
-      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20">
-            <QrCode className="w-5 h-5" />
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 no-print w-full">
+        <div className="flex items-center space-x-2.5 sm:space-x-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20 flex-shrink-0">
+            <QrCode className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <h1 className="font-extrabold text-lg sm:text-xl text-slate-900">
+            <h1 className="font-extrabold text-base sm:text-xl text-slate-900">
               พิมพ์ป้าย QR Code ตั้งโต๊ะ A4
             </h1>
-            <p className="text-xs text-slate-500">
+            <p className="text-[11px] sm:text-xs text-slate-500">
               ร้าน: <span className="font-bold text-slate-800">{store?.storeName || store?.name || slug}</span> • ป้ายตั้งโต๊ะสำหรับให้ลูกค้าสแกนสั่งอาหารและเรียกเช็คบิล
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center space-x-2 text-xs">
-            <span className="font-bold text-slate-600">Base Domain/IP:</span>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+          <div className="flex items-center space-x-2 text-xs w-full sm:w-auto">
+            <span className="font-bold text-slate-600 whitespace-nowrap text-[11px]">Domain:</span>
             <input
               type="text"
               value={customHost}
               onChange={(e) => setCustomHost(e.target.value)}
               placeholder="https://..."
-              className="p-2 border border-slate-300 rounded-xl text-xs font-semibold w-48 sm:w-64"
+              className="p-2 border border-slate-300 rounded-xl text-xs font-semibold flex-1 sm:w-64"
             />
           </div>
 
           <button
             onClick={handlePrint}
-            className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold flex items-center space-x-2 shadow-md shadow-orange-500/25 transition-all"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold flex items-center justify-center space-x-2 shadow-md shadow-orange-500/25 transition-all"
           >
             <Printer className="w-4 h-4" />
             <span>สั่งพิมพ์ทุกโต๊ะ (Print A4)</span>

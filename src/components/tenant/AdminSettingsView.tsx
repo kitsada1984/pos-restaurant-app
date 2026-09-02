@@ -69,16 +69,16 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
   }
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20">
-            <Settings className="w-5 h-5" />
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-200/80 shadow-sm w-full">
+        <div className="flex items-center space-x-2.5 sm:space-x-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20 flex-shrink-0">
+            <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <h1 className="font-extrabold text-xl text-slate-900">ตั้งค่าร้านค้า &amp; พร้อมเพย์</h1>
-            <p className="text-xs text-slate-500">
+            <h1 className="font-extrabold text-base sm:text-xl text-slate-900">ตั้งค่าร้านค้า &amp; พร้อมเพย์</h1>
+            <p className="text-[11px] sm:text-xs text-slate-500">
               ร้าน: <span className="font-bold text-slate-800">{form.storeName || slug}</span> • ตั้งค่าข้อมูลร้าน บัญชี PromptPay รับเงิน และข้อความท้ายใบเสร็จ
             </p>
           </div>
@@ -86,10 +86,10 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
       </div>
 
       {/* Settings Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-slate-200/80 shadow-sm space-y-5 sm:space-y-6 w-full">
         {savedSuccess && (
-          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center space-x-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
             <span>บันทึกข้อมูลร้านค้าเรียบร้อยแล้ว</span>
           </div>
         )}

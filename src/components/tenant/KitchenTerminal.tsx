@@ -122,37 +122,37 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   const readyCount = orders.filter((o) => o.status === 'READY').length;
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header & Filter Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
         <div>
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
-              <ChefHat className="w-5 h-5" />
+          <div className="flex items-center space-x-2.5">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+              <ChefHat className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                 จอห้องครัว Real-time (KDS)
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
                 ร้าน: <span className="font-bold text-slate-800">{slug}</span> • รับตั๋วออเดอร์สดพร้อมเสียงกระดิ่งเตือน
               </p>
             </div>
           </div>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center space-x-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+        {/* Filter Pills - Full Width Grid on Mobile */}
+        <div className="grid grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full md:w-auto">
           {[
             { id: 'ACTIVE', label: `ทั้งหมด (${pendingCount + cookingCount + readyCount})`, count: pendingCount + cookingCount + readyCount },
-            { id: 'PENDING', label: `รอดำเนินการ (${pendingCount})`, color: 'bg-rose-500 text-white' },
+            { id: 'PENDING', label: `รอทำ (${pendingCount})`, color: 'bg-rose-500 text-white' },
             { id: 'COOKING', label: `กำลังปรุง (${cookingCount})`, color: 'bg-amber-500 text-white' },
-            { id: 'READY', label: `พร้อมเสิร์ฟ (${readyCount})`, color: 'bg-emerald-500 text-white' },
+            { id: 'READY', label: `เสร็จ (${readyCount})`, color: 'bg-emerald-500 text-white' },
           ].map((f) => (
             <button
               key={f.id}
               onClick={() => setFilterStatus(f.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
+              className={`py-2 px-1.5 sm:px-4 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all text-center truncate ${
                 filterStatus === f.id
                   ? f.color || 'bg-slate-900 text-white shadow-sm'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'

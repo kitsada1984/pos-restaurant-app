@@ -96,24 +96,24 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
   };
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <div className="flex items-center space-x-2">
+            <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">
               จัดการเมนูอาหาร &amp; ของหมด
             </h1>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
             ร้าน: <span className="font-bold text-slate-800">{slug}</span> • กดสวิตช์ 1-Click ปิดเมนูที่วัตถุดิบหมดได้ทันทีแบบเรียลไทม์
           </p>
         </div>
 
-        <div className="flex items-center space-x-2.5">
+        <div className="flex items-center space-x-2.5 w-full md:w-auto">
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 flex items-center space-x-1.5 transition-all"
+            className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 flex items-center justify-center space-x-1.5 transition-all"
           >
             <Plus className="w-4 h-4" />
             <span>+ เพิ่มเมนูใหม่</span>
@@ -122,19 +122,19 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
       </div>
 
       {/* Search */}
-      <div className="relative bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm">
-        <Search className="w-4 h-4 text-slate-400 absolute left-6 top-1/2 -translate-y-1/2" />
+      <div className="relative bg-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-sm w-full">
+        <Search className="w-4 h-4 text-slate-400 absolute left-5 sm:left-6 top-1/2 -translate-y-1/2" />
         <input
           type="text"
           placeholder="ค้นหาเมนูอาหาร..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-semibold focus:ring-2 focus:ring-orange-500"
+          className="w-full pl-9 sm:pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-semibold focus:ring-2 focus:ring-orange-500"
         />
       </div>
 
       {/* Categories & Items Grid */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full">
         {categories.map((cat) => {
           const items = (cat.items || []).filter((item: any) =>
             item.name.toLowerCase().includes(search.toLowerCase())
@@ -143,19 +143,19 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
           if (items.length === 0 && search) return null;
 
           return (
-            <div key={cat.id} className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
+            <div key={cat.id} className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm space-y-3 sm:space-y-4 w-full">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <h3 className="font-black text-sm sm:text-base text-slate-900 flex items-center space-x-2">
                   <span>{cat.name}</span>
                   <span className="text-xs text-slate-400 font-bold">({items.length} รายการ)</span>
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5 w-full">
                 {items.map((item: any) => (
                   <div
                     key={item.id}
-                    className={`p-4 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                    className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border flex items-center justify-between gap-3 transition-all w-full ${
                       item.isAvailable
                         ? 'bg-white border-slate-200 hover:border-orange-300'
                         : 'bg-rose-50/50 border-rose-200'
