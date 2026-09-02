@@ -28,7 +28,7 @@ import {
   Filter,
   ExternalLink,
 } from 'lucide-react';
-import { formatPrice, formatDateTime, formatTime } from '@/lib/utils';
+import { formatPrice, formatDateTime, formatTime, formatImageUrl } from '@/lib/utils';
 import { playOrderChime, playSuccessChime } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import { useToast } from '@/context/ToastContext';
@@ -659,11 +659,23 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                       onClick={() => handleOpenItemCustomizer(item)}
                       className="p-3 rounded-2xl border border-slate-200 hover:border-orange-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between bg-white"
                     >
+                      {item.imageUrl && (
+                        <div className="w-full h-20 rounded-xl overflow-hidden mb-2 bg-slate-100 flex-shrink-0">
+                          <img
+                            src={formatImageUrl(item.imageUrl)}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
                       <div>
-                        <span className="font-extrabold text-xs text-slate-900 block">{item.name}</span>
+                        <span className="font-extrabold text-xs text-slate-900 block truncate">{item.name}</span>
                         <span className="text-[11px] text-slate-400">{item.categoryName}</span>
                       </div>
-                      <div className="mt-3 flex items-center justify-between">
+                      <div className="mt-2 flex items-center justify-between">
                         <span className="text-xs font-black text-orange-600">฿{item.basePrice}</span>
                         <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-xs">
                           +

@@ -26,7 +26,7 @@ import {
   Banknote,
   Volume2,
 } from 'lucide-react';
-import { formatPrice, formatTime } from '@/lib/utils';
+import { formatPrice, formatTime, formatImageUrl } from '@/lib/utils';
 import { playSuccessChime, playOrderChime } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import { useToast } from '@/context/ToastContext';
@@ -478,9 +478,13 @@ export default function CustomerOrderingView({
 
                     {item.imageUrl ? (
                       <img
-                        src={item.imageUrl}
+                        src={formatImageUrl(item.imageUrl)}
                         alt={item.name}
-                        className="w-16 h-16 rounded-2xl object-cover border border-slate-800 flex-shrink-0"
+                        className="w-16 h-16 rounded-2xl object-cover border border-slate-800 flex-shrink-0 bg-slate-900"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                        }}
                       />
                     ) : (
                       <div className="w-11 h-11 rounded-2xl bg-orange-500/10 text-orange-400 border border-orange-500/20 flex items-center justify-center font-bold text-lg flex-shrink-0">
@@ -763,9 +767,25 @@ export default function CustomerOrderingView({
         {/* Item Customizer Pop-up */}
         {selectedMenuItem && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-slate-900 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-800 text-white max-h-[90vh] overflow-y-auto">
+            <div className="bg-slate-900 rounded-3xl max-w-sm w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-800 text-white max-h-[90vh] overflow-y-auto">
+              {selectedMenuItem.imageUrl && (
+                <div className="w-full h-40 rounded-2xl overflow-hidden relative border border-slate-800 bg-slate-950">
+                  <img
+                    src={formatImageUrl(selectedMenuItem.imageUrl)}
+                    alt={selectedMenuItem.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-black text-base text-white">{selectedMenuItem.name}</h3>
+                <div>
+                  <h3 className="font-black text-base text-white">{selectedMenuItem.name}</h3>
+                  <span className="text-xs font-bold text-orange-400">เริ่มต้น ฿{selectedMenuItem.basePrice}</span>
+                </div>
                 <button onClick={() => setSelectedMenuItem(null)} className="text-slate-400 hover:text-white p-1">
                   ✕
                 </button>

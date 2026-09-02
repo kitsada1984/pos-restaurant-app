@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { formatImageUrl } from '@/lib/utils';
 
 export async function PUT(
   request: Request,
@@ -34,7 +35,7 @@ export async function PUT(
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
         ...(basePrice !== undefined && { basePrice: parseFloat(basePrice) }),
-        ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
+        ...(imageUrl !== undefined && { imageUrl: formatImageUrl(imageUrl) || null }),
         ...(isAvailable !== undefined && { isAvailable }),
       },
       include: {

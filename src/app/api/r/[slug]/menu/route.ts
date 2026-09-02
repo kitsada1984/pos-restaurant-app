@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { formatImageUrl } from '@/lib/utils';
 
 export async function GET(
   request: Request,
@@ -64,7 +65,7 @@ export async function POST(
         name,
         description,
         basePrice: parseFloat(basePrice),
-        imageUrl: imageUrl || null,
+        imageUrl: formatImageUrl(imageUrl) || null,
         isAvailable: true,
         options: options
           ? {

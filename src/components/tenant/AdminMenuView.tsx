@@ -13,7 +13,7 @@ import {
   X,
   Search,
 } from 'lucide-react';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, formatImageUrl } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 
 export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
@@ -95,6 +95,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
   const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const normalizedImage = formatImageUrl(itemImage);
       const res = await fetch(`/api/r/${slug}/menu`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -103,7 +104,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
           name: itemName,
           description: itemDesc,
           basePrice: parseFloat(itemPrice) || 50,
-          imageUrl: itemImage,
+          imageUrl: normalizedImage,
         }),
       });
       if (res.ok) {
@@ -140,6 +141,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
     if (!editingItem) return;
 
     try {
+      const normalizedImage = formatImageUrl(editImage);
       const res = await fetch(`/api/r/${slug}/menu/${editingItem.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -148,7 +150,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
           name: editName,
           description: editDesc,
           basePrice: parseFloat(editPrice) || 50,
-          imageUrl: editImage,
+          imageUrl: normalizedImage,
         }),
       });
 
@@ -264,13 +266,25 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                         : 'bg-rose-50/50 border-rose-200'
                     }`}
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <h4 className="font-extrabold text-sm text-slate-900 truncate">{item.name}</h4>
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                      {item.imageUrl && (
+                        <img
+                          src={formatImageUrl(item.imageUrl)}
+                          alt={item.name}
+                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-slate-200 flex-shrink-0 bg-slate-100"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-extrabold text-sm text-slate-900 truncate">{item.name}</h4>
+                        </div>
+                        <span className="text-sm font-black text-orange-600 block mt-0.5">
+                          ฿{item.basePrice}
+                        </span>
                       </div>
-                      <span className="text-sm font-black text-orange-600 block mt-0.5">
-                        ฿{item.basePrice}
-                      </span>
                     </div>
 
                     {/* Actions: Toggle Stock + Edit + Delete */}
@@ -378,14 +392,32 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">URL รูปภาพ</label>
+                <label className="block text-slate-700 font-bold mb-1">
+                  URL รูปภาพ (รองรับ Google Drive / เว็บรูปภาพ)
+                </label>
                 <input
                   type="url"
-                  placeholder="https://images.unsplash.com/..."
+                  placeholder="เช่น ลิงก์แชร์ Google Drive หรือ https://..."
                   value={itemImage}
                   onChange={(e) => setItemImage(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl"
                 />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  💡 วางลิงก์แชร์ Google Drive (ตั้งค่าเป็น 'ทุกคนที่มีลิงก์') ระบบจะแปลงรูปให้อัตโนมัติ
+                </p>
+                {itemImage && (
+                  <div className="mt-2 p-2 bg-slate-50 rounded-xl border border-slate-200 flex items-center space-x-3">
+                    <img
+                      src={formatImageUrl(itemImage)}
+                      alt="Preview"
+                      className="w-12 h-12 rounded-lg object-cover bg-white border"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <span className="text-[11px] text-slate-500 font-medium truncate">ตัวอย่างรูปภาพ</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center space-x-2 pt-2">
@@ -475,14 +507,32 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">URL รูปภาพ</label>
+                <label className="block text-slate-700 font-bold mb-1">
+                  URL รูปภาพ (รองรับ Google Drive / เว็บรูปภาพ)
+                </label>
                 <input
                   type="url"
-                  placeholder="https://images.unsplash.com/..."
+                  placeholder="เช่น ลิงก์แชร์ Google Drive หรือ https://..."
                   value={editImage}
                   onChange={(e) => setEditImage(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl"
                 />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  💡 วางลิงก์แชร์ Google Drive (ตั้งค่าเป็น 'ทุกคนที่มีลิงก์') ระบบจะแปลงรูปให้อัตโนมัติ
+                </p>
+                {editImage && (
+                  <div className="mt-2 p-2 bg-slate-50 rounded-xl border border-slate-200 flex items-center space-x-3">
+                    <img
+                      src={formatImageUrl(editImage)}
+                      alt="Preview"
+                      className="w-12 h-12 rounded-lg object-cover bg-white border"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <span className="text-[11px] text-slate-500 font-medium truncate">ตัวอย่างรูปภาพ</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center space-x-2 pt-2">
