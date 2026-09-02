@@ -1,0 +1,672 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>คู่มือการใช้งานระบบ ORDEO SaaS Restaurant POS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 15mm 15mm 15mm 15mm;
+    }
+    
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Prompt', 'Sarabun', sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #1e293b;
+      background: #ffffff;
+      font-size: 10pt;
+      line-height: 1.6;
+    }
+
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+
+    /* Cover Page */
+    .cover-page {
+      height: 260mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      color: #ffffff;
+      padding: 40px;
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      background: rgba(249, 115, 22, 0.2);
+      border: 1px solid rgba(249, 115, 22, 0.4);
+      color: #fb923c;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 10pt;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .cover-title {
+      font-size: 28pt;
+      font-weight: 900;
+      line-height: 1.2;
+      margin: 20px 0 10px 0;
+      background: linear-gradient(to right, #ffffff, #fdba74, #f97316);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .cover-subtitle {
+      font-size: 13pt;
+      color: #94a3b8;
+      font-weight: 400;
+      margin-bottom: 30px;
+    }
+
+    .cover-features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .cover-feature-card {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 15px 20px;
+      border-radius: 12px;
+    }
+
+    .cover-feature-card h4 {
+      margin: 0 0 5px 0;
+      color: #fdba74;
+      font-size: 11pt;
+      font-weight: 700;
+    }
+
+    .cover-feature-card p {
+      margin: 0;
+      color: #cbd5e1;
+      font-size: 8.5pt;
+    }
+
+    .cover-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #94a3b8;
+      font-size: 9pt;
+    }
+
+    /* Content Pages */
+    h1.chapter-title {
+      font-size: 18pt;
+      font-weight: 800;
+      color: #0f172a;
+      border-bottom: 3px solid #f97316;
+      padding-bottom: 8px;
+      margin-top: 0;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2.section-title {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #ea580c;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    h3.sub-title {
+      font-size: 11pt;
+      font-weight: 600;
+      color: #334155;
+      margin-top: 15px;
+      margin-bottom: 6px;
+    }
+
+    p {
+      margin: 0 0 10px 0;
+      color: #334155;
+      text-align: justify;
+    }
+
+    .highlight-box {
+      background: #fff7ed;
+      border-left: 4px solid #f97316;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 15px 0;
+      font-size: 9.5pt;
+      color: #9a3412;
+    }
+
+    .tip-box {
+      background: #f0fdf4;
+      border-left: 4px solid #22c55e;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 15px 0;
+      font-size: 9.5pt;
+      color: #166534;
+    }
+
+    .step-list {
+      counter-reset: step-counter;
+      list-style: none;
+      padding: 0;
+      margin: 15px 0;
+    }
+
+    .step-item {
+      position: relative;
+      padding-left: 38px;
+      margin-bottom: 14px;
+    }
+
+    .step-item::before {
+      counter-increment: step-counter;
+      content: counter(step-counter);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 24px;
+      height: 24px;
+      background: #f97316;
+      color: #ffffff;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 24px;
+      font-size: 9pt;
+      font-weight: 800;
+    }
+
+    .step-title {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 10.5pt;
+      margin-bottom: 3px;
+    }
+
+    table.custom-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 9pt;
+    }
+
+    table.custom-table th {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 700;
+    }
+
+    table.custom-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+    }
+
+    table.custom-table tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 8pt;
+      font-weight: 700;
+    }
+    .badge-orange { background: #ffedd5; color: #c2410c; }
+    .badge-green { background: #dcfce7; color: #15803d; }
+    .badge-blue { background: #e0e7ff; color: #4338ca; }
+    .badge-purple { background: #f3e8ff; color: #7e22ce; }
+
+    .workflow-container {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0;
+      gap: 10px;
+    }
+
+    .workflow-step {
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-top: 3px solid #f97316;
+      padding: 12px 10px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .workflow-step h5 {
+      margin: 0 0 4px 0;
+      font-size: 9pt;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .workflow-step p {
+      margin: 0;
+      font-size: 7.5pt;
+      color: #64748b;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COVER PAGE -->
+  <div class="cover-page">
+    <div>
+      <div class="cover-badge">ENTERPRISE RESTAURANT POS PLATFORM</div>
+      <div class="cover-title">คู่มือการใช้งานระบบฉบับสมบูรณ์<br>ORDEO POS &amp; QR ORDERING</div>
+      <div class="cover-subtitle">ระบบจัดการร้านอาหารตามสั่ง สแกนสั่งที่โต๊ะ จอห้องครัวสด คลังตัดสต็อก Realtime และระบบสะสมแต้ม CRM</div>
+    </div>
+
+    <div>
+      <div class="cover-features-grid">
+        <div class="cover-feature-card">
+          <h4>📱 สแกนสั่งที่โต๊ะ (QR Ordering)</h4>
+          <p>ลูกค้าสแกนสั่งจากมือถือ มีอนิเมชั่นติดตาม 4 ขั้นตอน</p>
+        </div>
+        <div class="cover-feature-card">
+          <h4>👨‍🍳 จอครัว Realtime (KDS)</h4>
+          <p>รับออเดอร์ทันที มีเสียงเตือน กดทำ/พร้อมเสิร์ฟ</p>
+        </div>
+        <div class="cover-feature-card">
+          <h4>📦 สูตรตัดสต็อก (Recipe BOM)</h4>
+          <p>ตัดสต็อกอัตโนมัติ คำนวณต้นทุน/กำไรสุทธิต่อจาน</p>
+        </div>
+        <div class="cover-feature-card">
+          <h4>🎁 สะสมแต้ม CRM &amp; คูปอง</h4>
+          <p>สะสมแต้มด้วยเบอร์โทร แลกส่วนลดในหน้าแคชเชียร์</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="cover-footer">
+      <div>
+        <strong>แพลตฟอร์ม:</strong> ORDEO SaaS POS v2.0 Enterprise<br>
+        <strong>เว็บไซต์:</strong> pos-restaurant-app-psi.vercel.app
+      </div>
+      <div style="text-align: right;">
+        <strong>จัดทำโดย:</strong> ฝ่ายพัฒนาระบบ ORDEO Solutions<br>
+        <strong>วันที่ปรับปรุงล่าสุด:</strong> กันยายน 2026
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- TABLE OF CONTENTS & CHAPTER 1 -->
+  <h1 class="chapter-title">📑 สารบัญคู่มือการใช้งาน</h1>
+  <table class="custom-table">
+    <thead>
+      <tr>
+        <th style="width: 15%;">บทที่</th>
+        <th style="width: 65%;">หัวข้อการใช้งาน</th>
+        <th style="width: 20%; text-align: center;">หน้า</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>บทที่ 1</strong></td>
+        <td>ภาพรวมระบบและสิทธิ์ผู้ใช้งาน (System Overview &amp; Roles)</td>
+        <td style="text-align: center;">2</td>
+      </tr>
+      <tr>
+        <td><strong>บทที่ 2</strong></td>
+        <td>ระบบลูกค้าสแกนสั่งอาหารที่โต๊ะ (QR Code Table Ordering)</td>
+        <td style="text-align: center;">3</td>
+      </tr>
+      <tr>
+        <td><strong>บทที่ 3</strong></td>
+        <td>ระบบจอห้องครัว Realtime (Kitchen KDS Display)</td>
+        <td style="text-align: center;">4</td>
+      </tr>
+      <tr>
+        <td><strong>บทที่ 4</strong></td>
+        <td>ระบบผังโต๊ะ &amp; แคชเชียร์ POS (Floorplan POS &amp; Checkout)</td>
+        <td style="text-align: center;">5</td>
+      </tr>
+      <tr>
+        <td><strong>บทที่ 5</strong></td>
+        <td>ระบบคลังวัตถุดิบ &amp; ผูกสูตรตัดสต็อก (Recipe BOM &amp; Inventory)</td>
+        <td style="text-align: center;">6</td>
+      </tr>
+      <tr>
+        <td><strong>บทที่ 6</strong></td>
+        <td>ระบบสมาชิก CRM &amp; คูปองโปรโมชั่น (Loyalty &amp; Promotions)</td>
+        <td style="text-align: center;">7</td>
+      </tr>
+      <tr>
+        <td><strong>บทที่ 7</strong></td>
+        <td>รายงานยอดขาย &amp; วิเคราะห์ต้นทุนกำไร (Reports &amp; COGS Analytics)</td>
+        <td style="text-align: center;">8</td>
+      </tr>
+      <tr>
+        <td><strong>บทที่ 8</strong></td>
+        <td>ระบบผู้ดูแลสูงสุด (Super Admin Platform Guide)</td>
+        <td style="text-align: center;">9</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1 class="chapter-title" style="margin-top: 30px;">🏢 บทที่ 1: ภาพรวมระบบและสิทธิ์ผู้ใช้งาน</h1>
+  <p><strong>ORDEO POS</strong> เป็นแพลตฟอร์ม Cloud SaaS สำหรับธุรกิจร้านอาหาร รองรับการจัดการแบบแยกฐานข้อมูลตามร้าน (Multi-Tenant) ปลอดภัย รวดเร็ว และไม่ต้องติดตั้งแอปพลิเคชัน</p>
+
+  <h2 class="section-title">สิทธิ์และประเภทผู้ใช้งานในระบบ:</h2>
+  <div class="workflow-container">
+    <div class="workflow-step">
+      <span class="badge badge-purple">Super Admin</span>
+      <h5>ผู้ดูแลแพลตฟอร์ม</h5>
+      <p>จัดการร้านค้าทั้งหมด, อนุมัติสลิปโอน, ตั้งราคาแพ็กเกจ</p>
+    </div>
+    <div class="workflow-step">
+      <span class="badge badge-orange">Store Owner</span>
+      <h5>เจ้าของร้าน</h5>
+      <p>จัดการโต๊ะ, เมนู, คลังวัตถุดิบ, ดูรายงานกำไร, ตั้งค่าร้าน</p>
+    </div>
+    <div class="workflow-step">
+      <span class="badge badge-green">Kitchen Chef</span>
+      <h5>พนักงานห้องครัว</h5>
+      <p>ดูออเดอร์สด, ปรุงอาหาร, เปลี่ยนสถานะพร้อมเสิร์ฟ</p>
+    </div>
+    <div class="workflow-step">
+      <span class="badge badge-blue">Customer</span>
+      <h5>ลูกค้าที่โต๊ะ</h5>
+      <p>สแกนสั่งอาหาร, ดูสถานะปรุง, เรียกชำระเงิน</p>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <strong>🔒 มาตรการความปลอดภัยของระบบ:</strong> หน้าสั่งอาหารของลูกค้าถูกล็อกสิทธิ์ให้อยู่เฉพาะโต๊ะที่สแกน ลูกค้าจะไม่สามารถเห็นแถบเมนูหลังร้าน หรือเข้าถึงข้อมูลของโต๊ะอื่นได้อย่างเด็ดขาด
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- CHAPTER 2 -->
+  <h1 class="chapter-title">📱 บทที่ 2: ระบบลูกค้าสแกนสั่งอาหารที่โต๊ะ</h1>
+  <p>ลูกค้าสามารถใช้สมาร์ตโฟนสแกน QR Code ประจำโต๊ะเพื่อเข้าสู่หน้าสั่งอาหารได้ทันที โดยไม่ต้องดาวน์โหลดแอป</p>
+
+  <h2 class="section-title">ขั้นตอนการสั่งอาหารของลูกค้า:</h2>
+  <ul class="step-list">
+    <li class="step-item">
+      <div class="step-title">สแกน QR Code ประจำโต๊ะ</div>
+      <p>เปิดกล้องมือถือสแกน QR Code บนโต๊ะ ระบบจะเปิดหน้าเมนูของร้านตามโต๊ะนั้นๆ อัตโนมัติ (เช่น โต๊ะ 1)</p>
+    </li>
+    <li class="step-item">
+      <div class="step-title">เลือกรายการอาหาร &amp; ตัวเลือกพิเศษ</div>
+      <p>เลือกระดับความเผ็ด, เพิ่มไข่ดาว/ไข่เจียว, หรือระบุหมายเหตุพิเศษ (เช่น "ไม่ใส่ผักชี", "หวานน้อย")</p>
+    </li>
+    <li class="step-item">
+      <div class="step-title">ตรวจสอบตะกร้า &amp; กดส่งออเดอร์เข้าครัว</div>
+      <p>ตรวจสอบจำนวนและยอดเงินรวม จากนั้นกดปุ่ม <strong>"ส่งรายการเข้าครัว"</strong> ออเดอร์จะถูกส่งไปยังหน้าจอห้องครัวทันทีแบบ Realtime</p>
+    </li>
+    <li class="step-item">
+      <div class="step-title">ติดตามสถานะอาหารแบบ 4 ขั้นตอน (Live Cooking Animation)</div>
+      <p>หน้าจอจะแสดงสถานะการปรุงอาหารแบบสดๆ:</p>
+      <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-top: 5px; font-size: 8.5pt;">
+        📝 <strong>1. ส่งออเดอร์แล้ว</strong> ➔ 👨‍🍳 <strong>2. ห้องครัวรับแล้ว</strong> ➔ 🍳 <strong>3. กำลังปรุง</strong> ➔ 🍽️ <strong>4. ปรุงเสร็จพร้อมเสิร์ฟ</strong>
+      </div>
+    </li>
+  </ul>
+
+  <h2 class="section-title">การชำระเงินที่โต๊ะ:</h2>
+  <p>เมื่อทานเสร็จ ลูกค้าสามารถกดปุ่ม <strong>"ชำระเงิน / เรียกเช็คบิล"</strong> ที่โต๊ะ:</p>
+  <ul>
+    <li><strong>โอนผ่าน PromptPay:</strong> สแกน QR Code พร้อมเพย์ตามยอดเงินสุทธิเพื่อชำระเงิน</li>
+    <li><strong>ชำระเงินสด:</strong> กดปุ่ม <em>"เรียกพนักงานเก็บเงินสด"</em> เพื่อให้พนักงานเดินมาคิดเงินที่โต๊ะ</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <!-- CHAPTER 3 -->
+  <h1 class="chapter-title">👨‍🍳 บทที่ 3: ระบบจอห้องครัว Realtime (Kitchen KDS)</h1>
+  <p>หน้าจอห้องครัว (Kitchen Display System - KDS) ออกแบบมาให้พ่อครัว/แม่ครัวใช้งานง่าย ตัวหนังสือใหญ่ชัดเจน พร้อมระบบเสียงแจ้งเตือนอัตโนมัติ</p>
+
+  <h2 class="section-title">ฟังก์ชันการทำงานหลักในห้องครัว:</h2>
+  <table class="custom-table">
+    <thead>
+      <tr>
+        <th style="width: 25%;">ฟังก์ชัน</th>
+        <th style="width: 45%;">รายละเอียดการทำงาน</th>
+        <th style="width: 30%;">ประโยชน์</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>เสียงเตือนออเดอร์ใหม่</strong></td>
+        <td>มีเสียง Chime ดังขึ้นทันทีที่มีลูกค้าส่งออเดอร์เข้าครัว</td>
+        <td>ไม่ต้องคอยก้มมองหน้าจอตลอดเวลา</td>
+      </tr>
+      <tr>
+        <td><strong>ตัวเลขอายุออเดอร์</strong></td>
+        <td>แสดงระยะเวลาที่ลูกค้ารอ (เช่น 3 นาที, 7 นาที)</td>
+        <td>ช่วยจัดลำดับการทำอาหารไม่ให้ลูกค้ารอนาน</td>
+      </tr>
+      <tr>
+        <td><strong>ปุ่มเริ่มปรุงอาหาร</strong></td>
+        <td>กดเปลี่ยนสถานะเป็น <span class="badge badge-orange">กำลังปรุง</span></td>
+        <td>แจ้งให้ลูกค้าทราบว่าครัวกำลังทำจานนั้นอยู่</td>
+      </tr>
+      <tr>
+        <td><strong>ปุ่มพร้อมเสิร์ฟ</strong></td>
+        <td>กดเปลี่ยนสถานะเป็น <span class="badge badge-green">พร้อมเสิร์ฟ</span></td>
+        <td>ส่งสัญญาณให้พนักงานเสิร์ฟยกอาหารไปที่โต๊ะ</td>
+      </tr>
+      <tr>
+        <td><strong>การตัดของหมด (1-Click)</strong></td>
+        <td>มีปุ่มเปิด/ปิดเมนูที่หน้าครัว หากวัตถุดิบหมด</td>
+        <td>ป้องกันไม่ให้ลูกค้าที่โต๊ะสั่งเมนูนั้นเข้ามาอีก</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box">
+    <strong>💡 เคล็ดลับการติดตั้งหน้าจอห้องครัว:</strong> สามารถใช้ Tablet (iPad / Android) หรือจอทีวีที่มีเว็บเบราว์เซอร์ เปิดค้างไว้ที่ URL: <code>/r/[slug]/kitchen</code> และเปิดลำโพงทิ้งไว้ ระบบจะอัปเดตออเดอร์สดตลอดวันโดยไม่ต้องกดรีเฟรช
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- CHAPTER 4 -->
+  <h1 class="chapter-title">🪑 บทที่ 4: ระบบผังโต๊ะ &amp; แคชเชียร์ POS</h1>
+  <p>หน้าแคชเชียร์ POS เป็นศูนย์กลางในการบริหารจัดการหน้าร้าน การดูสถานะโต๊ะ และการรับชำระเงิน</p>
+
+  <h2 class="section-title">การดูสถานะผังโต๊ะสด (Live Floorplan):</h2>
+  <ul>
+    <li><strong style="color: #16a34a;">🟩 โต๊ะว่าง (Available):</strong> พร้อมรับลูกค้าใหม่ สามารถเปิดบิลหน้าร้านได้</li>
+    <li><strong style="color: #ea580c;">🟧 มีลูกค้านั่ง (Occupied):</strong> มีออเดอร์กำลังปรุงหรือลูกค้ากำลังรับประทาน</li>
+    <li><strong style="color: #9333ea;">🟪 เรียกเช็คบิล (Bill Requested):</strong> ลูกค้ากดเรียกเก็บเงินจากที่โต๊ะ</li>
+  </ul>
+
+  <h2 class="section-title">ขั้นตอนการเช็คบิล &amp; สะสมแต้มสมาชิก:</h2>
+  <ul class="step-list">
+    <li class="step-item">
+      <div class="step-title">กดเลือกโต๊ะที่ต้องการชำระเงิน</div>
+      <p>ระบบจะเปิดหน้าต่างสรุปรายการอาหารและยอดเงินรวม</p>
+    </li>
+    <li class="step-item">
+      <div class="step-title">กรอกเบอร์โทรลูกค้า (สะสมแต้ม / แลกแต้ม)</div>
+      <p>พิมพ์เบอร์โทรลูกค้า ➔ ระบบจะค้นหาแต้มสะสมทันที หากลูกค้าต้องการใช้แต้มแลกส่วนลด ให้กดปุ่ม <strong>"แลกแต้มส่วนลด"</strong></p>
+    </li>
+    <li class="step-item">
+      <div class="step-title">กรอกรหัสคูปองส่วนลด (ถ้ามี)</div>
+      <p>ใส่รหัสโปรโมชั่น เช่น <code>WELCOME50</code> เพื่อหักลดหย่อนยอดเงิน</p>
+    </li>
+    <li class="step-item">
+      <div class="step-title">เลือกช่องทางชำระเงิน (พร้อมเพย์ / เงินสด)</div>
+      <p>หากเลือกเงินสด กรอกยอดเงินที่รับมา ระบบจะคำนวณเงินทอนให้อัตโนมัติ</p>
+    </li>
+    <li class="step-item">
+      <div class="step-title">กดยืนยันชำระเงิน (Complete)</div>
+      <p>ระบบจะบันทึกยอดขาย, เพิ่มแต้มสะสมให้ลูกค้า, และปรับสถานะโต๊ะกลับเป็น <strong>"โต๊ะว่าง"</strong> พร้อมรับลูกค้ารายต่อไป</p>
+    </li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <!-- CHAPTER 5 -->
+  <h1 class="chapter-title">📦 บทที่ 5: ระบบคลังวัตถุดิบ &amp; ผูกสูตรตัดสต็อก (BOM)</h1>
+  <p>ฟังก์ชันระดับ Enterprise ที่ช่วยให้ร้านอาหารควบคุมต้นทุน ป้องกันวัตถุดิบรั่วไหล และตัดสต็อกอัตโนมัติแบบ Realtime</p>
+
+  <h2 class="section-title">1. การบันทึกรับเข้าสต็อก (Stock-In):</h2>
+  <p>ไปที่เมนู <strong>"คลังวัตถุดิบ &amp; สูตร"</strong> ➔ กดปุ่ม <strong>"+ รับเข้าสต็อก"</strong> กรอกจำนวนและต้นทุน ระบบจะคำนวณมูลค่าสต็อกคงเหลือรวมของร้านให้อัตโนมัติ</p>
+
+  <h2 class="section-title">2. การผูกสูตรอาหาร (Recipe BOM Mapping):</h2>
+  <p>เลือกเมนูอาหารที่ต้องการผูกสูตร ➔ กำหนดปริมาณวัตถุดิบที่ใช้ต่อ 1 จาน เช่น:</p>
+  <table class="custom-table">
+    <thead>
+      <tr>
+        <th>เมนูอาหาร</th>
+        <th>วัตถุดิบที่ผูกสูตร (BOM)</th>
+        <th>ต้นทุนต่อจาน</th>
+        <th>ราคาขาย</th>
+        <th>กำไรขั้นต้น</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>ผัดกะเพราหมูกรอบ</strong></td>
+        <td>หมูกรอบ 120g + ข้าว 180g + ใบกะเพรา 20g + ซอส 30ml</td>
+        <td>฿24.50</td>
+        <td>฿65.00</td>
+        <td><span class="badge badge-green">+62.3% (฿40.50)</span></td>
+      </tr>
+      <tr>
+        <td><strong>ข้าวผัดต้มยำกุ้ง</strong></td>
+        <td>กุ้งสด 3 ตัว + ข้าว 180g + เครื่องต้มยำ 40g</td>
+        <td>฿32.00</td>
+        <td>฿80.00</td>
+        <td><span class="badge badge-green">+60.0% (฿48.00)</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="section-title">3. การตัดสต็อก Realtime &amp; ปิดเมนูอัตโนมัติ:</h2>
+  <p>เมื่อลูกค้าหรือแคชเชียร์ส่งออเดอร์เข้าครัว ระบบจะตัดยอดวัตถุดิบในคลังทันที หากวัตถุดิบใดลดลงจนหมด (0) ระบบจะเปลี่ยนสถานะเมนูอาหารนั้นเป็น <strong>"ของหมด"</strong> ทันที เพื่อป้องกันการสั่งซ้ำ</p>
+
+  <div class="page-break"></div>
+
+  <!-- CHAPTER 6 & 7 -->
+  <h1 class="chapter-title">🎁 บทที่ 6: ระบบสมาชิก CRM &amp; คูปองโปรโมชั่น</h1>
+  <p>ระบบบริหารความสัมพันธ์ลูกค้า เพิ่มยอดขายและดึงดูดลูกค้าประจำด้วยการสะสมแต้ม</p>
+
+  <h2 class="section-title">การตั้งค่าอัตราสะสมแต้ม (Loyalty Settings):</h2>
+  <p>เจ้าของร้านสามารถตั้งค่าได้ในหน้า <em>ตั้งค่าร้าน</em>:</p>
+  <ul>
+    <li><strong>อัตราสะสมแต้ม:</strong> กำหนดยอดซื้อต่อ 1 แต้ม (เช่น ทุก 25 บาท = 1 แต้ม)</li>
+    <li><strong>มูลค่าแต้ม:</strong> กำหนดมูลค่าในการแลกส่วนลด (เช่น 1 แต้ม = 1 บาท)</li>
+  </ul>
+
+  <h2 class="section-title">การสร้างคูปองส่วนลด (Promotions):</h2>
+  <p>สามารถสร้างโค้ดโปรโมชั่นได้ 2 รูปแบบ:</p>
+  <ol>
+    <li><strong>ส่วนลดบาทถ้วน (Fixed):</strong> เช่น <code>WELCOME50</code> ลดทันที 50 บาท (กำหนดยอดซื้อขั้นต่ำ 200 บาท)</li>
+    <li><strong>ส่วนลดเปอร์เซ็นต์ (Percentage):</strong> เช่น <code>DISC10</code> ลด 10% ทั้งบิล</li>
+  </ol>
+
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+
+  <h1 class="chapter-title">📊 บทที่ 7: รายงานยอดขาย &amp; วิเคราะห์กำไรจริง (COGS)</h1>
+  <p>หน้ารายงานยอดขาย (<code>/r/[slug]/admin/reports</code>) สรุปตัวเลขทางการเงินเชิงลึก:</p>
+  <table class="custom-table">
+    <thead>
+      <tr>
+        <th>ดัชนีชี้วัด (KPI)</th>
+        <th>วิธีการคำนวณ</th>
+        <th>ประโยชน์ต่อร้านค้า</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>ยอดขายรวมสุทธิ (Net Revenue)</strong></td>
+        <td>ยอดขายทั้งหมดหลังหักส่วนลดคูปองและแต้ม</td>
+        <td>ทราบกระแสเงินสดรับจริงของร้าน</td>
+      </tr>
+      <tr>
+        <td><strong>ต้นทุนวัตถุดิบรวม (COGS)</strong></td>
+        <td>คำนวณจากสูตรอาหาร (BOM) ที่ถูกตัดสต็อกจริง</td>
+        <td>ควบคุมต้นทุนค่าอาหารไม่ให้บานปลาย</td>
+      </tr>
+      <tr>
+        <td><strong>กำไรขั้นต้น (Gross Profit)</strong></td>
+        <td>ยอดขายสุทธิ ลบ ต้นทุนวัตถุดิบ</td>
+        <td>ทราบผลกำไรที่แท้จริงในแต่ละวัน</td>
+      </tr>
+      <tr>
+        <td><strong>สัดส่วนการชำระเงิน</strong></td>
+        <td>แยกยอด PromptPay vs เงินสด</td>
+        <td>ช่วยให้ตรวจนับเงินในลิ้นชักตอนปิดกะได้แม่นยำ</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- CHAPTER 8 -->
+  <h1 class="chapter-title">👑 บทที่ 8: ระบบผู้ดูแลสูงสุด (Super Admin Platform)</h1>
+  <p>สำหรับผู้บริหารแพลตฟอร์มในการบริหารจัดการร้านค้าสมาชิกและรายได้ค่าบริการ SaaS</p>
+
+  <h2 class="section-title">เมนูการใช้งานของผู้ดูแลสูงสุด (Super Admin):</h2>
+  <table class="custom-table">
+    <thead>
+      <tr>
+        <th style="width: 30%;">เมนู</th>
+        <th style="width: 70%;">หน้าที่และฟังก์ชัน</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1. แดชบอร์ดภาพรวม</strong></td>
+        <td>สรุปจำนวนร้านค้าทั้งหมด, สลิปรอตรวจ, รายได้ค่าบริการ SaaS รวม, และยอดออเดอร์</td>
+      </tr>
+      <tr>
+        <td><strong>2. จัดการร้านค้า</strong></td>
+        <td>ค้นหาร้านค้า, ดูข้อมูลเจ้าของร้าน, ปรับสถานะ (อนุมัติ / ขยายวัน / ระงับร้าน), และกดเข้าดูหน้าร้าน</td>
+      </tr>
+      <tr>
+        <td><strong>3. ตรวจสลิปแจ้งโอน</strong></td>
+        <td>ดูภาพสลิปที่ร้านค้าแนบมา กดปุ่ม <em>"อนุมัติสลิป"</em> เพื่อต่ออายุการใช้งานให้อัตโนมัติ</td>
+      </tr>
+      <tr>
+        <td><strong>4. แพ็กเกจราคา</strong></td>
+        <td>กำหนดราคาแพ็กเกจ (รายเดือน 99฿, 6 เดือน 499฿, รายปี 899฿) และจำนวนโต๊ะสูงสุด</td>
+      </tr>
+      <tr>
+        <td><strong>5. บัญชีรับเงิน &amp; ข้อมูลเว็บ</strong></td>
+        <td>ตั้งค่าเลขที่บัญชีธนาคารและเบอร์พร้อมเพย์ สำหรับรับโอนเงินค่าบริการ SaaS</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="highlight-box" style="margin-top: 30px;">
+    <strong>📞 ฝ่ายสนับสนุนทางเทคนิค (Technical Support):</strong><br>
+    หากต้องการความช่วยเหลือเพิ่มเติม หรือสอบถามเกี่ยวกับการปรับแต่งระบบ สามารถติดต่อทีมพัฒนาได้ผ่าน LINE Official หรืออีเมลผู้ดูแลระบบสูงสุด (kitsada1984@gmail.com)
+  </div>
+
+</body>
+</html>
