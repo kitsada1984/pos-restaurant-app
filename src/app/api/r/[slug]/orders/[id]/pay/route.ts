@@ -22,8 +22,13 @@ export async function POST(
       include: { table: true },
     });
 
-    if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    if (!order || order.storeId !== store.id) {
+      return NextResponse.json({ error: 'ไม่พบออเดอร์ในร้านค้านี้' }, { status: 404 });
+    }
+
+    // BUG-001 Guard: Prevent double-payment and duplicate loyalty points accumulation
+    if (order.paymentStatus === 'PAID') {
+      return NextResponse.json({ error: 'ออเดอร์นี้ได้รับการชำระเงินเรียบร้อยแล้ว' }, { status: 400 });
     }
 
     const effectiveMemberPhone = memberPhone ? memberPhone.replace(/\D/g, '') : order.memberPhone;

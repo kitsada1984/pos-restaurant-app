@@ -82,6 +82,14 @@ export async function POST(
       pointsRedeemed = 0,
     } = body;
 
+    // BUG-002 Guard: Reject empty orders
+    if (!Array.isArray(items) || items.length === 0) {
+      return NextResponse.json(
+        { error: 'กรุณาเลือกรายการอาหารอย่างน้อย 1 รายการ' },
+        { status: 400 }
+      );
+    }
+
     const tableNo = parseInt(tableId || 1);
 
     // Upsert table for this store

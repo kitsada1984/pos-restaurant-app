@@ -18,14 +18,22 @@ export async function POST(
 
     const { id, isAvailable } = await request.json();
 
-    const item = await prisma.menuItem.update({
+    const item = await prisma.menuItem.findFirst({
+      where: { id, storeId: store.id },
+    });
+
+    if (!item) {
+      return NextResponse.json({ error: 'ไม่พบเมนูในร้านนี้' }, { status: 404 });
+    }
+
+    const updatedItem = await prisma.menuItem.update({
       where: { id },
       data: { isAvailable },
     });
 
-    broadcastEvent('MENU_UPDATED', { action: 'toggle-availability', item }, store.id);
+    broadcastEvent('MENU_UPDATED', { action: 'toggle-availability', item: updatedItem }, store.id);
 
-    return NextResponse.json({ success: true, item });
+    return NextResponse.json({ success: true, item: updatedItem });
   } catch (error) {
     console.error('Error toggling availability:', error);
     return NextResponse.json({ error: 'Failed to update item availability' }, { status: 500 });

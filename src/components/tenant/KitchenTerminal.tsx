@@ -40,8 +40,12 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
     fetchOrders();
 
     let eventSource: EventSource | null = null;
-    try {
-      if (typeof window !== 'undefined' && 'EventSource' in window) {
+    let reconnectTimeout: any = null;
+    let isSubscribed = true;
+
+    const connectSSE = () => {
+      if (!isSubscribed || typeof window === 'undefined' || !('EventSource' in window)) return;
+      try {
         eventSource = new EventSource(`/api/r/${slug}/stream`);
         eventSource.onmessage = (event) => {
           try {
@@ -56,11 +60,22 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
         };
         eventSource.onerror = () => {
           eventSource?.close();
+          if (isSubscribed) {
+            reconnectTimeout = setTimeout(connectSSE, 3000);
+          }
         };
+      } catch (e) {
+        if (isSubscribed) {
+          reconnectTimeout = setTimeout(connectSSE, 3000);
+        }
       }
-    } catch (e) {}
+    };
+
+    connectSSE();
 
     return () => {
+      isSubscribed = false;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       eventSource?.close();
     };
   }, [slug, soundEnabled]);

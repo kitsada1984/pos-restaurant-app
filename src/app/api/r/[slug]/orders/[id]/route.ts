@@ -7,6 +7,13 @@ export async function GET(
   { params }: { params: { slug: string; id: string } }
 ) {
   try {
+    const store = await prisma.store.findUnique({
+      where: { slug: params.slug },
+      select: { id: true },
+    });
+
+    if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
+
     const order = await prisma.order.findUnique({
       where: { id: params.id },
       include: {
@@ -15,7 +22,9 @@ export async function GET(
       },
     });
 
-    if (!order) return NextResponse.json({ error: 'ไม่พบออเดอร์' }, { status: 404 });
+    if (!order || order.storeId !== store.id) {
+      return NextResponse.json({ error: 'ไม่พบออเดอร์ในร้านค้านี้' }, { status: 404 });
+    }
     return NextResponse.json(order);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -33,6 +42,15 @@ export async function PATCH(
     });
 
     if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
+
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: params.id },
+      select: { storeId: true },
+    });
+
+    if (!existingOrder || existingOrder.storeId !== store.id) {
+      return NextResponse.json({ error: 'ไม่พบออเดอร์ในร้านค้านี้' }, { status: 404 });
+    }
 
     const body = await request.json();
     const { status, itemId, itemStatus } = body;
