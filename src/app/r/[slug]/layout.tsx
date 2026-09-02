@@ -14,7 +14,6 @@ import {
   VolumeX,
   Store,
   ExternalLink,
-  ShieldCheck,
   User,
 } from 'lucide-react';
 import { playOrderChime } from '@/lib/sound';
@@ -39,6 +38,13 @@ export default function TenantStoreLayout({
       })
       .catch(() => {});
   }, [slug]);
+
+  // If the user is on the customer table ordering page (/r/[slug]/table/[id]),
+  // DO NOT show any staff/admin navigation bar at all!
+  const isCustomerTableRoute = pathname.includes('/table/');
+  if (isCustomerTableRoute) {
+    return <>{children}</>;
+  }
 
   const navItems = [
     { href: `/r/${slug}/pos`, label: 'ผังโต๊ะ & POS', icon: LayoutGrid },
