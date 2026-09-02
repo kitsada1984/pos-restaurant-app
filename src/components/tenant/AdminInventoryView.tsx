@@ -195,7 +195,7 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
     : 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -219,8 +219,8 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* KPI Cards (Equal Height Grid) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 auto-rows-fr">
         <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-400">วัตถุดิบทั้งหมดในระบบ</span>

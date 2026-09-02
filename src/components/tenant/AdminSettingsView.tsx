@@ -69,7 +69,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
   }
 
   return (
-    <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
       <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm">
         <div className="flex items-center space-x-3">

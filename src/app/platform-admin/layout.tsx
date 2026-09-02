@@ -230,7 +230,7 @@ export default function PlatformAdminLayout({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 bg-slate-950 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
+      <main className="flex-1 bg-slate-950 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-[1440px] w-full mx-auto">
         {children}
       </main>
     </div>
