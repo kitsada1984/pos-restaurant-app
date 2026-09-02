@@ -138,27 +138,27 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
       </div>
 
       {/* Top Sellers & Recent Bills */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
         {/* Top 10 Best Sellers */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm space-y-3 sm:space-y-4 w-full">
           <h3 className="font-extrabold text-sm text-slate-900 flex items-center space-x-2">
             <Award className="w-4 h-4 text-orange-500" />
             <span>เมนูขายดีประจำวัน (Top Sellers)</span>
           </h3>
 
-          <div className="divide-y divide-slate-100 space-y-2.5">
+          <div className="divide-y divide-slate-100 space-y-2">
             {report?.topSellingItems?.length === 0 ? (
               <p className="text-xs text-slate-400 py-6 text-center">ยังไม่มีข้อมูลยอดขายในวันนี้</p>
             ) : (
               report?.topSellingItems?.map((item: any, idx: number) => (
-                <div key={idx} className="pt-2.5 first:pt-0 flex items-center justify-between text-xs">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-5 h-5 rounded-md bg-orange-100 text-orange-700 font-black text-[11px] flex items-center justify-center">
+                <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between text-xs gap-2">
+                  <div className="flex items-center space-x-2 min-w-0 flex-1 truncate">
+                    <span className="w-5 h-5 rounded-md bg-orange-100 text-orange-700 font-black text-[11px] flex items-center justify-center flex-shrink-0">
                       {idx + 1}
                     </span>
-                    <span className="font-extrabold text-slate-800">{item.name}</span>
+                    <span className="font-extrabold text-slate-800 truncate">{item.name}</span>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <span className="font-bold text-slate-900 block">{item.quantity} จาน</span>
                     <span className="text-[10px] text-slate-400">฿{item.revenue.toLocaleString()}</span>
                   </div>
@@ -168,32 +168,32 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
           </div>
         </div>
 
-        {/* All Bills Table */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm space-y-4">
+        {/* All Bills Table (Isolated Horizontal Scroll) */}
+        <div className="lg:col-span-2 bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm space-y-3 sm:space-y-4 w-full">
           <h3 className="font-extrabold text-sm text-slate-900 flex items-center space-x-2">
             <Receipt className="w-4 h-4 text-slate-700" />
             <span>รายการบิลที่ชำระเงินแล้ว ({report?.orders?.length || 0} บิล)</span>
           </h3>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto w-full max-w-full">
+            <table className="w-full text-left text-xs min-w-[500px]">
               <thead className="text-slate-400 font-bold border-b border-slate-100">
-                <tr>
-                  <th className="py-2 px-3">เวลา</th>
-                  <th className="py-2 px-3">โต๊ะ</th>
-                  <th className="py-2 px-3">วิธีจ่าย</th>
-                  <th className="py-2 px-3 text-right">ยอดสุทธิ</th>
-                  <th className="py-2 px-3 text-right">ใบเสร็จ</th>
+                <tr className="whitespace-nowrap">
+                  <th className="py-2.5 px-3">เวลา</th>
+                  <th className="py-2.5 px-3">โต๊ะ</th>
+                  <th className="py-2.5 px-3">วิธีจ่าย</th>
+                  <th className="py-2.5 px-3 text-right">ยอดสุทธิ</th>
+                  <th className="py-2.5 px-3 text-right">ใบเสร็จ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 text-slate-700">
                 {report?.orders?.map((ord: any) => (
-                  <tr key={ord.id} className="hover:bg-slate-50">
-                    <td className="py-3 px-3 font-semibold">{formatTime(ord.paidAt || ord.createdAt)}</td>
-                    <td className="py-3 px-3 font-extrabold text-slate-900">
+                  <tr key={ord.id} className="hover:bg-slate-50 whitespace-nowrap">
+                    <td className="py-2.5 px-3 font-semibold">{formatTime(ord.paidAt || ord.createdAt)}</td>
+                    <td className="py-2.5 px-3 font-extrabold text-slate-900">
                       {ord.table?.name || `โต๊ะ ${ord.tableNo}`}
                     </td>
-                    <td className="py-3 px-3">
+                    <td className="py-2.5 px-3">
                       <span
                         className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                           ord.paymentMethod === 'PROMPTPAY'
@@ -204,10 +204,10 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
                         {ord.paymentMethod === 'PROMPTPAY' ? 'PromptPay' : 'เงินสด'}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-right font-black text-slate-900">
+                    <td className="py-2.5 px-3 text-right font-black text-slate-900">
                       ฿{ord.netAmount.toLocaleString()}
                     </td>
-                    <td className="py-3 px-3 text-right">
+                    <td className="py-2.5 px-3 text-right">
                       <button
                         onClick={() => {
                           setReceiptOrder({

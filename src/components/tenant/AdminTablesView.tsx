@@ -291,7 +291,7 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
       )}
 
       {/* Filters & Search */}
-      <div className="flex flex-col md:flex-row items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col md:flex-row items-center gap-2.5 sm:gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm w-full">
         <div className="relative flex-1 w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -303,12 +303,12 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
           />
         </div>
 
-        <div className="flex items-center space-x-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
+        <div className="grid grid-cols-3 gap-1.5 w-full md:w-auto">
           {['ALL', 'AVAILABLE', 'OCCUPIED'].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st as any)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              className={`py-2 px-1.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
                 statusFilter === st
                   ? 'bg-slate-900 text-white shadow-sm'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -316,14 +316,14 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
             >
               {st === 'ALL' && 'ทั้งหมด'}
               {st === 'AVAILABLE' && 'เฉพาะโต๊ะว่าง'}
-              {st === 'OCCUPIED' && 'เฉพาะโต๊ะกำลังทาน'}
+              {st === 'OCCUPIED' && 'กำลังทาน'}
             </button>
           ))}
         </div>
       </div>
 
       {/* Tables Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         {filteredTables.map((table) => {
           const isOccupied = table.status === 'OCCUPIED' || table.activeOrdersCount > 0;
           const tableNo = table.tableNo || table.id;

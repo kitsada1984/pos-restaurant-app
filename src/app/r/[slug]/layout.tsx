@@ -76,10 +76,10 @@ export default function TenantStoreLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-orange-500 selection:text-white pb-20 xl:pb-0">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-orange-500 selection:text-white pb-20 xl:pb-0 w-full max-w-full overflow-x-hidden">
       {/* Top Header */}
-      <header className="sticky top-0 z-40 glass-header no-print border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
-        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-40 glass-header no-print border-b border-slate-200/80 bg-white/90 backdrop-blur-md w-full">
+        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 w-full">
           <div className="flex items-center justify-between h-14 sm:h-18 gap-2 sm:gap-4">
             {/* Store Brand & Slug */}
             <Link href={`/r/${slug}/pos`} className="flex items-center space-x-2.5 sm:space-x-3 group flex-shrink-0">
@@ -166,7 +166,7 @@ export default function TenantStoreLayout({
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col w-full">
+      <div className="flex-1 flex flex-col w-full max-w-full overflow-x-hidden">
         {children}
       </div>
 

@@ -254,47 +254,47 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-2">
+      {/* Tabs (Smooth Isolated Scroll on Mobile) */}
+      <div className="flex border-b border-slate-200 gap-1.5 overflow-x-auto scrollbar-none pb-1 w-full max-w-full">
         <button
           onClick={() => setActiveTab('stock')}
-          className={`px-5 py-3 font-extrabold text-sm border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-2.5 sm:py-3 font-extrabold text-xs sm:text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${
             activeTab === 'stock'
               ? 'border-orange-500 text-orange-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <Package className="w-4 h-4" />
-          รายการสต็อกคงเหลือ & รับเข้า
+          รายการสต็อก &amp; รับเข้า
         </button>
         <button
           onClick={() => setActiveTab('recipes')}
-          className={`px-5 py-3 font-extrabold text-sm border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-2.5 sm:py-3 font-extrabold text-xs sm:text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${
             activeTab === 'recipes'
               ? 'border-orange-500 text-orange-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <ChefHat className="w-4 h-4" />
-          ผูกสูตรอาหาร (Recipe BOM) & ต้นทุน
+          ผูกสูตรอาหาร (Recipe BOM)
         </button>
         <button
           onClick={() => setActiveTab('logs')}
-          className={`px-5 py-3 font-extrabold text-sm border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-2.5 sm:py-3 font-extrabold text-xs sm:text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${
             activeTab === 'logs'
               ? 'border-orange-500 text-orange-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <History className="w-4 h-4" />
-          ประวัติตัดสต็อก & รับเข้า (Audit Logs)
+          ประวัติตัดสต็อก &amp; รับเข้า (Audit Logs)
         </button>
       </div>
 
       {/* TAB 1: Stock Inventory */}
       {activeTab === 'stock' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm overflow-hidden w-full">
+          <div className="p-3.5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative w-full sm:w-80">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
@@ -307,17 +307,18 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
+          {/* Isolated Horizontal Scroll Container for Table */}
+          <div className="overflow-x-auto w-full max-w-full">
+            <table className="w-full text-left text-xs sm:text-sm min-w-[650px]">
               <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100">
-                <tr>
-                  <th className="py-4 px-6">วัตถุดิบ</th>
-                  <th className="py-4 px-6">คงเหลือ</th>
-                  <th className="py-4 px-6">เกณฑ์เตือน</th>
-                  <th className="py-4 px-6">ต้นทุน/หน่วย</th>
-                  <th className="py-4 px-6">มูลค่าคงเหลือ</th>
-                  <th className="py-4 px-6">สถานะ</th>
-                  <th className="py-4 px-6 text-right">การจัดการ</th>
+                <tr className="whitespace-nowrap">
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">วัตถุดิบ</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">คงเหลือ</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">เกณฑ์เตือน</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">ต้นทุน/หน่วย</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">มูลค่าคงเหลือ</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">สถานะ</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6 text-right">การจัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
@@ -326,47 +327,47 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
                   const isOut = ing.currentStock <= 0;
 
                   return (
-                    <tr key={ing.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-4 px-6 font-extrabold text-slate-900">
+                    <tr key={ing.id} className="hover:bg-slate-50/80 transition-colors whitespace-nowrap">
+                      <td className="py-3 sm:py-4 px-4 sm:px-6 font-extrabold text-slate-900">
                         {ing.name}
                       </td>
-                      <td className="py-4 px-6 font-black text-base">
+                      <td className="py-3 sm:py-4 px-4 sm:px-6 font-black text-sm sm:text-base">
                         <span className={isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-slate-900'}>
                           {ing.currentStock.toLocaleString()}
                         </span>{' '}
-                        <span className="text-xs text-slate-400 font-normal">{ing.unit}</span>
+                        <span className="text-[11px] sm:text-xs text-slate-400 font-normal">{ing.unit}</span>
                       </td>
-                      <td className="py-4 px-6 text-slate-500">
+                      <td className="py-3 sm:py-4 px-4 sm:px-6 text-slate-500">
                         {ing.minStockAlert.toLocaleString()} {ing.unit}
                       </td>
-                      <td className="py-4 px-6 text-slate-700">
+                      <td className="py-3 sm:py-4 px-4 sm:px-6 text-slate-700">
                         ฿{ing.costPerUnit.toFixed(2)} / {ing.unit}
                       </td>
-                      <td className="py-4 px-6 font-bold text-emerald-600">
+                      <td className="py-3 sm:py-4 px-4 sm:px-6 font-bold text-emerald-600">
                         ฿{(ing.currentStock * ing.costPerUnit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-3 sm:py-4 px-4 sm:px-6">
                         {isOut ? (
-                          <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-red-100 text-red-700">
+                          <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold bg-red-100 text-red-700">
                             หมดสต็อก
                           </span>
                         ) : isLow ? (
-                          <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-700">
+                          <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold bg-amber-100 text-amber-700">
                             ใกล้หมด
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-700">
+                          <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold bg-emerald-100 text-emerald-700">
                             ปกติ
                           </span>
                         )}
                       </td>
-                      <td className="py-4 px-6 text-right">
+                      <td className="py-3 sm:py-4 px-4 sm:px-6 text-right">
                         <button
                           onClick={() => {
                             setSelectedIng(ing);
                             setIsStockInModalOpen(true);
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200 transition-all inline-flex items-center gap-1"
+                          className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200 transition-all inline-flex items-center gap-1 whitespace-nowrap"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           รับเข้าสต็อก
@@ -562,31 +563,34 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
 
       {/* TAB 3: Audit Logs */}
       {activeTab === 'logs' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-            <History className="w-5 h-5 text-orange-500" />
-            ประวัติการเคลื่อนไหวสต็อกล่าสุด (Stock Audit Logs)
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4 w-full">
+          <h3 className="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+            <History className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 flex-shrink-0" />
+            <span>ประวัติการเคลื่อนไหวสต็อกล่าสุด (Stock Audit Logs)</span>
           </h3>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 w-full overflow-hidden">
             {ingredients.flatMap((i) => (i.stockLogs || []).map((l: any) => ({ ...l, ingredientName: i.name, unit: i.unit })))
               .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
               .slice(0, 30)
               .map((log) => {
                 const isPositive = log.changeQty > 0;
                 return (
-                  <div key={log.id} className="py-3.5 flex items-center justify-between text-xs sm:text-sm">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                  <div key={log.id} className="py-3 sm:py-3.5 flex items-center justify-between gap-2.5 text-xs sm:text-sm">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
                         {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                       </div>
-                      <div>
-                        <span className="font-extrabold text-slate-900">{log.ingredientName}</span>
-                        <span className="text-slate-400 text-xs ml-2">({log.note || log.reason})</span>
-                        <div className="text-[11px] text-slate-400">{new Date(log.createdAt).toLocaleString('th-TH')}</div>
+                      <div className="min-w-0 truncate">
+                        <div className="font-extrabold text-slate-900 truncate">{log.ingredientName}</div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5 truncate">
+                          <span>{log.note || log.reason || 'ปรับสต็อก'}</span>
+                          <span>•</span>
+                          <span>{new Date(log.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`font-black ${isPositive ? 'text-emerald-600' : 'text-slate-900'}`}>
+                    <div className="text-right flex-shrink-0">
+                      <span className={`font-black text-xs sm:text-sm ${isPositive ? 'text-emerald-600' : 'text-slate-900'}`}>
                         {isPositive ? '+' : ''}{log.changeQty.toLocaleString()} {log.unit}
                       </span>
                     </div>

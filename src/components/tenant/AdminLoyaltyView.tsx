@@ -170,36 +170,36 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-2">
+      {/* Tabs (Smooth Isolated Scroll on Mobile) */}
+      <div className="flex border-b border-slate-200 gap-1.5 overflow-x-auto scrollbar-none pb-1 w-full max-w-full">
         <button
           onClick={() => setActiveTab('members')}
-          className={`px-5 py-3 font-extrabold text-sm border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-2.5 sm:py-3 font-extrabold text-xs sm:text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${
             activeTab === 'members'
               ? 'border-orange-500 text-orange-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <Users className="w-4 h-4" />
-          รายชื่อสมาชิก & แต้มสะสม
+          รายชื่อสมาชิก &amp; แต้มสะสม
         </button>
         <button
           onClick={() => setActiveTab('promotions')}
-          className={`px-5 py-3 font-extrabold text-sm border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-2.5 sm:py-3 font-extrabold text-xs sm:text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${
             activeTab === 'promotions'
               ? 'border-orange-500 text-orange-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <Tag className="w-4 h-4" />
-          คูปองส่วนลด & โค้ดโปรโมชั่น
+          คูปองส่วนลด &amp; โค้ดโปรโมชั่น
         </button>
       </div>
 
       {/* TAB 1: Members */}
       {activeTab === 'members' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm overflow-hidden w-full">
+          <div className="p-3.5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative w-full sm:w-80">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
@@ -212,42 +212,43 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
+          {/* Isolated Horizontal Scroll for Members Table */}
+          <div className="overflow-x-auto w-full max-w-full">
+            <table className="w-full text-left text-xs sm:text-sm min-w-[650px]">
               <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100">
-                <tr>
-                  <th className="py-4 px-6">เบอร์โทรศัพท์</th>
-                  <th className="py-4 px-6">ชื่อสมาชิก</th>
-                  <th className="py-4 px-6">แต้มคงเหลือ</th>
-                  <th className="py-4 px-6">มูลค่าส่วนลด (บาท)</th>
-                  <th className="py-4 px-6">ยอดซื้อสะสม</th>
-                  <th className="py-4 px-6">จำนวนครั้งที่มา</th>
-                  <th className="py-4 px-6">วันที่สมัคร</th>
+                <tr className="whitespace-nowrap">
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">เบอร์โทรศัพท์</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">ชื่อสมาชิก</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">แต้มคงเหลือ</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">มูลค่าส่วนลด</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">ยอดซื้อสะสม</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">จำนวนครั้ง</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6">วันที่สมัคร</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {filteredMembers.map((m) => (
-                  <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-4 px-6 font-black text-slate-900 flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-orange-500" />
-                      {m.phone}
+                  <tr key={m.id} className="hover:bg-slate-50/80 transition-colors whitespace-nowrap">
+                    <td className="py-3 sm:py-4 px-4 sm:px-6 font-black text-slate-900 flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 flex-shrink-0" />
+                      <span>{m.phone}</span>
                     </td>
-                    <td className="py-4 px-6 font-bold text-slate-700">
+                    <td className="py-3 sm:py-4 px-4 sm:px-6 font-bold text-slate-700">
                       {m.name || 'ลูกค้าทั่วไป'}
                     </td>
-                    <td className="py-4 px-6 font-black text-orange-600 text-base">
-                      {m.points.toLocaleString()} <span className="text-xs font-normal">แต้ม</span>
+                    <td className="py-3 sm:py-4 px-4 sm:px-6 font-black text-orange-600 text-sm sm:text-base">
+                      {m.points.toLocaleString()} <span className="text-[11px] sm:text-xs font-normal">แต้ม</span>
                     </td>
-                    <td className="py-4 px-6 font-extrabold text-emerald-600">
+                    <td className="py-3 sm:py-4 px-4 sm:px-6 font-extrabold text-emerald-600">
                       ฿{(m.points * pointValue).toLocaleString()}
                     </td>
-                    <td className="py-4 px-6 text-slate-900 font-bold">
+                    <td className="py-3 sm:py-4 px-4 sm:px-6 text-slate-900 font-bold">
                       ฿{m.totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td className="py-4 px-6 text-slate-600">
+                    <td className="py-3 sm:py-4 px-4 sm:px-6 text-slate-600">
                       {m.visitCount} ครั้ง
                     </td>
-                    <td className="py-4 px-6 text-slate-400 text-xs">
+                    <td className="py-3 sm:py-4 px-4 sm:px-6 text-slate-400 text-xs">
                       {new Date(m.createdAt).toLocaleDateString('th-TH')}
                     </td>
                   </tr>
