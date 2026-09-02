@@ -82,7 +82,7 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* Enterprise KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-2">
           <span className="text-xs font-bold text-slate-400">ยอดขายรวมสุทธิ</span>
@@ -95,33 +95,37 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
         </div>
 
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-2">
-          <span className="text-xs font-bold text-slate-400">สแกน PromptPay QR</span>
-          <div className="text-2xl font-black text-orange-600">
-            ฿{(report?.promptPaySales || 0).toLocaleString()}
+          <span className="text-xs font-bold text-amber-500">ต้นทุนวัตถุดิบรวม (COGS)</span>
+          <div className="text-2xl font-black text-amber-600">
+            ฿{(report?.totalCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-xs text-slate-400 font-bold block">
-            โอนเข้าบัญชีพร้อมเพย์
+            คำนวณตามสูตรตัดสต็อกจริง
           </span>
         </div>
 
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-2">
-          <span className="text-xs font-bold text-slate-400">เงินสด (Cash)</span>
+          <span className="text-xs font-bold text-emerald-600">กำไรขั้นต้นสุทธิ (Gross Profit)</span>
           <div className="text-2xl font-black text-emerald-600">
-            ฿{(report?.cashSales || 0).toLocaleString()}
+            ฿{(report?.grossProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <span className="text-xs text-slate-400 font-bold block">
-            เงินสดในลิ้นชัก
+          <span className="text-xs text-emerald-600 font-extrabold block">
+            อัตรากำไร {report?.profitMargin || 0}%
           </span>
         </div>
 
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-2">
-          <span className="text-xs font-bold text-slate-400">ยอดเฉลี่ยต่อบิล</span>
-          <div className="text-2xl font-black text-slate-900">
-            ฿{report?.totalBills ? Math.round(report.totalSales / report.totalBills).toLocaleString() : '0'}
+          <span className="text-xs font-bold text-slate-400">สัดส่วนช่องทางชำระ</span>
+          <div className="text-xs space-y-1 mt-1 font-extrabold">
+            <div className="flex justify-between text-orange-600">
+              <span>พร้อมเพย์:</span>
+              <span>฿{(report?.promptPaySales || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-emerald-600">
+              <span>เงินสด:</span>
+              <span>฿{(report?.cashSales || 0).toLocaleString()}</span>
+            </div>
           </div>
-          <span className="text-xs text-slate-400 font-bold block">
-            Average Basket Size
-          </span>
         </div>
       </div>
 

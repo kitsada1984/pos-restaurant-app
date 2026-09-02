@@ -483,10 +483,193 @@ async function main() {
     },
   });
 
+  // 7. Enterprise Inventory & Ingredients for Demo Store
+  await prisma.menuItemRecipe.deleteMany({});
+  await prisma.stockLog.deleteMany({ where: { storeId: demoStore.id } });
+  await prisma.ingredient.deleteMany({ where: { storeId: demoStore.id } });
+
+  const ingPork = await prisma.ingredient.create({
+    data: {
+      storeId: demoStore.id,
+      name: 'หมูสับสด (อนามัย)',
+      unit: 'กรัม (g)',
+      costPerUnit: 0.16, // 160 บ./กก.
+      currentStock: 10000, // 10 กก.
+      minStockAlert: 1500,
+    },
+  });
+
+  const ingCrispyPork = await prisma.ingredient.create({
+    data: {
+      storeId: demoStore.id,
+      name: 'หมูกรอบทอดใหม่',
+      unit: 'กรัม (g)',
+      costPerUnit: 0.35, // 350 บ./กก.
+      currentStock: 5000, // 5 กก.
+      minStockAlert: 1000,
+    },
+  });
+
+  const ingBeef = await prisma.ingredient.create({
+    data: {
+      storeId: demoStore.id,
+      name: 'เนื้อวัวสไลซ์',
+      unit: 'กรัม (g)',
+      costPerUnit: 0.28,
+      currentStock: 4000,
+      minStockAlert: 800,
+    },
+  });
+
+  const ingEgg = await prisma.ingredient.create({
+    data: {
+      storeId: demoStore.id,
+      name: 'ไข่ไก่สดเบอร์ 2',
+      unit: 'ฟอง',
+      costPerUnit: 4.2,
+      currentStock: 120, // 120 ฟอง
+      minStockAlert: 25,
+    },
+  });
+
+  const ingRice = await prisma.ingredient.create({
+    data: {
+      storeId: demoStore.id,
+      name: 'ข้าวหอมมะลิคัดพิเศษ',
+      unit: 'กรัม (g)',
+      costPerUnit: 0.04, // 40 บ./กก.
+      currentStock: 25000, // 25 กก.
+      minStockAlert: 5000,
+    },
+  });
+
+  const ingBasil = await prisma.ingredient.create({
+    data: {
+      storeId: demoStore.id,
+      name: 'ใบกะเพราบ้านสวน',
+      unit: 'กรัม (g)',
+      costPerUnit: 0.08,
+      currentStock: 2000,
+      minStockAlert: 300,
+    },
+  });
+
+  const ingSauce = await prisma.ingredient.create({
+    data: {
+      storeId: demoStore.id,
+      name: 'ซอสกะเพราสูตรลับประจำร้าน',
+      unit: 'มล. (ml)',
+      costPerUnit: 0.05,
+      currentStock: 5000,
+      minStockAlert: 600,
+    },
+  });
+
+  // Link Recipe BOM for Items
+  const allItems = await prisma.menuItem.findMany({ where: { storeId: demoStore.id } });
+  const itemKaprow = allItems.find((i) => i.name.includes('กะเพรา'));
+  const itemFriedRice = allItems.find((i) => i.name.includes('ข้าวผัด'));
+  const itemKana = allItems.find((i) => i.name.includes('คะน้า'));
+
+  if (itemKaprow) {
+    await prisma.menuItemRecipe.createMany({
+      data: [
+        { menuItemId: itemKaprow.id, ingredientId: ingRice.id, quantity: 180 },
+        { menuItemId: itemKaprow.id, ingredientId: ingPork.id, quantity: 120 },
+        { menuItemId: itemKaprow.id, ingredientId: ingBasil.id, quantity: 20 },
+        { menuItemId: itemKaprow.id, ingredientId: ingSauce.id, quantity: 30 },
+      ],
+    });
+  }
+
+  if (itemFriedRice) {
+    await prisma.menuItemRecipe.createMany({
+      data: [
+        { menuItemId: itemFriedRice.id, ingredientId: ingRice.id, quantity: 200 },
+        { menuItemId: itemFriedRice.id, ingredientId: ingEgg.id, quantity: 1 },
+        { menuItemId: itemFriedRice.id, ingredientId: ingPork.id, quantity: 80 },
+      ],
+    });
+  }
+
+  if (itemKana) {
+    await prisma.menuItemRecipe.createMany({
+      data: [
+        { menuItemId: itemKana.id, ingredientId: ingRice.id, quantity: 180 },
+        { menuItemId: itemKana.id, ingredientId: ingCrispyPork.id, quantity: 100 },
+        { menuItemId: itemKana.id, ingredientId: ingSauce.id, quantity: 25 },
+      ],
+    });
+  }
+
+  // 8. Enterprise Members (Loyalty CRM)
+  await prisma.customerMember.deleteMany({ where: { storeId: demoStore.id } });
+  await prisma.customerMember.create({
+    data: {
+      storeId: demoStore.id,
+      phone: '0899998888',
+      name: 'คุณสมศรี ใจดี (ลูกค้า VIP)',
+      points: 120, // 120 แต้ม = 120 บาท
+      totalSpent: 3000,
+      visitCount: 14,
+    },
+  });
+
+  await prisma.customerMember.create({
+    data: {
+      storeId: demoStore.id,
+      phone: '0812345678',
+      name: 'คุณกฤษดา ขาประจำ',
+      points: 45,
+      totalSpent: 1125,
+      visitCount: 5,
+    },
+  });
+
+  // 9. Enterprise Promotions & Coupon Discounts
+  await prisma.promotion.deleteMany({ where: { storeId: demoStore.id } });
+  await prisma.promotion.create({
+    data: {
+      storeId: demoStore.id,
+      code: 'WELCOME50',
+      title: 'ส่วนลดลูกค้าใหม่ 50 บาท (เมื่อทานครบ 200 บาท)',
+      discountType: 'FIXED',
+      discountValue: 50,
+      minSpend: 200,
+      isActive: true,
+    },
+  });
+
+  await prisma.promotion.create({
+    data: {
+      storeId: demoStore.id,
+      code: 'DISC10',
+      title: 'ส่วนลดพิเศษ 10% ทุกเมนู (เมื่อทานครบ 150 บาท)',
+      discountType: 'PERCENT',
+      discountValue: 10,
+      minSpend: 150,
+      isActive: true,
+    },
+  });
+
+  await prisma.promotion.create({
+    data: {
+      storeId: demoStore.id,
+      code: 'AROI20',
+      title: 'ส่วนลดอร่อยคุ้ม 20 บาท',
+      discountType: 'FIXED',
+      discountValue: 20,
+      minSpend: 100,
+      isActive: true,
+    },
+  });
+
   console.log('✅ Multi-Tenant SaaS Seed Completed:');
   console.log(' - Super Admin: admin@ordeopos.com / adminpassword123');
   console.log(' - Demo Store Owner: owner@lungpa.com / password123 (Slug: lung-pa)');
   console.log(' - 4 Subscription Plans created');
+  console.log(' - Enterprise Recipe BOM & Inventory seeded');
+  console.log(' - Enterprise Loyalty CRM & Promotions seeded');
 }
 
 main()

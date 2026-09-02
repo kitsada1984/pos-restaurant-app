@@ -63,13 +63,24 @@ export async function POST(
   try {
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
-      select: { id: true, name: true },
+      select: { id: true, name: true, pointsRate: true },
     });
 
     if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
 
     const body = await request.json();
-    const { tableId, items, orderType, note, customerName, customerLineId } = body;
+    const {
+      tableId,
+      items,
+      orderType,
+      note,
+      customerName,
+      customerLineId,
+      memberPhone,
+      promoCode,
+      discountAmount = 0,
+      pointsRedeemed = 0,
+    } = body;
 
     const tableNo = parseInt(tableId || 1);
 
@@ -92,7 +103,7 @@ export async function POST(
       },
     });
 
-    // Calculate total amount
+    // 1. Calculate total amount & order items
     let totalAmount = 0;
     const orderItemsData = items.map((item: any) => {
       const itemTotal = item.price * item.quantity;
@@ -109,6 +120,29 @@ export async function POST(
       };
     });
 
+    const netAmount = Math.max(0, totalAmount - Number(discountAmount));
+
+    // 2. Enterprise Recipe BOM & Real-time Stock Deduction
+    const menuItemIds = items.map((i: any) => i.menuItemId).filter(Boolean);
+    const recipes = await prisma.menuItemRecipe.findMany({
+      where: { menuItemId: { in: menuItemIds } },
+      include: { ingredient: true },
+    });
+
+    let totalCost = 0;
+    const stockDeductions: { ingredientId: string; qty: number; cost: number }[] = [];
+
+    for (const orderItem of items) {
+      const itemRecipes = recipes.filter((r) => r.menuItemId === orderItem.menuItemId);
+      for (const r of itemRecipes) {
+        const deductQty = r.quantity * (orderItem.quantity || 1);
+        const cost = deductQty * (r.ingredient?.costPerUnit || 0);
+        totalCost += cost;
+        stockDeductions.push({ ingredientId: r.ingredientId, qty: deductQty, cost });
+      }
+    }
+
+    // 3. Create Order
     const newOrder = await prisma.order.create({
       data: {
         storeId: store.id,
@@ -116,7 +150,12 @@ export async function POST(
         tableNo: table.tableNo,
         orderType: orderType || 'DINE_IN',
         totalAmount,
-        netAmount: totalAmount,
+        discountAmount: Number(discountAmount),
+        netAmount,
+        costAmount: totalCost,
+        memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : null,
+        promoCode: promoCode ? promoCode.toUpperCase().trim() : null,
+        pointsRedeemed: Number(pointsRedeemed) || 0,
         note,
         customerName,
         customerLineId,
@@ -129,6 +168,46 @@ export async function POST(
         items: true,
       },
     });
+
+    // 4. Execute Real-time Stock Deductions & Depletion Triggers asynchronously
+    (async () => {
+      try {
+        for (const ded of stockDeductions) {
+          const updatedIng = await prisma.ingredient.update({
+            where: { id: ded.ingredientId },
+            data: { currentStock: { decrement: ded.qty } },
+          });
+
+          await prisma.stockLog.create({
+            data: {
+              storeId: store.id,
+              ingredientId: ded.ingredientId,
+              changeQty: -ded.qty,
+              reason: 'ORDER',
+              note: `ตัดสต็อกออเดอร์โต๊ะ ${table.tableNo} (#${newOrder.id.slice(-4)})`,
+              cost: ded.cost,
+            },
+          });
+
+          // Auto-disable dish if ingredient is completely out of stock
+          if (updatedIng.currentStock <= 0) {
+            const affectedItemIds = recipes
+              .filter((r) => r.ingredientId === ded.ingredientId)
+              .map((r) => r.menuItemId);
+
+            if (affectedItemIds.length > 0) {
+              await prisma.menuItem.updateMany({
+                where: { id: { in: affectedItemIds } },
+                data: { isAvailable: false },
+              });
+              broadcastEvent('MENU_UPDATED', { affectedItemIds, isAvailable: false }, store.id);
+            }
+          }
+        }
+      } catch (stockErr) {
+        console.error('Error executing stock deduction:', stockErr);
+      }
+    })();
 
     // Broadcast SSE realtime events
     broadcastEvent('ORDER_CREATED', newOrder, store.id);

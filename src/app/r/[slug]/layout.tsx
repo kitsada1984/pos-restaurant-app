@@ -15,6 +15,8 @@ import {
   Store,
   ExternalLink,
   User,
+  Package,
+  Gift,
 } from 'lucide-react';
 import { playOrderChime } from '@/lib/sound';
 
@@ -51,6 +53,8 @@ export default function TenantStoreLayout({
     { href: `/r/${slug}/kitchen`, label: 'ห้องครัว (KDS)', icon: ChefHat },
     { href: `/r/${slug}/admin/tables`, label: 'จัดการโต๊ะ', icon: LayoutGrid },
     { href: `/r/${slug}/admin/menu`, label: 'เมนู & ของหมด', icon: UtensilsCrossed },
+    { href: `/r/${slug}/admin/inventory`, label: 'คลังวัตถุดิบ & สูตร', icon: Package },
+    { href: `/r/${slug}/admin/promotions`, label: 'สมาชิก & โปรโมชั่น', icon: Gift },
     { href: `/r/${slug}/admin/reports`, label: 'ยอดขาย & ปิดกะ', icon: BarChart3 },
     { href: `/r/${slug}/admin/qr-codes`, label: 'พิมพ์ QR โต๊ะ', icon: QrCode },
     { href: `/r/${slug}/admin/settings`, label: 'ตั้งค่าร้าน', icon: Settings },

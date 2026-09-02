@@ -63,6 +63,13 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [isProcessingPay, setIsProcessingPay] = useState(false);
 
+  // Enterprise Loyalty & Promo Checkout States
+  const [memberPhone, setMemberPhone] = useState('');
+  const [memberData, setMemberData] = useState<any>(null);
+  const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+
   // Print Receipt Modal
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -271,10 +278,52 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     }
   };
 
-  // Handle Payment
+  // Handle Member Lookup
+  const handleLookupMember = async (phone: string) => {
+    setMemberPhone(phone);
+    const clean = phone.replace(/\D/g, '');
+    if (clean.length >= 9) {
+      try {
+        const res = await fetch(`/api/r/${slug}/members?phone=${clean}`);
+        const data = await res.json();
+        if (data.member) {
+          setMemberData(data.member);
+        } else {
+          setMemberData(null);
+        }
+      } catch (e) {
+        setMemberData(null);
+      }
+    } else {
+      setMemberData(null);
+      setPointsToRedeem(0);
+    }
+  };
+
+  // Handle Promo Code Apply
+  const handleApplyPromo = async () => {
+    if (!promoCodeInput) return;
+    try {
+      const res = await fetch(`/api/r/${slug}/promotions?code=${promoCodeInput}&amount=${rawTotalAmount}`);
+      const data = await res.json();
+      if (data.valid) {
+        setAppliedPromo(data.promo);
+      } else {
+        alert(data.error || 'โค้ดส่วนลดไม่ถูกต้อง');
+      }
+    } catch (e) {
+      alert('เกิดข้อผิดพลาดในการตรวจสอบโค้ด');
+    }
+  };
+
+  // Handle Payment Calculations
   const activeOrders = selectedTable?.activeOrders || [];
   const rawTotalAmount = activeOrders.reduce((sum: number, o: any) => sum + o.netAmount, 0);
-  const finalNetAmount = Math.max(0, rawTotalAmount - (discountAmount || 0));
+  
+  const promoDiscount = appliedPromo?.calculatedDiscount || 0;
+  const pointDiscount = pointsToRedeem * (store?.pointValue || 1);
+  const totalCombinedDiscount = (discountAmount || 0) + promoDiscount + pointDiscount;
+  const finalNetAmount = Math.max(0, rawTotalAmount - totalCombinedDiscount);
 
   const change =
     paymentMethod === 'CASH' && cashReceived
@@ -293,6 +342,10 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             paymentMethod,
             cashReceived: paymentMethod === 'CASH' ? parseFloat(cashReceived) : null,
             changeAmount: paymentMethod === 'CASH' ? Math.max(0, change) : 0,
+            memberPhone: memberPhone || null,
+            pointsRedeemed: pointsToRedeem || 0,
+            promoCode: appliedPromo?.code || null,
+            discountAmount: totalCombinedDiscount,
           }),
         });
       }
@@ -309,7 +362,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         tableName: selectedTable.name,
         orders: activeOrders,
         totalAmount: rawTotalAmount,
-        discountAmount,
+        discountAmount: totalCombinedDiscount,
         netAmount: finalNetAmount,
         paymentMethod,
         cashReceived: paymentMethod === 'CASH' ? parseFloat(cashReceived) : null,
@@ -322,6 +375,11 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       setSelectedTable(null);
       setCashReceived('');
       setDiscountAmount(0);
+      setMemberPhone('');
+      setMemberData(null);
+      setPointsToRedeem(0);
+      setPromoCodeInput('');
+      setAppliedPromo(null);
       fetchData();
     } catch (err) {
       console.error(err);
@@ -765,8 +823,96 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               </button>
             </div>
 
+            {/* Enterprise Loyalty Member Section */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-orange-500" />
+                  สมาชิกสะสมแต้ม (เบอร์โทร)
+                </span>
+                {memberData && (
+                  <span className="text-[11px] font-bold text-orange-600 bg-orange-100/70 px-2 py-0.5 rounded-md">
+                    มี {memberData.points} แต้ม (฿{memberData.points * (store?.pointValue || 1)})
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  placeholder="เช่น 0899998888"
+                  value={memberPhone}
+                  onChange={(e) => handleLookupMember(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold"
+                />
+                {memberData && memberData.points > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pointsToRedeem > 0) {
+                        setPointsToRedeem(0);
+                      } else {
+                        // Max redeemable
+                        const maxPoints = Math.min(memberData.points, Math.floor(rawTotalAmount / (store?.pointValue || 1)));
+                        setPointsToRedeem(maxPoints);
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                      pointsToRedeem > 0
+                        ? 'bg-orange-600 text-white shadow-sm'
+                        : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                    }`}
+                  >
+                    {pointsToRedeem > 0 ? `แลก ฿${pointsToRedeem * (store?.pointValue || 1)} ✓` : 'แลกแต้มส่วนลด'}
+                  </button>
+                )}
+              </div>
+              {memberData && (
+                <div className="text-[11px] text-slate-500">
+                  ลูกค้า: <strong>{memberData.name || 'สมาชิก'}</strong> • จะได้รับแต้มเพิ่ม{' '}
+                  <strong className="text-emerald-600">+{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม</strong>
+                </div>
+              )}
+            </div>
+
+            {/* Enterprise Promo / Coupon Section */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+              <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                คูปองส่วนลด (Coupon Promo)
+              </span>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="เช่น WELCOME50, DISC10"
+                  value={promoCodeInput}
+                  onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                  className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-black uppercase tracking-wider"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold"
+                >
+                  ใช้โค้ด
+                </button>
+              </div>
+              {appliedPromo && (
+                <div className="flex items-center justify-between text-xs text-emerald-600 font-extrabold bg-emerald-50 p-2 rounded-xl border border-emerald-100">
+                  <span>{appliedPromo.title} ({appliedPromo.code})</span>
+                  <span>-฿{appliedPromo.calculatedDiscount}</span>
+                </div>
+              )}
+            </div>
+
             <div className="p-4 rounded-2xl bg-orange-50/80 border border-orange-100 flex justify-between items-center">
-              <span className="text-xs font-bold text-orange-900">ยอดสุทธิที่ต้องชำระ:</span>
+              <div>
+                <span className="text-xs font-bold text-orange-900 block">ยอดสุทธิที่ต้องชำระ:</span>
+                {totalCombinedDiscount > 0 && (
+                  <span className="text-[11px] text-emerald-600 font-bold">
+                    (ประหยัดไป ฿{totalCombinedDiscount})
+                  </span>
+                )}
+              </div>
               <span className="text-2xl font-black text-orange-600">฿{finalNetAmount.toLocaleString()}</span>
             </div>
 

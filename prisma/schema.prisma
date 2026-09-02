@@ -44,6 +44,10 @@ model Store {
   receiptFooter   String?        @default("ขอบคุณที่อุดหนุนครับ/ค่ะ โอกาสหน้าเชิญใหม่")
   tableCount      Int            @default(10)
   
+  // การตั้งค่าระบบสมาชิกสะสมแต้ม (Loyalty Points Settings)
+  pointsRate      Float          @default(25) // ยอดซื้อทุกกี่บาท = 1 แต้ม (ค่าเริ่มต้น 25 บ.)
+  pointValue      Float          @default(1)  // 1 แต้ม = แลกส่วนลดได้กี่บาท (ค่าเริ่มต้น 1 บ.)
+  
   // ความสัมพันธ์ข้อมูลของร้าน
   users           User[]
   categories      Category[]
@@ -51,6 +55,10 @@ model Store {
   tables          Table[]
   orders          Order[]
   subscriptions   SubscriptionHistory[]
+  ingredients     Ingredient[]
+  stockLogs       StockLog[]
+  members         CustomerMember[]
+  promotions      Promotion[]
   
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -139,6 +147,7 @@ model MenuItem {
   sortOrder   Int               @default(0)
   options     MenuOptionGroup[]
   orderItems  OrderItem[]
+  recipes     MenuItemRecipe[]
 }
 
 model MenuOptionGroup {
@@ -159,6 +168,90 @@ model MenuOptionChoice {
   extraPrice    Float           @default(0)
 }
 
+// ----------------------------------------------------
+// 3. ระบบคลังวัตถุดิบ & สูตรอาหาร (Inventory & Recipe BOM)
+// ----------------------------------------------------
+
+model Ingredient {
+  id            String           @id @default(cuid())
+  storeId       String
+  store         Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name          String           // เช่น "หมูสับ", "เนื้อวัว", "ไข่ไก่", "ใบกะเพรา", "ข้าวสาร", "พริกสด"
+  unit          String           // เช่น "กรัม (g)", "ฟอง", "มล. (ml)", "กิโลกรัม (kg)"
+  costPerUnit   Float            @default(0) // ต้นทุนต่อหน่วย (บาท)
+  currentStock  Float            @default(0) // จำนวนคงเหลือ
+  minStockAlert Float            @default(10) // เกณฑ์เตือนของใกล้หมด
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  recipes       MenuItemRecipe[]
+  stockLogs     StockLog[]
+}
+
+model MenuItemRecipe {
+  id           String     @id @default(cuid())
+  menuItemId   String
+  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  quantity     Float      @default(1) // ปริมาณที่ใช้ต่อ 1 จาน (เช่น 150g, 1 ฟอง)
+
+  @@unique([menuItemId, ingredientId])
+}
+
+model StockLog {
+  id           String     @id @default(cuid())
+  storeId      String
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  changeQty    Float      // เช่น +5000 (รับเข้า) หรือ -150 (ขาย)
+  reason       String     // STOCK_IN, ORDER, ADJUST, SPOILAGE
+  cost         Float?
+  note         String?
+  createdAt    DateTime   @default(now())
+}
+
+// ----------------------------------------------------
+// 4. ระบบสมาชิกสะสมแต้ม & คูปองโปรโมชั่น (Loyalty CRM & Promo)
+// ----------------------------------------------------
+
+model CustomerMember {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  phone      String   // เบอร์โทรศัพท์สำหรับสะสมแต้ม
+  name       String?  // ชื่อลูกค้า
+  points     Int      @default(0) // แต้มสะสมคงเหลือ
+  totalSpent Float    @default(0) // ยอดซื้อสะสมรวมทั้งหมด
+  visitCount Int      @default(0) // จำนวนครั้งที่มาใช้บริการ
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([storeId, phone])
+}
+
+model Promotion {
+  id            String    @id @default(cuid())
+  storeId       String
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  code          String    // เช่น "WELCOME50", "DISC10"
+  title         String    // เช่น "ส่วนลดเปิดร้านใหม่ 50 บาท"
+  discountType  String    @default("FIXED") // FIXED (บาท), PERCENT (%)
+  discountValue Float     // เช่น 50 หรือ 10
+  minSpend      Float     @default(0) // ยอดสั่งซื้อขั้นต่ำ
+  isActive      Boolean   @default(true)
+  expiryDate    DateTime?
+  usageCount    Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([storeId, code])
+}
+
+// ----------------------------------------------------
+// 5. ออเดอร์และรายการสั่งอาหาร (Orders & Order Items)
+// ----------------------------------------------------
+
 model Order {
   id             String      @id @default(cuid())
   storeId        String
@@ -171,6 +264,14 @@ model Order {
   totalAmount    Float       @default(0)
   discountAmount Float       @default(0)
   netAmount      Float       @default(0)
+  costAmount     Float       @default(0) // ต้นทุนวัตถุดิบรวมสำหรับคำนวณกำไร COGS
+  
+  // การสะสมแต้ม & ส่วนลดโปรโมชั่น
+  memberPhone    String?
+  pointsEarned   Int         @default(0)
+  pointsRedeemed Int         @default(0)
+  promoCode      String?
+  
   paymentMethod  String?     // CASH, PROMPTPAY
   paymentStatus  String      @default("UNPAID") // UNPAID, PENDING_CONFIRMATION, PAID
   slipUrl        String?     // รูปภาพสลิปที่ลูกค้าแนบ

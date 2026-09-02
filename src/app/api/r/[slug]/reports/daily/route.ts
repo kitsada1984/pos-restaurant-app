@@ -44,6 +44,12 @@ export async function GET(
 
     const totalSales = paidOrders.reduce((sum, o) => sum + o.netAmount, 0);
     const totalBills = paidOrders.length;
+    const totalCost = paidOrders.reduce((sum, o) => sum + (o.costAmount || 0), 0);
+    const totalDiscount = paidOrders.reduce((sum, o) => sum + (o.discountAmount || 0), 0);
+    const grossProfit = totalSales - totalCost;
+    const profitMargin = totalSales > 0 ? Math.round((grossProfit / totalSales) * 100) : 0;
+    const totalPointsEarned = paidOrders.reduce((sum, o) => sum + (o.pointsEarned || 0), 0);
+    const totalPointsRedeemed = paidOrders.reduce((sum, o) => sum + (o.pointsRedeemed || 0), 0);
 
     let cashSales = 0;
     let promptPaySales = 0;
@@ -79,6 +85,12 @@ export async function GET(
       date: startOfDay.toISOString().split('T')[0],
       totalSales,
       totalBills,
+      totalCost,
+      grossProfit,
+      profitMargin,
+      totalDiscount,
+      totalPointsEarned,
+      totalPointsRedeemed,
       cashSales,
       promptPaySales,
       topSellingItems,
