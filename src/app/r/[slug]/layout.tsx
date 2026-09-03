@@ -101,8 +101,8 @@ export default function TenantStoreLayout({
               </div>
             </Link>
 
-            {/* Desktop Navigation (XL screens - Equal Width Grid) */}
-            <nav className="hidden xl:grid grid-cols-9 gap-1 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/60 text-xs font-bold whitespace-nowrap flex-1 max-w-[860px]">
+            {/* Desktop Navigation (XL screens - Full Proportional Grid) */}
+            <nav className="hidden xl:grid grid-cols-9 gap-1.5 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/70 text-xs font-bold whitespace-nowrap flex-1 max-w-[1020px] mx-2">
               {allNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href || (item.href !== `/r/${slug}` && pathname.startsWith(item.href));
@@ -111,21 +111,21 @@ export default function TenantStoreLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center justify-center space-x-1 px-2.5 py-2 rounded-xl text-center transition-all duration-200 ${
+                    className={`flex items-center justify-center space-x-1 px-2.5 py-2.5 rounded-xl text-center transition-all duration-200 ${
                       isActive
-                        ? 'bg-white text-slate-900 shadow-sm shadow-slate-200/50 font-extrabold'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                        ? 'bg-white text-slate-900 shadow-sm shadow-slate-200/60 font-black'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                     }`}
                   >
                     <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-400'}`} />
-                    <span className="truncate text-[11.5px]">{item.label}</span>
+                    <span className="text-[12px] font-extrabold whitespace-nowrap leading-none">{item.label}</span>
                   </Link>
                 );
               })}
             </nav>
 
             {/* Actions & Links */}
-            <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0 whitespace-nowrap">
+            <div className="flex items-center space-x-2 flex-shrink-0 whitespace-nowrap">
               {/* Sound toggle */}
               <button
                 onClick={() => {
@@ -133,32 +133,24 @@ export default function TenantStoreLayout({
                   if (!soundEnabled) playOrderChime();
                 }}
                 title={soundEnabled ? 'ปิดเสียงเตือน' : 'เปิดเสียงเตือน'}
-                className={`p-2 sm:p-2.5 rounded-xl text-xs transition-all border flex-shrink-0 ${
+                className={`p-2 sm:p-2.5 rounded-xl text-xs transition-all border flex-shrink-0 flex items-center space-x-1.5 ${
                   soundEnabled
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                    : 'border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold'
+                    : 'border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 font-bold'
                 }`}
               >
-                {soundEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-600" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
+                <span className="text-[11px] hidden sm:inline">{soundEnabled ? 'เสียงเปิด' : 'เสียงปิด'}</span>
               </button>
-
-              {/* Test table ordering link */}
-              <Link
-                href={`/r/${slug}/table/1`}
-                target="_blank"
-                className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-extrabold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all whitespace-nowrap flex-shrink-0"
-              >
-                <span className="whitespace-nowrap">ทดลองสั่ง (โต๊ะ 1)</span>
-                <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-400 flex-shrink-0" />
-              </Link>
 
               {/* Owner Hub link */}
               <Link
                 href="/store/dashboard"
-                className="p-2 sm:p-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 transition-all flex items-center"
+                className="px-3 py-2 sm:py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 transition-all flex items-center space-x-1.5 font-extrabold text-xs shadow-sm"
                 title="แดชบอร์ดเจ้าของร้าน"
               >
-                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <User className="w-4 h-4 text-orange-600" />
+                <span className="text-[11px] hidden sm:inline">แดชบอร์ด</span>
               </Link>
             </div>
           </div>

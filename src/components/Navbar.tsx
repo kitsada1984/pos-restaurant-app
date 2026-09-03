@@ -88,7 +88,7 @@ export default function Navbar() {
           </nav>
 
           {/* Action CTAs (Strictly Single Line) */}
-          <div className="flex items-center space-x-2.5 flex-shrink-0 whitespace-nowrap">
+          <div className="flex items-center space-x-2 flex-shrink-0 whitespace-nowrap">
             {/* Audio Toggle */}
             <button
               onClick={() => {
@@ -96,24 +96,15 @@ export default function Navbar() {
                 if (!soundEnabled) playOrderChime();
               }}
               title={soundEnabled ? 'ปิดเสียงเตือน' : 'เปิดเสียงเตือน'}
-              className={`p-2.5 rounded-xl text-xs transition-all border flex-shrink-0 ${
+              className={`p-2.5 rounded-xl text-xs transition-all border flex-shrink-0 flex items-center space-x-1.5 ${
                 soundEnabled
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                  : 'border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold'
+                  : 'border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 font-bold'
               }`}
             >
-              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-600" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
+              <span className="text-[11px] hidden sm:inline">{soundEnabled ? 'เสียงเปิด' : 'เสียงปิด'}</span>
             </button>
-
-            {/* Test Customer Table Link */}
-            <Link
-              href="/table/1"
-              target="_blank"
-              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs font-extrabold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all whitespace-nowrap flex-shrink-0"
-            >
-              <span className="whitespace-nowrap">ทดลองสั่ง (โต๊ะ 1)</span>
-              <ExternalLink className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-            </Link>
           </div>
         </div>
 
