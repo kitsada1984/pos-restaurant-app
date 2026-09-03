@@ -159,7 +159,7 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                 จอห้องครัว Real-time (KDS)
               </h1>
               <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-                ร้าน: <span className="font-bold text-slate-800">{slug}</span> • รับตั๋วออเดอร์สดพร้อมเสียงกระดิ่งเตือน
+                รับตั๋วออเดอร์สดพร้อมเสียงกระดิ่งเตือนและอัปเดตสถานะแบบเรียลไทม์
               </p>
             </div>
           </div>

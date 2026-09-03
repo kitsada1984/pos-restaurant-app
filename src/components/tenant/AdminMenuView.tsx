@@ -211,7 +211,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
             </h1>
           </div>
           <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
-            ร้าน: <span className="font-bold text-slate-800">{slug}</span> • แก้ไขรายละเอียด, ลบเมนู และกดสวิตช์ 1-Click ปิดของหมดได้ทันทีแบบเรียลไทม์
+            แก้ไขรายละเอียด, ลบเมนู และกดสวิตช์ 1-Click ปิดของหมดได้ทันทีแบบเรียลไทม์
           </p>
         </div>
 

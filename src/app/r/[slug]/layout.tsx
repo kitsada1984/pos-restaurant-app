@@ -81,22 +81,17 @@ export default function TenantStoreLayout({
       <header className="sticky top-0 z-40 glass-header no-print border-b border-slate-200/80 bg-white/90 backdrop-blur-md w-full">
         <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 w-full">
           <div className="flex items-center justify-between h-14 sm:h-18 gap-2 sm:gap-4">
-            {/* Store Brand & Slug */}
+            {/* Store Brand */}
             <Link href={`/r/${slug}/pos`} className="flex items-center space-x-2.5 sm:space-x-3 group flex-shrink-0">
               <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-slate-900 via-orange-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform flex-shrink-0">
                 <Store className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
-              <div className="flex flex-col">
-                <div className="flex items-center space-x-1.5 whitespace-nowrap">
-                  <span className="font-extrabold text-slate-900 text-sm sm:text-base tracking-tight whitespace-nowrap truncate max-w-[120px] sm:max-w-[200px]">
-                    {storeInfo?.storeName || 'ร้านอาหาร'}
-                  </span>
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold bg-orange-100 text-orange-700 whitespace-nowrap">
-                    POS
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap hidden sm:block">
-                  /r/{slug}
+              <div className="flex items-center space-x-1.5 whitespace-nowrap">
+                <span className="font-extrabold text-slate-900 text-sm sm:text-base tracking-tight whitespace-nowrap truncate max-w-[140px] sm:max-w-[220px]">
+                  {storeInfo?.storeName || 'ร้านอาหาร'}
+                </span>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold bg-orange-100 text-orange-700 whitespace-nowrap">
+                  POS
                 </span>
               </div>
             </Link>
