@@ -76,7 +76,7 @@ export default function TenantStoreLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-orange-500 selection:text-white pb-20 xl:pb-0 w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-orange-500 selection:text-white pb-20 lg:pb-0 w-full max-w-full overflow-x-hidden">
       {/* Top Header */}
       <header className="sticky top-0 z-40 glass-header no-print border-b border-slate-200/80 bg-white/90 backdrop-blur-md w-full">
         <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 w-full">
@@ -101,8 +101,8 @@ export default function TenantStoreLayout({
               </div>
             </Link>
 
-            {/* Desktop Navigation (XL screens - Full Proportional Grid) */}
-            <nav className="hidden xl:grid grid-cols-9 gap-1.5 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/70 text-xs font-bold whitespace-nowrap flex-1 max-w-[1020px] mx-2">
+            {/* Desktop Navigation (Horizontal Flex with smooth scroll protection) */}
+            <nav className="hidden lg:flex items-center space-x-1 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/70 text-xs font-bold whitespace-nowrap overflow-x-auto scrollbar-none flex-1 max-w-[1040px] mx-2">
               {allNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href || (item.href !== `/r/${slug}` && pathname.startsWith(item.href));
@@ -111,14 +111,14 @@ export default function TenantStoreLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center justify-center space-x-1 px-2.5 py-2.5 rounded-xl text-center transition-all duration-200 ${
+                    className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
                       isActive
                         ? 'bg-white text-slate-900 shadow-sm shadow-slate-200/60 font-black'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                     }`}
                   >
                     <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-400'}`} />
-                    <span className="text-[12px] font-extrabold whitespace-nowrap leading-none">{item.label}</span>
+                    <span className="text-xs font-extrabold whitespace-nowrap">{item.label}</span>
                   </Link>
                 );
               })}
@@ -163,7 +163,7 @@ export default function TenantStoreLayout({
       </div>
 
       {/* Mobile Bottom Navigation Bar (5 equal columns) */}
-      <div className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-2xl py-1 px-2 grid grid-cols-5 gap-1 no-print">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-2xl py-1 px-2 grid grid-cols-5 gap-1 no-print">
         {primaryMobileNav.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || (item.href !== `/r/${slug}` && pathname.startsWith(item.href));
@@ -202,7 +202,7 @@ export default function TenantStoreLayout({
 
       {/* Mobile Slide-up Drawer for Extra Menus */}
       {isMoreMenuOpen && (
-        <div className="xl:hidden fixed inset-0 z-50 flex flex-col justify-end bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div
             className="flex-1"
             onClick={() => setIsMoreMenuOpen(false)}
