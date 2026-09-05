@@ -48,6 +48,13 @@ model Store {
   pointsRate      Float          @default(25) // ยอดซื้อทุกกี่บาท = 1 แต้ม (ค่าเริ่มต้น 25 บ.)
   pointValue      Float          @default(1)  // 1 แต้ม = แลกส่วนลดได้กี่บาท (ค่าเริ่มต้น 1 บ.)
   
+  // การตั้งค่าเดลิเวอรี & ค่าคอมมิชชั่น GP (Delivery Platforms & GP Settings)
+  linemanGp       Float          @default(30) // % GP LINE MAN
+  grabGp          Float          @default(30) // % GP GrabFood
+  shopeeGp        Float          @default(30) // % GP ShopeeFood
+  robinhoodGp     Float          @default(20) // % GP Robinhood
+  deliveryWebhookSecret String?  // Webhook Security Token for Platform API
+  
   // ความสัมพันธ์ข้อมูลของร้าน
   users           User[]
   categories      Category[]
@@ -261,9 +268,17 @@ model Order {
   tableNo        Int         @default(1)
   status         String      @default("PENDING") // PENDING, COOKING, READY, SERVED, COMPLETED, CANCELLED
   orderType      String      @default("DINE_IN") // DINE_IN, TAKEAWAY
+  orderChannel   String      @default("DINE_IN") // DINE_IN, TAKEAWAY, LINEMAN, GRAB, SHOPEE_FOOD, ROBINHOOD
+  deliveryOrderId String?    // รหัสออเดอร์จากแอปเดลิเวอรี เช่น "LM-8492", "GF-1049"
+  riderName      String?     // ชื่อคนขับ/ไรเดอร์
+  riderPhone     String?     // เบอร์โทรคนขับ
+  
   totalAmount    Float       @default(0)
   discountAmount Float       @default(0)
   netAmount      Float       @default(0)
+  gpPercent      Float       @default(0) // % GP ที่ถูกหัก เช่น 30
+  gpAmount       Float       @default(0) // ยอดเงินค่า GP เช่น 45 บาท
+  netRevenue     Float       @default(0) // รายได้สุทธิที่ร้านได้รับจริงหลังหัก GP
   costAmount     Float       @default(0) // ต้นทุนวัตถุดิบรวมสำหรับคำนวณกำไร COGS
   
   // การสะสมแต้ม & ส่วนลดโปรโมชั่น

@@ -30,6 +30,11 @@ export async function GET(
       trialEndsAt: store.trialEndsAt,
       subscriptionEnd: store.subscriptionEnd,
       plan: store.plan,
+      linemanGp: store.linemanGp ?? 30,
+      grabGp: store.grabGp ?? 30,
+      shopeeGp: store.shopeeGp ?? 30,
+      robinhoodGp: store.robinhoodGp ?? 20,
+      deliveryWebhookSecret: store.deliveryWebhookSecret,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -42,7 +47,20 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
-    const { storeName, promptPayId, promptPayName, address, phone, receiptFooter, tableCount } = body;
+    const {
+      storeName,
+      promptPayId,
+      promptPayName,
+      address,
+      phone,
+      receiptFooter,
+      tableCount,
+      linemanGp,
+      grabGp,
+      shopeeGp,
+      robinhoodGp,
+      deliveryWebhookSecret,
+    } = body;
 
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
@@ -60,6 +78,11 @@ export async function PUT(
         phone: phone !== undefined ? phone : store.phone,
         receiptFooter: receiptFooter !== undefined ? receiptFooter : store.receiptFooter,
         tableCount: tableCount ? parseInt(tableCount) : store.tableCount,
+        linemanGp: linemanGp !== undefined ? parseFloat(linemanGp) : store.linemanGp,
+        grabGp: grabGp !== undefined ? parseFloat(grabGp) : store.grabGp,
+        shopeeGp: shopeeGp !== undefined ? parseFloat(shopeeGp) : store.shopeeGp,
+        robinhoodGp: robinhoodGp !== undefined ? parseFloat(robinhoodGp) : store.robinhoodGp,
+        deliveryWebhookSecret: deliveryWebhookSecret !== undefined ? deliveryWebhookSecret : store.deliveryWebhookSecret,
       },
       include: { plan: true },
     });
@@ -80,6 +103,11 @@ export async function PUT(
       trialEndsAt: updated.trialEndsAt,
       subscriptionEnd: updated.subscriptionEnd,
       plan: updated.plan,
+      linemanGp: updated.linemanGp,
+      grabGp: updated.grabGp,
+      shopeeGp: updated.shopeeGp,
+      robinhoodGp: updated.robinhoodGp,
+      deliveryWebhookSecret: updated.deliveryWebhookSecret,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

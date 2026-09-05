@@ -110,13 +110,13 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
 
         <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-1.5 sm:space-y-2 flex flex-col justify-between h-full">
           <div>
-            <span className="text-xs font-bold text-emerald-600">กำไรขั้นต้น (GP)</span>
+            <span className="text-xs font-bold text-slate-400">กำไรสุทธิหลังหัก GP เดลิเวอรี</span>
             <div className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">
               ฿{(report?.grossProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
           <span className="text-[11px] sm:text-xs text-emerald-600 font-bold block pt-1.5 border-t border-slate-100">
-            อัตรากำไร {report?.profitMargin || 0}%
+            {report?.totalGpDeducted > 0 ? `หัก GP รวม ฿${(report?.totalGpDeducted || 0).toLocaleString()} • ` : ''}อัตรากำไร {report?.profitMargin || 0}%
           </span>
         </div>
 
@@ -136,6 +136,43 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
           </div>
         </div>
       </div>
+
+      {/* Delivery Channels Breakdown Card */}
+      {report?.channelBreakdown && (
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm space-y-3 w-full">
+          <h3 className="font-extrabold text-sm text-slate-900 flex items-center space-x-2">
+            <span>🛵 สรุปยอดขายแยกตามช่องทาง (Sales by Channel & Platform)</span>
+          </h3>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {[
+              { id: 'DINE_IN', label: '🍽️ ทานที่ร้าน', data: report.channelBreakdown.DINE_IN, bg: 'bg-slate-50', text: 'text-slate-900' },
+              { id: 'TAKEAWAY', label: '🛍️ กลับบ้าน', data: report.channelBreakdown.TAKEAWAY, bg: 'bg-orange-50/50', text: 'text-orange-900' },
+              { id: 'LINEMAN', label: '🟢 LINE MAN', data: report.channelBreakdown.LINEMAN, bg: 'bg-emerald-50/60', text: 'text-emerald-900' },
+              { id: 'GRAB', label: '🟢 GrabFood', data: report.channelBreakdown.GRAB, bg: 'bg-emerald-50/60', text: 'text-emerald-900' },
+              { id: 'SHOPEE_FOOD', label: '🟠 ShopeeFood', data: report.channelBreakdown.SHOPEE_FOOD, bg: 'bg-amber-50/60', text: 'text-amber-900' },
+            ].map((item) => (
+              <div key={item.id} className={`p-3 rounded-2xl border border-slate-200/70 ${item.bg} space-y-1`}>
+                <span className={`text-xs font-black block ${item.text}`}>{item.label}</span>
+                <span className="text-[11px] text-slate-500 font-bold block">{item.data?.count || 0} ออเดอร์</span>
+                <div className="pt-1.5 border-t border-slate-200/60 flex flex-col">
+                  <span className="text-xs font-black text-slate-900">฿{(item.data?.gross || 0).toLocaleString()}</span>
+                  {item.data?.gp > 0 && (
+                    <span className="text-[10px] text-rose-600 font-bold">
+                      (หัก GP -฿{(item.data?.gp || 0).toLocaleString()})
+                    </span>
+                  )}
+                  {item.data?.gp > 0 && (
+                    <span className="text-[11px] text-emerald-700 font-extrabold">
+                      สุทธิ ฿{(item.data?.net || 0).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Top Sellers & Recent Bills */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
@@ -191,7 +228,26 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
                   <tr key={ord.id} className="hover:bg-slate-50 whitespace-nowrap">
                     <td className="py-2.5 px-3 font-semibold">{formatTime(ord.paidAt || ord.createdAt)}</td>
                     <td className="py-2.5 px-3 font-extrabold text-slate-900">
-                      {ord.table?.name || `โต๊ะ ${ord.tableNo}`}
+                      {ord.orderChannel === 'LINEMAN' ? (
+                        <span className="inline-flex items-center gap-1 text-[#06C755]">
+                          <span>🟢 LINE MAN</span>
+                          <span className="text-slate-500 font-normal">#{ord.deliveryOrderId || ord.id.slice(-4)}</span>
+                        </span>
+                      ) : ord.orderChannel === 'GRAB' ? (
+                        <span className="inline-flex items-center gap-1 text-[#00B14F]">
+                          <span>🟢 GrabFood</span>
+                          <span className="text-slate-500 font-normal">#{ord.deliveryOrderId || ord.id.slice(-4)}</span>
+                        </span>
+                      ) : ord.orderChannel === 'SHOPEE_FOOD' ? (
+                        <span className="inline-flex items-center gap-1 text-[#EE4D2D]">
+                          <span>🟠 Shopee</span>
+                          <span className="text-slate-500 font-normal">#{ord.deliveryOrderId || ord.id.slice(-4)}</span>
+                        </span>
+                      ) : ord.orderType === 'TAKEAWAY' ? (
+                        <span>🛍️ กลับบ้าน</span>
+                      ) : (
+                        <span>{ord.table?.name || `โต๊ะ ${ord.tableNo}`}</span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3">
                       <span
@@ -204,8 +260,13 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
                         {ord.paymentMethod === 'PROMPTPAY' ? 'PromptPay' : 'เงินสด'}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-right font-black text-slate-900">
-                      ฿{ord.netAmount.toLocaleString()}
+                    <td className="py-2.5 px-3 text-right">
+                      <span className="font-black text-slate-900 block">฿{ord.netAmount.toLocaleString()}</span>
+                      {ord.gpAmount > 0 && (
+                        <span className="text-[10px] text-emerald-700 font-bold block">
+                          (สุทธิ ฿{ord.netRevenue || ord.netAmount - ord.gpAmount})
+                        </span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <button

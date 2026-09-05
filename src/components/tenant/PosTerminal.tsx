@@ -29,7 +29,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime, formatImageUrl } from '@/lib/utils';
-import { playOrderChime, playSuccessChime } from '@/lib/sound';
+import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import { useToast } from '@/context/ToastContext';
 
@@ -39,7 +39,14 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const [categories, setCategories] = useState<any[]>([]);
   const [store, setStore] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'OCCUPIED' | 'PAYMENT_PENDING'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'OCCUPIED' | 'PAYMENT_PENDING' | 'DELIVERY'>('ALL');
+
+  // Delivery Channels & Hub State
+  const [orderChannel, setOrderChannel] = useState<'DINE_IN' | 'TAKEAWAY' | 'LINEMAN' | 'GRAB' | 'SHOPEE_FOOD' | 'ROBINHOOD'>('DINE_IN');
+  const [deliveryOrderId, setDeliveryOrderId] = useState('');
+  const [riderName, setRiderName] = useState('');
+  const [riderPhone, setRiderPhone] = useState('');
+  const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
 
   // Selected Table Drawer
   const [selectedTable, setSelectedTable] = useState<any>(null);
@@ -84,19 +91,29 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
   const fetchData = async () => {
     try {
-      const [tablesRes, menuRes, settingsRes] = await Promise.all([
+      const [tablesRes, menuRes, settingsRes, ordersRes] = await Promise.all([
         fetch(`/api/r/${slug}/tables`),
         fetch(`/api/r/${slug}/menu`),
         fetch(`/api/r/${slug}/settings`),
+        fetch(`/api/r/${slug}/orders`),
       ]);
-      const [tData, mData, sData] = await Promise.all([
+      const [tData, mData, sData, oData] = await Promise.all([
         tablesRes.json().catch(() => []),
         menuRes.json().catch(() => []),
         settingsRes.json().catch(() => null),
+        ordersRes.json().catch(() => []),
       ]);
       setTables(Array.isArray(tData) ? tData : []);
       setCategories(Array.isArray(mData) ? mData : []);
       setStore(sData?.error ? null : sData);
+
+      const safeOrders = Array.isArray(oData) ? oData : [];
+      const activeDeliveries = safeOrders.filter(
+        (o: any) =>
+          ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(o.orderChannel) &&
+          ['PENDING', 'COOKING', 'READY', 'SERVED'].includes(o.status)
+      );
+      setDeliveryOrders(activeDeliveries);
 
       if (selectedTable && Array.isArray(tData)) {
         const updated = tData.find((t: any) => t.id === selectedTable.id || t.tableNo === selectedTable.tableNo);
@@ -234,23 +251,82 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     setCashierCart(cashierCart.filter((_, idx) => idx !== index));
   };
 
+  const handleOpenDeliveryModal = (channel: 'LINEMAN' | 'GRAB' | 'SHOPEE_FOOD' | 'ROBINHOOD' = 'LINEMAN') => {
+    setOrderChannel(channel);
+    setSelectedTable(null);
+    setCashierCart([]);
+    const prefix = channel === 'LINEMAN' ? 'LM' : channel === 'GRAB' ? 'GF' : channel === 'SHOPEE_FOOD' ? 'SF' : 'RB';
+    setDeliveryOrderId(`${prefix}-${Math.floor(1000 + Math.random() * 9000)}`);
+    setRiderName('');
+    setRiderPhone('');
+    setIsCashierOrderOpen(true);
+  };
+
+  const handleUpdateDeliveryStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/r/${slug}/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        if (newStatus === 'COMPLETED' || newStatus === 'SERVED') {
+          showSuccess('ไรเดอร์รับอาหารแล้ว 🛵✨', 'ออเดอร์เดลิเวอรีเสร็จสมบูรณ์');
+          playSuccessChime();
+        } else if (newStatus === 'READY') {
+          showSuccess('ปรุงเสร็จแล้ว 🔔', 'พร้อมส่งมอบให้ไรเดอร์');
+          playSuccessChime();
+        } else {
+          showInfo('อัปเดตสถานะเรียบร้อย');
+        }
+        fetchData();
+      }
+    } catch (err) {
+      showError('ไม่สามารถอัปเดตสถานะได้');
+    }
+  };
+
   const handleSubmitCashierOrder = async () => {
-    if (!selectedTable || cashierCart.length === 0) return;
+    if (cashierCart.length === 0) return;
+    const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(orderChannel);
+    if (!isDelivery && !selectedTable) return;
+
     try {
       const res = await fetch(`/api/r/${slug}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tableId: selectedTable.id || selectedTable.tableNo,
+          tableId: isDelivery ? 0 : (selectedTable?.id || selectedTable?.tableNo),
           items: cashierCart,
-          orderType: 'DINE_IN',
+          orderType: isDelivery ? 'TAKEAWAY' : (orderChannel === 'TAKEAWAY' ? 'TAKEAWAY' : 'DINE_IN'),
+          orderChannel,
+          deliveryOrderId: isDelivery ? deliveryOrderId : null,
+          riderName: isDelivery ? riderName : null,
+          riderPhone: isDelivery ? riderPhone : null,
         }),
       });
       if (res.ok) {
-        showSuccess('ส่งรายการอาหารเข้าครัวแล้ว 🍳', `${selectedTable.name} • ${cashierCart.length} รายการ`);
+        if (isDelivery) {
+          const chLabel =
+            orderChannel === 'LINEMAN'
+              ? 'LINE MAN'
+              : orderChannel === 'GRAB'
+              ? 'GrabFood'
+              : orderChannel === 'SHOPEE_FOOD'
+              ? 'ShopeeFood'
+              : 'Robinhood';
+          showSuccess('รับออเดอร์เดลิเวอรีเข้าครัวแล้ว 🛵', `${chLabel} #${deliveryOrderId || 'ใหม่'} • ${cashierCart.length} รายการ`);
+          playDeliveryChime();
+        } else {
+          showSuccess('ส่งรายการอาหารเข้าครัวแล้ว 🍳', `${selectedTable?.name || 'สั่งกลับบ้าน'} • ${cashierCart.length} รายการ`);
+          playOrderChime();
+        }
         setCashierCart([]);
         setIsCashierOrderOpen(false);
-        playOrderChime();
+        setDeliveryOrderId('');
+        setRiderName('');
+        setRiderPhone('');
+        setOrderChannel('DINE_IN');
         fetchData();
       } else {
         showError('ไม่สามารถส่งออเดอร์ได้', 'กรุณาลองใหม่อีกครั้ง');
@@ -457,18 +533,19 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           </p>
         </div>
 
-        {/* Filter Pills & Add Table Button - Full Width on Mobile */}
+        {/* Filter Pills & Action Buttons - Full Width on Mobile */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
-          <div className="grid grid-cols-3 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full">
             {[
               { id: 'ALL', label: 'ทั้งหมด' },
               { id: 'OCCUPIED', label: `กำลังทาน (${totalOccupied})`, activeClass: 'bg-orange-500 text-white shadow-sm' },
               { id: 'AVAILABLE', label: `ว่าง (${totalAvailable})`, activeClass: 'bg-emerald-500 text-white shadow-sm' },
+              { id: 'DELIVERY', label: `🛵 เดลิเวอรี (${deliveryOrders.length})`, activeClass: 'bg-emerald-700 text-white shadow-sm font-black' },
             ].map((f) => (
               <button
                 key={f.id}
                 onClick={() => setStatusFilter(f.id as any)}
-                className={`py-2 px-2 sm:px-4 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
+                className={`py-2 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
                   statusFilter === f.id
                     ? f.activeClass || 'bg-slate-900 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -479,22 +556,173 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             ))}
           </div>
 
-          <button
-            onClick={() => {
-              const highestNo = tables.reduce((max, t) => Math.max(max, t.tableNo || t.id || 0), 0);
-              setNewTableId(String(highestNo + 1));
-              setNewTableName(`โต๊ะ ${highestNo + 1}`);
-              setIsAddTableModalOpen(true);
-            }}
-            className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 flex items-center justify-center space-x-1.5 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ เพิ่มโต๊ะ</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleOpenDeliveryModal('LINEMAN')}
+              className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-1.5 transition-all"
+            >
+              <span>🛵 + รับเดลิเวอรี</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const highestNo = tables.reduce((max, t) => Math.max(max, t.tableNo || t.id || 0), 0);
+                setNewTableId(String(highestNo + 1));
+                setNewTableName(`โต๊ะ ${highestNo + 1}`);
+                setIsAddTableModalOpen(true);
+              }}
+              className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 flex items-center justify-center space-x-1.5 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ เพิ่มโต๊ะ</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Tables Grid - Full Width matching Header on Mobile */}
+      {/* Delivery Hub View (when Delivery filter is active) */}
+      {statusFilter === 'DELIVERY' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+              <span>🛵 รายการออเดอร์เดลิเวอรีที่กำลังดำเนินการ</span>
+              <span className="text-xs font-bold text-slate-500">({deliveryOrders.length} ออเดอร์)</span>
+            </h2>
+            <button
+              onClick={() => handleOpenDeliveryModal('LINEMAN')}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm"
+            >
+              + คีย์ออเดอร์ LINE MAN / Grab
+            </button>
+          </div>
+
+          {deliveryOrders.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3 shadow-sm">
+              <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-2xl">
+                🛵
+              </div>
+              <h3 className="text-base font-black text-slate-900">ไม่มีออเดอร์เดลิเวอรีค้างอยู่ 🎉</h3>
+              <p className="text-xs text-slate-400">
+                เมื่อมีออเดอร์เข้ามาจาก LINE MAN, GrabFood หรือคีย์หน้าร้าน จะแสดงที่นี่ทันที
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {deliveryOrders.map((order) => {
+                const isLineman = order.orderChannel === 'LINEMAN';
+                const isGrab = order.orderChannel === 'GRAB';
+                const isShopee = order.orderChannel === 'SHOPEE_FOOD';
+                const isPending = order.status === 'PENDING';
+                const isCooking = order.status === 'COOKING';
+                const isReady = order.status === 'READY';
+                const isServed = order.status === 'SERVED';
+
+                return (
+                  <div
+                    key={order.id}
+                    className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
+                  >
+                    {/* Header Banner */}
+                    <div
+                      className={`p-4 text-white flex items-center justify-between ${
+                        isLineman
+                          ? 'bg-[#06C755]'
+                          : isGrab
+                          ? 'bg-[#00B14F]'
+                          : isShopee
+                          ? 'bg-[#EE4D2D]'
+                          : 'bg-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-base font-black">
+                          {isLineman ? '🛵 LINE MAN' : isGrab ? '🛵 GrabFood' : isShopee ? '🛵 ShopeeFood' : '🛵 เดลิเวอรี'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-black/20">
+                          #{order.deliveryOrderId || order.id.slice(-4)}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold">{formatTime(order.createdAt)}</span>
+                    </div>
+
+                    {/* Order Body */}
+                    <div className="p-4 space-y-3 flex-1">
+                      {order.riderName && (
+                        <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center justify-between">
+                          <span>👤 ไรเดอร์: <strong className="text-slate-900">{order.riderName}</strong></span>
+                          {order.riderPhone && <span className="text-[11px] text-slate-500">📞 {order.riderPhone}</span>}
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5 divide-y divide-slate-100">
+                        {order.items?.map((item: any) => (
+                          <div key={item.id} className="pt-1.5 first:pt-0 flex items-center justify-between text-xs">
+                            <span className="font-bold text-slate-900 truncate">
+                              {item.name} x {item.quantity}
+                            </span>
+                            <span className="text-slate-600 font-semibold flex-shrink-0 ml-2">
+                              ฿{item.price * item.quantity}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Financials & GP */}
+                      <div className="pt-3 border-t border-slate-100 space-y-1 text-xs">
+                        <div className="flex justify-between text-slate-500">
+                          <span>ยอดรวมออเดอร์ (Gross):</span>
+                          <span className="font-bold text-slate-800">฿{order.totalAmount}</span>
+                        </div>
+                        {order.gpPercent > 0 && (
+                          <div className="flex justify-between text-rose-600 text-[11px]">
+                            <span>หัก GP {order.gpPercent}%:</span>
+                            <span>-฿{order.gpAmount}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-black text-slate-900 pt-1 border-t border-slate-100">
+                          <span>รายได้สุทธิ (Net):</span>
+                          <span className="text-emerald-600 text-sm">฿{order.netRevenue || order.netAmount}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Bar */}
+                    <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
+                      {isPending && (
+                        <button
+                          onClick={() => handleUpdateDeliveryStatus(order.id, 'COOKING')}
+                          className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition-all"
+                        >
+                          🍳 เริ่มปรุง
+                        </button>
+                      )}
+                      {(isPending || isCooking) && (
+                        <button
+                          onClick={() => handleUpdateDeliveryStatus(order.id, 'READY')}
+                          className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-all"
+                        >
+                          🔔 ปรุงเสร็จแล้ว
+                        </button>
+                      )}
+                      {isReady && (
+                        <button
+                          onClick={() => handleUpdateDeliveryStatus(order.id, 'COMPLETED')}
+                          className="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs transition-all shadow-sm"
+                        >
+                          🛵 ไรเดอร์รับอาหารแล้ว (เสร็จสิ้น)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tables Grid - Full Width matching Header on Mobile (when not on Delivery filter) */}
+      {statusFilter !== 'DELIVERY' && (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 auto-rows-fr w-full">
         {filteredTables.map((table) => {
           const isOccupied = table.status === 'OCCUPIED' || table.activeOrdersCount > 0;
@@ -547,6 +775,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           );
         })}
       </div>
+      )}
 
       {/* Selected Table Drawer / Action Bar */}
       {selectedTable && (
@@ -625,18 +854,103 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       {isCashierOrderOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-4xl w-full h-[85vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-            <div className="p-4 sm:p-6 bg-slate-900 text-white flex items-center justify-between">
+            <div className="p-4 sm:p-6 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-base sm:text-lg font-black">สั่งอาหารหน้าร้าน — {selectedTable?.name}</h3>
-                <p className="text-xs text-slate-400">เลือกเมนูและกดเพิ่มลงตะกร้าเพื่อส่งเข้าห้องครัวทันที</p>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-base sm:text-lg font-black">
+                    {orderChannel === 'LINEMAN'
+                      ? '🛵 สั่งอาหาร LINE MAN Delivery'
+                      : orderChannel === 'GRAB'
+                      ? '🛵 สั่งอาหาร GrabFood Delivery'
+                      : orderChannel === 'SHOPEE_FOOD'
+                      ? '🛵 สั่งอาหาร ShopeeFood Delivery'
+                      : orderChannel === 'TAKEAWAY'
+                      ? '🛍️ สั่งอาหารกลับบ้าน (Takeaway)'
+                      : `สั่งอาหารหน้าร้าน — ${selectedTable?.name || 'โต๊ะอาหาร'}`}
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-400">เลือกเมนูและกดส่งเข้าห้องครัว ตัดสต็อกวัตถุดิบอัตโนมัติ</p>
               </div>
+
+              {/* Channel Switcher Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none bg-slate-800/90 p-1 rounded-xl border border-slate-700">
+                {[
+                  { id: 'DINE_IN', label: '🍽️ ทานที่ร้าน' },
+                  { id: 'TAKEAWAY', label: '🛍️ กลับบ้าน' },
+                  { id: 'LINEMAN', label: '🟢 LINE MAN' },
+                  { id: 'GRAB', label: '🟢 Grab' },
+                  { id: 'SHOPEE_FOOD', label: '🟠 Shopee' },
+                ].map((ch) => (
+                  <button
+                    key={ch.id}
+                    type="button"
+                    onClick={() => {
+                      setOrderChannel(ch.id as any);
+                      if (['LINEMAN', 'GRAB', 'SHOPEE_FOOD'].includes(ch.id) && !deliveryOrderId) {
+                        const prefix = ch.id === 'LINEMAN' ? 'LM' : ch.id === 'GRAB' ? 'GF' : 'SF';
+                        setDeliveryOrderId(`${prefix}-${Math.floor(1000 + Math.random() * 9000)}`);
+                      }
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-black whitespace-nowrap transition-all ${
+                      orderChannel === ch.id
+                        ? ch.id === 'LINEMAN'
+                          ? 'bg-[#06C755] text-white'
+                          : ch.id === 'GRAB'
+                          ? 'bg-[#00B14F] text-white'
+                          : ch.id === 'SHOPEE_FOOD'
+                          ? 'bg-[#EE4D2D] text-white'
+                          : 'bg-orange-500 text-white'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                    }`}
+                  >
+                    {ch.label}
+                  </button>
+                ))}
+              </div>
+
               <button
                 onClick={() => setIsCashierOrderOpen(false)}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white self-end sm:self-auto"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Delivery Details Bar if Delivery Channel is active */}
+            {['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(orderChannel) && (
+              <div className="bg-slate-800/95 border-b border-slate-700 px-4 sm:px-6 py-2.5 flex flex-wrap items-center gap-3 text-xs text-white">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-300">รหัสบิล/ออเดอร์:</span>
+                  <input
+                    type="text"
+                    placeholder="เช่น LM-4892"
+                    value={deliveryOrderId}
+                    onChange={(e) => setDeliveryOrderId(e.target.value)}
+                    className="px-2.5 py-1 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white font-bold w-28 focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-300">ชื่อไรเดอร์:</span>
+                  <input
+                    type="text"
+                    placeholder="ชื่อคนขับ / ทะเบียน"
+                    value={riderName}
+                    onChange={(e) => setRiderName(e.target.value)}
+                    className="px-2.5 py-1 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white w-32 focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-300">เบอร์โทร:</span>
+                  <input
+                    type="text"
+                    placeholder="081xxxxxxx"
+                    value={riderPhone}
+                    onChange={(e) => setRiderPhone(e.target.value)}
+                    className="px-2.5 py-1 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white w-28 focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
               {/* Menu Selection Area */}
@@ -693,7 +1007,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                     รายการที่เลือก ({cashierCart.length})
                   </h4>
 
-                  <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[35vh] overflow-y-auto pr-1">
                     {cashierCart.length === 0 ? (
                       <p className="text-xs text-slate-400 py-8 text-center">ยังไม่มีรายการในตะกร้า</p>
                     ) : (
@@ -716,20 +1030,56 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 </div>
 
                 <div className="pt-4 border-t border-slate-200 space-y-3">
-                  <div className="flex justify-between font-black text-sm text-slate-900">
-                    <span>รวมทั้งหมด:</span>
-                    <span className="text-orange-600">
-                      ฿{cashierCart.reduce((sum, i) => sum + i.price * i.quantity, 0).toLocaleString()}
-                    </span>
-                  </div>
+                  {(() => {
+                    const rawTotal = cashierCart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+                    const isDeliv = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(orderChannel);
+                    const gpRate = isDeliv
+                      ? orderChannel === 'LINEMAN'
+                        ? store?.linemanGp ?? 30
+                        : orderChannel === 'GRAB'
+                        ? store?.grabGp ?? 30
+                        : orderChannel === 'SHOPEE_FOOD'
+                        ? store?.shopeeGp ?? 30
+                        : 20
+                      : 0;
+                    const gpVal = (rawTotal * gpRate) / 100;
+                    const netVal = rawTotal - gpVal;
 
-                  <button
-                    disabled={cashierCart.length === 0}
-                    onClick={handleSubmitCashierOrder}
-                    className="w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-lg shadow-orange-500/25 transition-all disabled:opacity-50"
-                  >
-                    ส่งออเดอร์เข้าครัวทันที 🍳
-                  </button>
+                    return (
+                      <>
+                        <div className="space-y-1">
+                          <div className="flex justify-between font-black text-sm text-slate-900">
+                            <span>ยอดรวมทั้งหมด:</span>
+                            <span className="text-orange-600">฿{rawTotal.toLocaleString()}</span>
+                          </div>
+                          {isDeliv && rawTotal > 0 && (
+                            <div className="text-[11px] bg-emerald-50 border border-emerald-200 p-2 rounded-xl text-emerald-800 space-y-0.5">
+                              <div className="flex justify-between">
+                                <span>หัก GP {gpRate}%:</span>
+                                <span className="text-rose-600 font-bold">-฿{gpVal.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between font-black text-emerald-900 pt-1 border-t border-emerald-200">
+                                <span>รายได้สุทธิร้าน:</span>
+                                <span>฿{netVal.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          disabled={cashierCart.length === 0}
+                          onClick={handleSubmitCashierOrder}
+                          className={`w-full py-3 rounded-2xl text-white font-extrabold text-xs shadow-lg transition-all disabled:opacity-50 ${
+                            isDeliv
+                              ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25'
+                              : 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/25'
+                          }`}
+                        >
+                          {isDeliv ? '🛵 ส่งออเดอร์เดลิเวอรีเข้าครัวทันที' : 'ส่งออเดอร์เข้าครัวทันที 🍳'}
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

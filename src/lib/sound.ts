@@ -74,3 +74,34 @@ export function playSuccessChime() {
     console.warn('Audio success chime playback error:', err);
   }
 }
+
+/**
+ * Distinct Rapid Triple-Beep Chime for Incoming Delivery Orders (LINE MAN / Grab)
+ */
+export function playDeliveryChime() {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+
+    // Rapid fanfare: F5 -> A5 -> C6 -> F6
+    const notes = [698.46, 880.00, 1046.50, 1396.91];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+      gain.gain.setValueAtTime(0.35, now + idx * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.1);
+      osc.stop(now + idx * 0.1 + 0.4);
+    });
+  } catch (err) {
+    console.warn('Delivery chime error:', err);
+  }
+}
+

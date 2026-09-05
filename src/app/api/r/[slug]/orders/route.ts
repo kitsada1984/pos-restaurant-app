@@ -63,7 +63,15 @@ export async function POST(
   try {
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
-      select: { id: true, name: true, pointsRate: true },
+      select: {
+        id: true,
+        name: true,
+        pointsRate: true,
+        linemanGp: true,
+        grabGp: true,
+        shopeeGp: true,
+        robinhoodGp: true,
+      },
     });
 
     if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
@@ -72,7 +80,12 @@ export async function POST(
     const {
       tableId,
       items,
-      orderType,
+      orderType = 'DINE_IN',
+      orderChannel = 'DINE_IN',
+      deliveryOrderId,
+      riderName,
+      riderPhone,
+      gpPercent: customGpPercent,
       note,
       customerName,
       customerLineId,
@@ -90,26 +103,30 @@ export async function POST(
       );
     }
 
-    const tableNo = parseInt(tableId || 1);
+    const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(orderChannel);
+    const tableNo = parseInt(tableId || (isDelivery ? 0 : 1));
 
-    // Upsert table for this store
-    const table = await prisma.table.upsert({
-      where: {
-        storeId_tableNo: {
+    // Upsert table for this store if dine-in
+    let table: any = null;
+    if (tableNo > 0) {
+      table = await prisma.table.upsert({
+        where: {
+          storeId_tableNo: {
+            storeId: store.id,
+            tableNo,
+          },
+        },
+        update: {
+          ...(orderChannel === 'DINE_IN' && { status: 'OCCUPIED' }),
+        },
+        create: {
           storeId: store.id,
           tableNo,
+          name: `โต๊ะ ${tableNo}`,
+          status: orderChannel === 'DINE_IN' ? 'OCCUPIED' : 'AVAILABLE',
         },
-      },
-      update: {
-        status: 'OCCUPIED',
-      },
-      create: {
-        storeId: store.id,
-        tableNo,
-        name: `โต๊ะ ${tableNo}`,
-        status: 'OCCUPIED',
-      },
-    });
+      });
+    }
 
     // 1. Calculate total amount & order items
     let totalAmount = 0;
@@ -129,6 +146,23 @@ export async function POST(
     });
 
     const netAmount = Math.max(0, totalAmount - Number(discountAmount));
+
+    // Calculate GP% and Net Revenue for Delivery Channels
+    let gpPercent = 0;
+    if (customGpPercent !== undefined && !isNaN(Number(customGpPercent))) {
+      gpPercent = Number(customGpPercent);
+    } else if (orderChannel === 'LINEMAN') {
+      gpPercent = store.linemanGp ?? 30;
+    } else if (orderChannel === 'GRAB') {
+      gpPercent = store.grabGp ?? 30;
+    } else if (orderChannel === 'SHOPEE_FOOD') {
+      gpPercent = store.shopeeGp ?? 30;
+    } else if (orderChannel === 'ROBINHOOD') {
+      gpPercent = store.robinhoodGp ?? 20;
+    }
+
+    const gpAmount = isDelivery ? (netAmount * gpPercent) / 100 : 0;
+    const netRevenue = isDelivery ? netAmount - gpAmount : netAmount;
 
     // 2. Enterprise Recipe BOM & Real-time Stock Deduction
     const menuItemIds = items.map((i: any) => i.menuItemId).filter(Boolean);
@@ -154,12 +188,19 @@ export async function POST(
     const newOrder = await prisma.order.create({
       data: {
         storeId: store.id,
-        tableId: table.id,
-        tableNo: table.tableNo,
-        orderType: orderType || 'DINE_IN',
+        tableId: table?.id || null,
+        tableNo: table?.tableNo || 0,
+        orderType: orderType || (isDelivery ? 'TAKEAWAY' : 'DINE_IN'),
+        orderChannel: orderChannel || 'DINE_IN',
+        deliveryOrderId: deliveryOrderId || null,
+        riderName: riderName || null,
+        riderPhone: riderPhone || null,
         totalAmount,
         discountAmount: Number(discountAmount),
         netAmount,
+        gpPercent,
+        gpAmount,
+        netRevenue,
         costAmount: totalCost,
         memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : null,
         promoCode: promoCode ? promoCode.toUpperCase().trim() : null,

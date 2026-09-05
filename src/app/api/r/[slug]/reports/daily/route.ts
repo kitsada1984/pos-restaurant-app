@@ -46,17 +46,37 @@ export async function GET(
     const totalBills = paidOrders.length;
     const totalCost = paidOrders.reduce((sum, o) => sum + (o.costAmount || 0), 0);
     const totalDiscount = paidOrders.reduce((sum, o) => sum + (o.discountAmount || 0), 0);
-    const grossProfit = totalSales - totalCost;
-    const profitMargin = totalSales > 0 ? Math.round((grossProfit / totalSales) * 100) : 0;
+    const totalGpDeducted = paidOrders.reduce((sum, o) => sum + (o.gpAmount || 0), 0);
+    const netRevenueReceived = totalSales - totalGpDeducted;
+    const grossProfit = netRevenueReceived - totalCost;
+    const profitMargin = netRevenueReceived > 0 ? Math.round((grossProfit / netRevenueReceived) * 100) : 0;
     const totalPointsEarned = paidOrders.reduce((sum, o) => sum + (o.pointsEarned || 0), 0);
     const totalPointsRedeemed = paidOrders.reduce((sum, o) => sum + (o.pointsRedeemed || 0), 0);
 
     let cashSales = 0;
     let promptPaySales = 0;
 
+    // Breakdown by Channel
+    const channels = {
+      DINE_IN: { count: 0, gross: 0, net: 0, gp: 0 },
+      TAKEAWAY: { count: 0, gross: 0, net: 0, gp: 0 },
+      LINEMAN: { count: 0, gross: 0, net: 0, gp: 0 },
+      GRAB: { count: 0, gross: 0, net: 0, gp: 0 },
+      SHOPEE_FOOD: { count: 0, gross: 0, net: 0, gp: 0 },
+      ROBINHOOD: { count: 0, gross: 0, net: 0, gp: 0 },
+    };
+
     const itemCounts: { [name: string]: { quantity: number; revenue: number } } = {};
 
     paidOrders.forEach((order) => {
+      const ch = (order.orderChannel || (order.orderType === 'TAKEAWAY' ? 'TAKEAWAY' : 'DINE_IN')) as keyof typeof channels;
+      if (channels[ch]) {
+        channels[ch].count += 1;
+        channels[ch].gross += order.totalAmount || order.netAmount;
+        channels[ch].gp += order.gpAmount || 0;
+        channels[ch].net += order.netRevenue || (order.netAmount - (order.gpAmount || 0));
+      }
+
       if (order.paymentMethod === 'CASH') {
         cashSales += order.netAmount;
       } else {
@@ -86,13 +106,16 @@ export async function GET(
       totalSales,
       totalBills,
       totalCost,
+      totalDiscount,
+      totalGpDeducted,
+      netRevenueReceived,
       grossProfit,
       profitMargin,
-      totalDiscount,
       totalPointsEarned,
       totalPointsRedeemed,
       cashSales,
       promptPaySales,
+      channelBreakdown: channels,
       topSellingItems,
       orders: paidOrders,
     });

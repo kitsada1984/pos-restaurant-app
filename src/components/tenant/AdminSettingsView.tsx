@@ -18,6 +18,11 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     phone: '',
     receiptFooter: '',
     tableCount: 10,
+    linemanGp: 30,
+    grabGp: 30,
+    shopeeGp: 30,
+    robinhoodGp: 20,
+    deliveryWebhookSecret: '',
   });
 
   useEffect(() => {
@@ -33,6 +38,11 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
             phone: data.phone || '',
             receiptFooter: data.receiptFooter || '',
             tableCount: data.tableCount || 10,
+            linemanGp: data.linemanGp ?? 30,
+            grabGp: data.grabGp ?? 30,
+            shopeeGp: data.shopeeGp ?? 30,
+            robinhoodGp: data.robinhoodGp ?? 20,
+            deliveryWebhookSecret: data.deliveryWebhookSecret || '',
           });
         }
       })
@@ -190,6 +200,66 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
               onChange={(e) => setForm({ ...form, receiptFooter: e.target.value })}
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
+          </div>
+        </div>
+
+        {/* Section 4: Delivery Platforms & GP Settings */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2 border-b border-slate-100 pb-2">
+            <span>🛵 การตั้งค่าเดลิเวอรี &amp; หักค่าคอมมิชชั่น GP (Delivery Platforms)</span>
+          </h3>
+          <p className="text-xs text-slate-500">
+            กำหนด % GP ที่แต่ละแอปหัก เพื่อให้ระบบคำนวณกำไรและยอดเงินสุทธิที่ร้านจะได้รับจริงแบบอัตโนมัติ
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-1.5">
+              <label className="block text-emerald-950 font-black">🟢 LINE MAN GP (%)</label>
+              <div className="flex items-center space-x-1.5">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={form.linemanGp}
+                  onChange={(e) => setForm({ ...form, linemanGp: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                />
+                <span className="font-extrabold text-emerald-800">%</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-1.5">
+              <label className="block text-emerald-950 font-black">🟢 GrabFood GP (%)</label>
+              <div className="flex items-center space-x-1.5">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={form.grabGp}
+                  onChange={(e) => setForm({ ...form, grabGp: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                />
+                <span className="font-extrabold text-emerald-800">%</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-200/80 space-y-1.5">
+              <label className="block text-amber-950 font-black">🟠 ShopeeFood GP (%)</label>
+              <div className="flex items-center space-x-1.5">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={form.shopeeGp}
+                  onChange={(e) => setForm({ ...form, shopeeGp: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                />
+                <span className="font-extrabold text-amber-800">%</span>
+              </div>
+            </div>
           </div>
         </div>
 

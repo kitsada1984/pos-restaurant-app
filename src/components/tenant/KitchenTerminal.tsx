@@ -15,14 +15,14 @@ import {
   BellRing,
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
-import { playOrderChime, playSuccessChime } from '@/lib/sound';
+import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
 import { useToast } from '@/context/ToastContext';
 
 export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const { showSuccess, showInfo, showWarning, showError } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>('ACTIVE'); // 'ACTIVE' | 'PENDING' | 'COOKING' | 'READY'
+  const [filterStatus, setFilterStatus] = useState<string>('ACTIVE'); // 'ACTIVE' | 'PENDING' | 'COOKING' | 'READY' | 'DELIVERY'
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   const fetchOrders = async () => {
@@ -53,8 +53,22 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
           try {
             const payload = JSON.parse(event.data);
             if (payload.type === 'ORDER_CREATED') {
-              if (soundEnabled) playOrderChime();
-              showInfo('มีออเดอร์ใหม่เข้าครัว 🛎️', `โต๊ะ ${payload.order?.tableNo || 'สั่งใหม่'}`);
+              const ch = payload.order?.orderChannel;
+              const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(ch);
+              if (soundEnabled) {
+                if (isDelivery) {
+                  playDeliveryChime();
+                } else {
+                  playOrderChime();
+                }
+              }
+
+              if (isDelivery) {
+                const label = ch === 'LINEMAN' ? 'LINE MAN' : ch === 'GRAB' ? 'GrabFood' : ch === 'SHOPEE_FOOD' ? 'ShopeeFood' : 'Robinhood';
+                showInfo(`🛵 ออเดอร์เดลิเวอรีเข้าใหม่ (${label})`, `#${payload.order?.deliveryOrderId || payload.order?.id?.slice(-4)}`);
+              } else {
+                showInfo('มีออเดอร์ใหม่เข้าครัว 🛎️', `โต๊ะ ${payload.order?.tableNo || 'สั่งใหม่'}`);
+              }
               fetchOrders();
             } else if (payload.type === 'ORDER_UPDATED' || payload.type === 'TABLE_UPDATED') {
               fetchOrders();
@@ -132,8 +146,20 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
     }
   };
 
+  const deliveryOrdersCount = orders.filter(
+    (o) =>
+      ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(o.orderChannel) &&
+      ['PENDING', 'COOKING', 'READY'].includes(o.status)
+  ).length;
+
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      if (filterStatus === 'DELIVERY') {
+        return (
+          ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(order.orderChannel) &&
+          ['PENDING', 'COOKING', 'READY'].includes(order.status)
+        );
+      }
       if (filterStatus === 'ACTIVE') {
         return ['PENDING', 'COOKING', 'READY'].includes(order.status);
       }
@@ -166,17 +192,18 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
         </div>
 
         {/* Filter Pills - Full Width Grid on Mobile */}
-        <div className="grid grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full md:w-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full md:w-auto">
           {[
             { id: 'ACTIVE', label: `ทั้งหมด (${pendingCount + cookingCount + readyCount})`, count: pendingCount + cookingCount + readyCount },
             { id: 'PENDING', label: `รอทำ (${pendingCount})`, color: 'bg-rose-500 text-white' },
             { id: 'COOKING', label: `กำลังปรุง (${cookingCount})`, color: 'bg-amber-500 text-white' },
             { id: 'READY', label: `เสร็จ (${readyCount})`, color: 'bg-emerald-500 text-white' },
+            { id: 'DELIVERY', label: `🛵 เดลิเวอรี (${deliveryOrdersCount})`, color: 'bg-emerald-700 text-white font-black' },
           ].map((f) => (
             <button
               key={f.id}
               onClick={() => setFilterStatus(f.id)}
-              className={`py-2 px-1.5 sm:px-4 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all text-center truncate ${
+              className={`py-2 px-1.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all text-center truncate ${
                 filterStatus === f.id
                   ? f.color || 'bg-slate-900 text-white shadow-sm'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -195,7 +222,7 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
             <CheckCircle2 className="w-8 h-8" />
           </div>
           <h3 className="text-lg font-black text-slate-900">ไม่มีออเดอร์ค้างในครัว 🎉</h3>
-          <p className="text-xs text-slate-400">ออเดอร์ใหม่จากลูกค้าหรือแคชเชียร์จะปรากฏที่นี่ทันทีแบบเรียลไทม์</p>
+          <p className="text-xs text-slate-400">ออเดอร์ใหม่จากลูกค้า แคชเชียร์ หรือ LINE MAN / Grab จะปรากฏที่นี่ทันทีแบบเรียลไทม์</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -203,12 +230,40 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
             const isPending = order.status === 'PENDING';
             const isCooking = order.status === 'COOKING';
             const isReady = order.status === 'READY';
+            const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(order.orderChannel);
+
+            // Channel Theme
+            let headerBg = isPending ? 'bg-rose-600' : isCooking ? 'bg-amber-600' : 'bg-emerald-600';
+            let platformBadge = 'ทานที่ร้าน';
+            let platformBadgeBg = 'bg-black/20';
+
+            if (order.orderChannel === 'LINEMAN') {
+              headerBg = 'bg-[#06C755]';
+              platformBadge = '🛵 LINE MAN';
+              platformBadgeBg = 'bg-black/30';
+            } else if (order.orderChannel === 'GRAB') {
+              headerBg = 'bg-[#00B14F]';
+              platformBadge = '🛵 GrabFood';
+              platformBadgeBg = 'bg-black/30';
+            } else if (order.orderChannel === 'SHOPEE_FOOD') {
+              headerBg = 'bg-[#EE4D2D]';
+              platformBadge = '🛵 ShopeeFood';
+              platformBadgeBg = 'bg-black/30';
+            } else if (order.orderChannel === 'ROBINHOOD') {
+              headerBg = 'bg-[#802882]';
+              platformBadge = '🛵 Robinhood';
+              platformBadgeBg = 'bg-black/30';
+            } else if (order.orderType === 'TAKEAWAY') {
+              platformBadge = '🛍️ กลับบ้าน';
+            }
 
             return (
               <div
                 key={order.id}
                 className={`rounded-3xl border shadow-sm flex flex-col justify-between overflow-hidden transition-all bg-white ${
-                  isPending
+                  isDelivery
+                    ? 'border-emerald-300 ring-2 ring-emerald-500/30'
+                    : isPending
                     ? 'border-rose-300 ring-2 ring-rose-500/20'
                     : isCooking
                     ? 'border-amber-300 ring-2 ring-amber-500/20'
@@ -216,20 +271,23 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                 }`}
               >
                 {/* Ticket Header */}
-                <div
-                  className={`p-4 text-white flex items-center justify-between ${
-                    isPending
-                      ? 'bg-rose-600'
-                      : isCooking
-                      ? 'bg-amber-600'
-                      : 'bg-emerald-600'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xl font-black">{order.table?.name || `โต๊ะ ${order.tableNo}`}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-black/20 uppercase tracking-wider">
-                      {order.orderType === 'TAKEAWAY' ? 'กลับบ้าน' : 'ทานที่ร้าน'}
-                    </span>
+                <div className={`p-4 text-white flex items-center justify-between ${headerBg}`}>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg sm:text-xl font-black">
+                        {isDelivery
+                          ? `#${order.deliveryOrderId || order.id.slice(-4)}`
+                          : order.table?.name || `โต๊ะ ${order.tableNo}`}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${platformBadgeBg}`}>
+                        {platformBadge}
+                      </span>
+                    </div>
+                    {isDelivery && (
+                      <span className="text-[10px] text-white/90 block mt-0.5">
+                        👤 {order.riderName ? `ไรเดอร์: ${order.riderName}` : (order.customerName || 'เดลิเวอรี')}
+                      </span>
+                    )}
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-bold block">{formatTime(order.createdAt)}</span>
