@@ -29,6 +29,10 @@ import {
   ExternalLink,
   Award,
   Check,
+  Percent,
+  Tag,
+  Gift,
+  Phone,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime, formatImageUrl } from '@/lib/utils';
 import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
@@ -75,6 +79,10 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const [isProcessingPay, setIsProcessingPay] = useState(false);
 
   // Enterprise Loyalty & Promo Checkout States
+  const [discountTab, setDiscountTab] = useState<'NONE' | 'LOYALTY' | 'PROMO' | 'CUSTOM'>('NONE');
+  const [customDiscountType, setCustomDiscountType] = useState<'FIXED' | 'PERCENT'>('FIXED');
+  const [customDiscountValue, setCustomDiscountValue] = useState<string>('');
+  const [availablePromotions, setAvailablePromotions] = useState<any[]>([]);
   const [memberPhone, setMemberPhone] = useState('');
   const [memberData, setMemberData] = useState<any>(null);
   const [memberRewards, setMemberRewards] = useState<any[]>([]);
@@ -95,21 +103,26 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
   const fetchData = async () => {
     try {
-      const [tablesRes, menuRes, settingsRes, ordersRes] = await Promise.all([
+      const [tablesRes, menuRes, settingsRes, ordersRes, promoRes] = await Promise.all([
         fetch(`/api/r/${slug}/tables`),
         fetch(`/api/r/${slug}/menu`),
         fetch(`/api/r/${slug}/settings`),
         fetch(`/api/r/${slug}/orders`),
+        fetch(`/api/r/${slug}/promotions`),
       ]);
-      const [tData, mData, sData, oData] = await Promise.all([
+      const [tData, mData, sData, oData, promoData] = await Promise.all([
         tablesRes.json().catch(() => []),
         menuRes.json().catch(() => []),
         settingsRes.json().catch(() => null),
         ordersRes.json().catch(() => []),
+        promoRes.json().catch(() => ({ promotions: [] })),
       ]);
       setTables(Array.isArray(tData) ? tData : []);
       setCategories(Array.isArray(mData) ? mData : []);
       setStore(sData?.error ? null : sData);
+      if (promoData?.promotions) {
+        setAvailablePromotions(promoData.promotions.filter((p: any) => p.isActive));
+      }
 
       const safeOrders = Array.isArray(oData) ? oData : [];
       const activeDeliveries = safeOrders.filter(
@@ -368,6 +381,32 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     }
   };
 
+  // Handle Switching Discount Tabs (1 discount type per bill)
+  const handleSwitchDiscountTab = (tab: 'NONE' | 'LOYALTY' | 'PROMO' | 'CUSTOM') => {
+    setDiscountTab(tab);
+    if (tab === 'NONE') {
+      setSelectedReward(null);
+      setPointsToRedeem(0);
+      setAppliedPromo(null);
+      setCustomDiscountValue('');
+      setDiscountAmount(0);
+    } else if (tab === 'LOYALTY') {
+      setAppliedPromo(null);
+      setCustomDiscountValue('');
+      setDiscountAmount(0);
+    } else if (tab === 'PROMO') {
+      setSelectedReward(null);
+      setPointsToRedeem(0);
+      setCustomDiscountValue('');
+      setDiscountAmount(0);
+    } else if (tab === 'CUSTOM') {
+      setSelectedReward(null);
+      setPointsToRedeem(0);
+      setAppliedPromo(null);
+      setDiscountAmount(0);
+    }
+  };
+
   // Handle Member Lookup
   const handleLookupMember = async (phone: string) => {
     setMemberPhone(phone);
@@ -397,14 +436,16 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     }
   };
 
-  // Handle Promo Code Apply
-  const handleApplyPromo = async () => {
-    if (!promoCodeInput) return;
+  // Handle Promo Code Apply (supports quick chips and input)
+  const handleApplyPromo = async (codeOverride?: string) => {
+    const code = codeOverride || promoCodeInput;
+    if (!code) return;
     try {
-      const res = await fetch(`/api/r/${slug}/promotions?code=${promoCodeInput}&amount=${rawTotalAmount}`);
+      const res = await fetch(`/api/r/${slug}/promotions?code=${code}&amount=${rawTotalAmount}`);
       const data = await res.json();
       if (data.valid) {
         setAppliedPromo(data.promo);
+        setPromoCodeInput(code.toUpperCase());
         showSuccess('ใช้คูปองส่วนลดแล้ว 🎉', `รับส่วนลด ฿${data.promo.calculatedDiscount}`);
       } else {
         showError('โค้ดส่วนลดไม่ถูกต้อง', data.error || 'กรุณาตรวจสอบเงื่อนไข');
@@ -418,12 +459,25 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const activeOrders = selectedTable?.activeOrders || [];
   const rawTotalAmount = activeOrders.reduce((sum: number, o: any) => sum + o.netAmount, 0);
   
-  const promoDiscount = appliedPromo?.calculatedDiscount || 0;
-  const rewardMilestoneDiscount = selectedReward && selectedReward.rewardType === 'DISCOUNT' ? selectedReward.discountAmount : 0;
-  const pointDiscount = selectedReward
-    ? rewardMilestoneDiscount
-    : pointsToRedeem * (store?.pointValue || 1);
-  const totalCombinedDiscount = (discountAmount || 0) + promoDiscount + pointDiscount;
+  let calculatedDiscount = 0;
+  if (discountTab === 'LOYALTY') {
+    if (selectedReward && selectedReward.rewardType === 'DISCOUNT') {
+      calculatedDiscount = selectedReward.discountAmount;
+    } else if (pointsToRedeem > 0) {
+      calculatedDiscount = pointsToRedeem * (store?.pointValue || 1);
+    }
+  } else if (discountTab === 'PROMO') {
+    calculatedDiscount = appliedPromo?.calculatedDiscount || 0;
+  } else if (discountTab === 'CUSTOM') {
+    const val = parseFloat(customDiscountValue) || 0;
+    if (customDiscountType === 'PERCENT') {
+      calculatedDiscount = Math.round((rawTotalAmount * Math.min(100, val)) / 100);
+    } else {
+      calculatedDiscount = Math.min(rawTotalAmount, val);
+    }
+  }
+
+  const totalCombinedDiscount = Math.min(rawTotalAmount, calculatedDiscount);
   const finalNetAmount = Math.max(0, rawTotalAmount - totalCombinedDiscount);
 
   const change =
@@ -444,8 +498,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             cashReceived: paymentMethod === 'CASH' ? parseFloat(cashReceived) : null,
             changeAmount: paymentMethod === 'CASH' ? Math.max(0, change) : 0,
             memberPhone: memberPhone || null,
-            pointsRedeemed: pointsToRedeem || 0,
-            promoCode: appliedPromo?.code || null,
+            pointsRedeemed: discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
+            promoCode: discountTab === 'PROMO' ? appliedPromo?.code || null : null,
             discountAmount: totalCombinedDiscount,
           }),
         });
@@ -1212,131 +1266,306 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               </button>
             </div>
 
-            {/* Enterprise Loyalty Member Section */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+            {/* Member Phone for Points Accumulation */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-orange-500" />
-                  สมาชิกสะสมแต้ม (เบอร์โทร)
+                  <Phone className="w-3.5 h-3.5 text-orange-500" />
+                  เบอร์โทรลูกค้า (สะสมแต้ม)
                 </span>
                 {memberData && (
                   <span className="text-[11px] font-bold text-orange-600 bg-orange-100/70 px-2 py-0.5 rounded-md">
-                    มี {memberData.points} แต้ม
+                    ⭐ {memberData.points} แต้ม
                   </span>
                 )}
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="tel"
-                  placeholder="เช่น 0899998888"
-                  value={memberPhone}
-                  onChange={(e) => handleLookupMember(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold"
-                />
-                {memberData && memberData.points > 0 && !selectedReward && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (pointsToRedeem > 0) {
-                        setPointsToRedeem(0);
-                      } else {
-                        // Max redeemable
-                        const maxPoints = Math.min(memberData.points, Math.floor(rawTotalAmount / (store?.pointValue || 1)));
-                        setPointsToRedeem(maxPoints);
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                      pointsToRedeem > 0
-                        ? 'bg-orange-600 text-white shadow-sm'
-                        : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                    }`}
-                  >
-                    {pointsToRedeem > 0 ? `แลก ฿${pointsToRedeem * (store?.pointValue || 1)} ✓` : 'แลกแต้มส่วนลด'}
-                  </button>
-                )}
-              </div>
-
-              {/* Reward Milestone Quick Chips */}
-              {memberRewards.length > 0 && (
-                <div className="space-y-1.5 pt-1.5 border-t border-slate-200/60">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                    <Award className="w-3 h-3 text-orange-500" />
-                    รางวัลแลกแต้ม (Milestones):
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {memberRewards.map((r) => {
-                      const isEnough = memberData && memberData.points >= r.pointsRequired;
-                      const isSelected = selectedReward?.id === r.id;
-                      return (
-                        <button
-                          key={r.id}
-                          type="button"
-                          disabled={!isEnough}
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedReward(null);
-                              setPointsToRedeem(0);
-                            } else {
-                              setSelectedReward(r);
-                              setPointsToRedeem(r.pointsRequired);
-                            }
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1 ${
-                            isSelected
-                              ? 'bg-orange-600 text-white shadow-sm ring-2 ring-orange-500/50'
-                              : isEnough
-                              ? 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
-                              : 'bg-slate-100 text-slate-400 opacity-60 cursor-not-allowed'
-                          }`}
-                        >
-                          <span>🎁 {r.title} ({r.pointsRequired} แต้ม)</span>
-                          {isSelected && <Check className="w-3 h-3" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
+              <input
+                type="tel"
+                placeholder="เช่น 0899998888 (กรอกเพื่อรับแต้มสะสม)"
+                value={memberPhone}
+                onChange={(e) => handleLookupMember(e.target.value)}
+                className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
               {memberData && (
                 <div className="text-[11px] text-slate-500">
                   ลูกค้า: <strong>{memberData.name || 'สมาชิก'}</strong> • จะได้รับแต้มเพิ่ม{' '}
                   <strong className="text-emerald-600">+{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม</strong>
-                  {selectedReward && (
-                    <span className="block text-orange-600 font-bold mt-0.5">
-                      ✓ แลกรับ: {selectedReward.title} (หัก {selectedReward.pointsRequired} แต้ม)
-                    </span>
-                  )}
                 </div>
               )}
             </div>
 
-            {/* Enterprise Promo / Coupon Section */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                คูปองส่วนลด (Coupon Promo)
-              </span>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="เช่น WELCOME50, DISC10"
-                  value={promoCodeInput}
-                  onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
-                  className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-black uppercase tracking-wider"
-                />
+            {/* Segmented Discount / Promo / Loyalty Tabs */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+                  เลือกใช้สิทธิ์ส่วนลด / โปรโมชั่น:
+                </span>
+                {discountTab !== 'NONE' && (
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchDiscountTab('NONE')}
+                    className="text-[11px] font-bold text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                    ไม่ใช้ส่วนลด
+                  </button>
+                )}
+              </div>
+
+              {/* 3 Tabs */}
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-200/70 rounded-xl">
                 <button
                   type="button"
-                  onClick={handleApplyPromo}
-                  className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold"
+                  onClick={() => handleSwitchDiscountTab('LOYALTY')}
+                  className={`py-2 px-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1 ${
+                    discountTab === 'LOYALTY'
+                      ? 'bg-white text-orange-600 shadow-sm border border-orange-200 ring-1 ring-orange-500/20'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
                 >
-                  ใช้โค้ด
+                  <Award className="w-3.5 h-3.5" />
+                  <span>⭐ แต้มสะสม</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSwitchDiscountTab('PROMO')}
+                  className={`py-2 px-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1 ${
+                    discountTab === 'PROMO'
+                      ? 'bg-white text-orange-600 shadow-sm border border-orange-200 ring-1 ring-orange-500/20'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Tag className="w-3.5 h-3.5" />
+                  <span>🏷️ คูปองโปร</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSwitchDiscountTab('CUSTOM')}
+                  className={`py-2 px-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1 ${
+                    discountTab === 'CUSTOM'
+                      ? 'bg-white text-orange-600 shadow-sm border border-orange-200 ring-1 ring-orange-500/20'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Percent className="w-3.5 h-3.5" />
+                  <span>💵 ลดเอง</span>
                 </button>
               </div>
-              {appliedPromo && (
-                <div className="flex items-center justify-between text-xs text-emerald-600 font-extrabold bg-emerald-50 p-2 rounded-xl border border-emerald-100">
-                  <span>{appliedPromo.title} ({appliedPromo.code})</span>
-                  <span>-฿{appliedPromo.calculatedDiscount}</span>
+
+              {/* TAB 1: LOYALTY */}
+              {discountTab === 'LOYALTY' && (
+                <div className="space-y-2.5 pt-1 border-t border-slate-200/60 animate-fade-in">
+                  {!memberData ? (
+                    <div className="p-2.5 rounded-xl bg-orange-50/70 border border-orange-100 text-xs text-orange-800">
+                      กรุณากรอกเบอร์โทรศัพท์ลูกค้าด้านบน เพื่อดึงแต้มและของรางวัลที่สามารถแลกได้
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {/* Milestone Rewards */}
+                      {memberRewards.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">ของรางวัลเป้าหมาย (Milestones):</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {memberRewards.map((r) => {
+                              const isEnough = memberData.points >= r.pointsRequired;
+                              const isSelected = selectedReward?.id === r.id;
+                              return (
+                                <button
+                                  key={r.id}
+                                  type="button"
+                                  disabled={!isEnough}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedReward(null);
+                                      setPointsToRedeem(0);
+                                    } else {
+                                      setSelectedReward(r);
+                                      setPointsToRedeem(r.pointsRequired);
+                                    }
+                                  }}
+                                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1.5 ${
+                                    isSelected
+                                      ? 'bg-orange-600 text-white shadow-sm ring-2 ring-orange-500/50'
+                                      : isEnough
+                                      ? 'bg-orange-100/70 text-orange-700 hover:bg-orange-200/70 border border-orange-200'
+                                      : 'bg-slate-100 text-slate-400 opacity-50 cursor-not-allowed'
+                                  }`}
+                                >
+                                  <span>🎁 {r.title} ({r.pointsRequired} แต้ม)</span>
+                                  {isSelected && <Check className="w-3 h-3" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Direct Point Discount Button */}
+                      {memberData.points > 0 && !selectedReward && (
+                        <div className="pt-1 flex items-center justify-between">
+                          <span className="text-xs text-slate-500">หรือแลกแต้มส่วนลดทั่วไป:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (pointsToRedeem > 0) {
+                                setPointsToRedeem(0);
+                              } else {
+                                const maxPoints = Math.min(memberData.points, Math.floor(rawTotalAmount / (store?.pointValue || 1)));
+                                setPointsToRedeem(maxPoints);
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                              pointsToRedeem > 0
+                                ? 'bg-orange-600 text-white shadow-sm'
+                                : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
+                            }`}
+                          >
+                            {pointsToRedeem > 0 ? `แลก ฿${pointsToRedeem * (store?.pointValue || 1)} ✓` : 'แลกแต้มส่วนลดสูงสุด'}
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedReward && (
+                        <div className="p-2.5 bg-orange-100/70 text-orange-800 text-xs font-bold rounded-xl border border-orange-200 flex items-center justify-between">
+                          <span>✓ แลกรับ: {selectedReward.title}</span>
+                          <span>(หัก {selectedReward.pointsRequired} แต้ม)</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: PROMO / COUPONS */}
+              {discountTab === 'PROMO' && (
+                <div className="space-y-2.5 pt-1 border-t border-slate-200/60 animate-fade-in">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="เช่น WELCOME50, DISC10"
+                      value={promoCodeInput}
+                      onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-black uppercase tracking-wider bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPromo()}
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold shadow-sm"
+                    >
+                      ใช้โค้ด
+                    </button>
+                  </div>
+
+                  {/* Quick Promo Chips from Store */}
+                  {availablePromotions.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">คูปองโปรโมชั่นของร้าน (คลิกเพื่อใช้):</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {availablePromotions.map((p) => {
+                          const isSelected = appliedPromo?.code === p.code;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => handleApplyPromo(p.code)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1 ${
+                                isSelected
+                                  ? 'bg-orange-600 text-white shadow-sm ring-2 ring-orange-500/50'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                              }`}
+                            >
+                              <span>🏷️ {p.code} ({p.discountType === 'PERCENT' ? `${p.discountValue}%` : `฿${p.discountValue}`})</span>
+                              {isSelected && <Check className="w-3 h-3" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {appliedPromo && (
+                    <div className="flex items-center justify-between text-xs text-emerald-700 font-extrabold bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                      <span>✓ {appliedPromo.title} ({appliedPromo.code})</span>
+                      <span>-฿{appliedPromo.calculatedDiscount}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: CUSTOM DISCOUNT */}
+              {discountTab === 'CUSTOM' && (
+                <div className="space-y-2.5 pt-1 border-t border-slate-200/60 animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    {/* Fixed / Percent Selector */}
+                    <div className="flex p-0.5 bg-slate-200 rounded-lg border border-slate-300/80">
+                      <button
+                        type="button"
+                        onClick={() => setCustomDiscountType('FIXED')}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-black transition-all ${
+                          customDiscountType === 'FIXED' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                        }`}
+                      >
+                        ฿ (บาท)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCustomDiscountType('PERCENT')}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-black transition-all ${
+                          customDiscountType === 'PERCENT' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                        }`}
+                      >
+                        % (เปอร์เซ็นต์)
+                      </button>
+                    </div>
+
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder={customDiscountType === 'PERCENT' ? 'เช่น 10 (ลด 10%)' : 'เช่น 30 (ลด 30 บ.)'}
+                      value={customDiscountValue}
+                      onChange={(e) => setCustomDiscountValue(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-black bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+
+                  {/* Quick Presets */}
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className="text-[10px] font-bold text-slate-500">ปุ่มลัด:</span>
+                    {customDiscountType === 'PERCENT' ? (
+                      [5, 10, 15, 20, 50].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => setCustomDiscountValue(pct.toString())}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors ${
+                            customDiscountValue === pct.toString()
+                              ? 'bg-orange-600 text-white'
+                              : 'bg-slate-200/80 hover:bg-slate-300 text-slate-700'
+                          }`}
+                        >
+                          {pct}%
+                        </button>
+                      ))
+                    ) : (
+                      [10, 20, 30, 50, 100].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setCustomDiscountValue(amt.toString())}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors ${
+                            customDiscountValue === amt.toString()
+                              ? 'bg-orange-600 text-white'
+                              : 'bg-slate-200/80 hover:bg-slate-300 text-slate-700'
+                          }`}
+                        >
+                          ฿{amt}
+                        </button>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
             </div>
