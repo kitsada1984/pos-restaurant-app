@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2 } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2, Copy, Zap, ExternalLink } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 
 export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string }) {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [testingWebhook, setTestingWebhook] = useState(false);
 
   const [form, setForm] = useState({
     storeName: '',
@@ -25,7 +26,13 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     deliveryWebhookSecret: '',
   });
 
+  const [currentOrigin, setCurrentOrigin] = useState('');
+
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentOrigin(window.location.origin);
+    }
+
     fetch(`/api/r/${slug}/settings`)
       .then((res) => res.json())
       .then((data) => {
@@ -48,6 +55,55 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
       })
       .finally(() => setLoading(false));
   }, [slug]);
+
+  const handleCopy = (text: string, label: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      showSuccess(`คัดลอก ${label} แล้ว 📋`, text);
+    }
+  };
+
+  const handleTestWebhook = async (channel: 'LINEMAN' | 'GRAB') => {
+    setTestingWebhook(true);
+    try {
+      const endpoint = `/api/r/${slug}/webhooks/delivery/${channel === 'LINEMAN' ? 'lineman' : 'grab'}`;
+      const mockPayload =
+        channel === 'LINEMAN'
+          ? {
+              orderId: `LM-${Math.floor(1000 + Math.random() * 9000)}`,
+              rider: { name: 'สมชาย พุ่มพวง (LINE MAN Rider)', phone: '0891234567' },
+              customer: { name: 'คุณเอกชัย (ลูกค้า LINE MAN)' },
+              items: [
+                { name: 'ข้าวกะเพราหมูกรอบ', price: 65, quantity: 1, instruction: 'เผ็ดกลาง ไม่ใส่ชูรส' },
+                { name: 'ไข่ดาว', price: 10, quantity: 1 },
+              ],
+              note: 'ทดสอบส่ง Webhook อัตโนมัติจาก LINE MAN Open API',
+            }
+          : {
+              shortOrderNumber: `GF-${Math.floor(1000 + Math.random() * 9000)}`,
+              driver: { name: 'วิชัย ใจดี (GrabFood Driver)', phone: '0819876543' },
+              consumer: { name: 'คุณกิตติ (ลูกค้า GrabFood)' },
+              items: [{ name: 'ข้าวผัดหมู', price: 55, quantity: 2, instruction: 'ขอพริกน้ำปลาเยอะๆ' }],
+              specialInstructions: 'ทดสอบส่ง Webhook อัตโนมัติจาก GrabFood Partner API',
+            };
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mockPayload),
+      });
+
+      if (res.ok) {
+        showSuccess(`ยิง Webhook จำลองจาก ${channel} สำเร็จ! 🛵✨`, 'ออเดอร์เด้งเข้าจอครัว KDS และตัดสต็อกวัตถุดิบอัตโนมัติแล้ว');
+      } else {
+        showError('ยิง Webhook ไม่สำเร็จ');
+      }
+    } catch (e) {
+      showError('เกิดข้อผิดพลาดในการทดสอบ Webhook');
+    } finally {
+      setTestingWebhook(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,6 +314,107 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
                 />
                 <span className="font-extrabold text-amber-800">%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Webhook Endpoints & API Partner Integration */}
+          <div className="mt-4 p-4 rounded-2xl bg-slate-900 text-white space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Zap className="w-4 h-4 text-amber-400" />
+                <h4 className="text-xs font-black">Webhook API Endpoints (สำหรับเชื่อมต่อตรงอัตโนมัติ 100%)</h4>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white">
+                พร้อมใช้งาน
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              นำ URL ด้านล่างนี้ไปกรอกในระบบ LINE MAN Wongnai Open API หรือ Grab Partner Developer Portal เพื่อให้ออเดอร์เด้งเข้า POS และครัวอัตโนมัติ
+            </p>
+
+            <div className="space-y-2 text-xs">
+              {/* LINE MAN Webhook URL */}
+              <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-between gap-2">
+                <div className="truncate">
+                  <span className="text-[10px] text-emerald-400 font-bold block">🟢 LINE MAN Webhook URL:</span>
+                  <code className="text-[11px] text-slate-200 font-mono select-all truncate block">
+                    {currentOrigin ? `${currentOrigin}/api/r/${slug}/webhooks/delivery/lineman` : `/api/r/${slug}/webhooks/delivery/lineman`}
+                  </code>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopy(
+                      `${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/delivery/lineman`,
+                      'LINE MAN Webhook URL'
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center space-x-1 flex-shrink-0"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>คัดลอก</span>
+                </button>
+              </div>
+
+              {/* Grab Webhook URL */}
+              <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-between gap-2">
+                <div className="truncate">
+                  <span className="text-[10px] text-emerald-400 font-bold block">🟢 GrabFood Webhook URL:</span>
+                  <code className="text-[11px] text-slate-200 font-mono select-all truncate block">
+                    {currentOrigin ? `${currentOrigin}/api/r/${slug}/webhooks/delivery/grab` : `/api/r/${slug}/webhooks/delivery/grab`}
+                  </code>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopy(
+                      `${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/delivery/grab`,
+                      'Grab Webhook URL'
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center space-x-1 flex-shrink-0"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>คัดลอก</span>
+                </button>
+              </div>
+
+              {/* Secret Token Field */}
+              <div className="pt-2">
+                <label className="block text-slate-300 font-bold text-[11px] mb-1">
+                  Webhook Secret / Signature Token (รหัสความปลอดภัยจากแพลตฟอร์ม)
+                </label>
+                <input
+                  type="text"
+                  placeholder="เช่น lm_secret_key_xxxx หรือ grab_partner_secret_xxxx"
+                  value={form.deliveryWebhookSecret}
+                  onChange={(e) => setForm({ ...form, deliveryWebhookSecret: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Test Simulation Buttons */}
+              <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] text-slate-400 font-bold">ทดสอบระบบอัตโนมัติ:</span>
+                <button
+                  type="button"
+                  disabled={testingWebhook}
+                  onClick={() => handleTestWebhook('LINEMAN')}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/50 text-emerald-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>⚡ ยิงจำลองออเดอร์ LINE MAN</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={testingWebhook}
+                  onClick={() => handleTestWebhook('GRAB')}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/50 text-emerald-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>⚡ ยิงจำลองออเดอร์ GrabFood</span>
+                </button>
               </div>
             </div>
           </div>
