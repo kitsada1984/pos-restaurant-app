@@ -66,6 +66,7 @@ model Store {
   stockLogs       StockLog[]
   members         CustomerMember[]
   promotions      Promotion[]
+  rewards         LoyaltyReward[]
   
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -253,6 +254,22 @@ model Promotion {
   updatedAt     DateTime  @updatedAt
 
   @@unique([storeId, code])
+}
+
+model LoyaltyReward {
+  id             String    @id @default(cuid())
+  storeId        String
+  store          Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  title          String    // เช่น "ฟรี ไข่ดาว 1 ฟอง", "ส่วนลดเงินสด 50 บาท", "ฟรีกะเพราหมูกรอบ"
+  pointsRequired Int       // เช่น 10, 20, 50
+  rewardType     String    @default("DISCOUNT") // "DISCOUNT", "FREE_ITEM"
+  discountAmount Float     @default(0) // สำหรับ rewardType === "DISCOUNT" เช่น 50 บาท
+  freeMenuItemId String?   // สำหรับ rewardType === "FREE_ITEM"
+  description    String?
+  isActive       Boolean   @default(true)
+  usageCount     Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 // ----------------------------------------------------

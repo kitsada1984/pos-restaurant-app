@@ -27,6 +27,8 @@ import {
   AlertCircle,
   Filter,
   ExternalLink,
+  Award,
+  Check,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime, formatImageUrl } from '@/lib/utils';
 import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
@@ -75,6 +77,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   // Enterprise Loyalty & Promo Checkout States
   const [memberPhone, setMemberPhone] = useState('');
   const [memberData, setMemberData] = useState<any>(null);
+  const [memberRewards, setMemberRewards] = useState<any[]>([]);
+  const [selectedReward, setSelectedReward] = useState<any>(null);
   const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -367,6 +371,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   // Handle Member Lookup
   const handleLookupMember = async (phone: string) => {
     setMemberPhone(phone);
+    setSelectedReward(null);
     const clean = phone.replace(/\D/g, '');
     if (clean.length >= 9) {
       try {
@@ -374,16 +379,21 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         const data = await res.json();
         if (data.member) {
           setMemberData(data.member);
+          setMemberRewards(data.rewards || []);
           showInfo(`พบข้อมูลสมาชิก ⭐`, `คุณ ${data.member.name || phone} (แต้มคงเหลือ: ${data.member.points} แต้ม)`);
         } else {
           setMemberData(null);
+          setMemberRewards(data.rewards || []);
         }
       } catch (e) {
         setMemberData(null);
+        setMemberRewards([]);
       }
     } else {
       setMemberData(null);
+      setMemberRewards([]);
       setPointsToRedeem(0);
+      setSelectedReward(null);
     }
   };
 
@@ -409,7 +419,10 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const rawTotalAmount = activeOrders.reduce((sum: number, o: any) => sum + o.netAmount, 0);
   
   const promoDiscount = appliedPromo?.calculatedDiscount || 0;
-  const pointDiscount = pointsToRedeem * (store?.pointValue || 1);
+  const rewardMilestoneDiscount = selectedReward && selectedReward.rewardType === 'DISCOUNT' ? selectedReward.discountAmount : 0;
+  const pointDiscount = selectedReward
+    ? rewardMilestoneDiscount
+    : pointsToRedeem * (store?.pointValue || 1);
   const totalCombinedDiscount = (discountAmount || 0) + promoDiscount + pointDiscount;
   const finalNetAmount = Math.max(0, rawTotalAmount - totalCombinedDiscount);
 
@@ -1208,7 +1221,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 </span>
                 {memberData && (
                   <span className="text-[11px] font-bold text-orange-600 bg-orange-100/70 px-2 py-0.5 rounded-md">
-                    มี {memberData.points} แต้ม (฿{memberData.points * (store?.pointValue || 1)})
+                    มี {memberData.points} แต้ม
                   </span>
                 )}
               </div>
@@ -1220,7 +1233,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   onChange={(e) => handleLookupMember(e.target.value)}
                   className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold"
                 />
-                {memberData && memberData.points > 0 && (
+                {memberData && memberData.points > 0 && !selectedReward && (
                   <button
                     type="button"
                     onClick={() => {
@@ -1242,10 +1255,58 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   </button>
                 )}
               </div>
+
+              {/* Reward Milestone Quick Chips */}
+              {memberRewards.length > 0 && (
+                <div className="space-y-1.5 pt-1.5 border-t border-slate-200/60">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                    <Award className="w-3 h-3 text-orange-500" />
+                    รางวัลแลกแต้ม (Milestones):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {memberRewards.map((r) => {
+                      const isEnough = memberData && memberData.points >= r.pointsRequired;
+                      const isSelected = selectedReward?.id === r.id;
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          disabled={!isEnough}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedReward(null);
+                              setPointsToRedeem(0);
+                            } else {
+                              setSelectedReward(r);
+                              setPointsToRedeem(r.pointsRequired);
+                            }
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-orange-600 text-white shadow-sm ring-2 ring-orange-500/50'
+                              : isEnough
+                              ? 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
+                              : 'bg-slate-100 text-slate-400 opacity-60 cursor-not-allowed'
+                          }`}
+                        >
+                          <span>🎁 {r.title} ({r.pointsRequired} แต้ม)</span>
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {memberData && (
                 <div className="text-[11px] text-slate-500">
                   ลูกค้า: <strong>{memberData.name || 'สมาชิก'}</strong> • จะได้รับแต้มเพิ่ม{' '}
                   <strong className="text-emerald-600">+{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม</strong>
+                  {selectedReward && (
+                    <span className="block text-orange-600 font-bold mt-0.5">
+                      ✓ แลกรับ: {selectedReward.title} (หัก {selectedReward.pointsRequired} แต้ม)
+                    </span>
+                  )}
                 </div>
               )}
             </div>

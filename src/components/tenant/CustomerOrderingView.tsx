@@ -25,6 +25,12 @@ import {
   Receipt,
   Banknote,
   Volume2,
+  Gift,
+  Award,
+  Phone,
+  User,
+  Tag,
+  Loader2,
 } from 'lucide-react';
 import { formatPrice, formatTime, formatImageUrl } from '@/lib/utils';
 import { playSuccessChime, playOrderChime } from '@/lib/sound';
@@ -69,6 +75,13 @@ export default function CustomerOrderingView({
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  
+  // Enterprise Loyalty & Reward States
+  const [memberPhone, setMemberPhone] = useState('');
+  const [memberData, setMemberData] = useState<any>(null);
+  const [memberRewards, setMemberRewards] = useState<any[]>([]);
+  const [selectedReward, setSelectedReward] = useState<any>(null);
+  const [isMemberLoading, setIsMemberLoading] = useState(false);
 
   // Payment Modal State
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
@@ -291,6 +304,42 @@ export default function CustomerOrderingView({
     if (item) showInfo('นำออกจากตะกร้าแล้ว', item.name);
   };
 
+  const handleMemberLookup = async (phone: string) => {
+    setMemberPhone(phone);
+    setSelectedReward(null);
+    const clean = phone.replace(/\D/g, '');
+    if (clean.length >= 9) {
+      setIsMemberLoading(true);
+      try {
+        const res = await fetch(`/api/r/${slug}/members?phone=${clean}`);
+        const data = await res.json();
+        if (data.member) {
+          setMemberData(data.member);
+          if (data.member.name && !customerName) {
+            setCustomerName(data.member.name);
+          }
+          showSuccess(`สวัสดีคุณ ${data.member.name || phone} ⭐`, `แต้มสะสม: ${data.member.points} แต้ม`);
+        } else {
+          setMemberData(null);
+        }
+        if (data.rewards) setMemberRewards(data.rewards);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsMemberLoading(false);
+      }
+    } else {
+      setMemberData(null);
+      setMemberRewards([]);
+      setSelectedReward(null);
+    }
+  };
+
+  const rawCartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const rewardMilestoneDiscount = selectedReward && selectedReward.rewardType === 'DISCOUNT' ? selectedReward.discountAmount : 0;
+  const cartTotalAmount = Math.max(0, rawCartTotal - rewardMilestoneDiscount);
+  const estimatedPointsEarned = Math.floor(cartTotalAmount / (store?.pointsRate || 25));
+
   const handleSendOrderToKitchen = async () => {
     if (cart.length === 0) return;
     setIsSubmittingOrder(true);
@@ -301,6 +350,9 @@ export default function CustomerOrderingView({
         body: JSON.stringify({
           tableId,
           customerName: customerName.trim() || undefined,
+          memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : undefined,
+          pointsRedeemed: selectedReward ? selectedReward.pointsRequired : 0,
+          discountAmount: rewardMilestoneDiscount,
           orderType: 'DINE_IN',
           items: cart,
         }),
@@ -309,6 +361,7 @@ export default function CustomerOrderingView({
       if (res.ok) {
         showSuccess('ส่งรายการอาหารเข้าครัวแล้ว! 🍳', `โต๊ะ ${tableId} • ส่งรายการเรียบร้อย`);
         setCart([]);
+        setSelectedReward(null);
         setIsCartOpen(false);
         setActiveTab('status');
         playSuccessChime();
@@ -328,8 +381,6 @@ export default function CustomerOrderingView({
       setIsSubmittingOrder(false);
     }
   };
-
-  const cartTotalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const toggleQuickNote = (tag: string) => {
     if (specialNote.includes(tag)) {
@@ -913,6 +964,101 @@ export default function CustomerOrderingView({
                 </button>
               </div>
 
+              {/* Customer Name & Member Loyalty Phone */}
+              <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-2.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                      <User className="w-3 h-3 text-orange-400" />
+                      ชื่อผู้สั่ง (ถ้ามี)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="เช่น คุณกานต์"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-orange-400" />
+                        เบอร์สะสมแต้ม
+                      </span>
+                      {isMemberLoading && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="เช่น 0899998888"
+                      value={memberPhone}
+                      onChange={(e) => handleMemberLookup(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Member Points & Rewards Banner */}
+                {memberPhone.replace(/\D/g, '').length >= 9 && (
+                  <div className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-orange-400 flex items-center gap-1">
+                        <Gift className="w-3.5 h-3.5 text-orange-400" />
+                        {memberData ? `คุณ ${memberData.name || 'สมาชิก'}` : 'ลูกค้าใหม่ (สมัครอัตโนมัติ)'}
+                      </span>
+                      <span className="text-[11px] font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-md">
+                        {memberData ? `${memberData.points} แต้ม` : '0 แต้ม'}
+                      </span>
+                    </div>
+
+                    <div className="text-[10px] text-slate-300">
+                      สั่งออเดอร์นี้จะได้รับสะสมเพิ่ม <strong className="text-emerald-400">+{estimatedPointsEarned} แต้ม</strong>
+                    </div>
+
+                    {/* Reward Milestones */}
+                    {memberRewards.length > 0 && (
+                      <div className="pt-1.5 border-t border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                          <Award className="w-3 h-3 text-orange-400" />
+                          ของรางวัลแลกแต้ม:
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {memberRewards.map((r) => {
+                            const isEnough = memberData && memberData.points >= r.pointsRequired;
+                            const isSelected = selectedReward?.id === r.id;
+                            return (
+                              <button
+                                key={r.id}
+                                type="button"
+                                disabled={!isEnough}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setSelectedReward(null);
+                                  } else {
+                                    setSelectedReward(r);
+                                  }
+                                }}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all flex items-center gap-1 ${
+                                  isSelected
+                                    ? 'bg-orange-500 text-white shadow-md ring-1 ring-white/50'
+                                    : isEnough
+                                    ? 'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 border border-orange-500/40'
+                                    : 'bg-slate-900 text-slate-600 border border-slate-800 opacity-50 cursor-not-allowed'
+                                }`}
+                              >
+                                <span>🎁 {r.title} ({r.pointsRequired} แต้ม)</span>
+                                {isSelected && <Check className="w-3 h-3" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="flex-1 overflow-y-auto space-y-2 divide-y divide-slate-800">
                 {cart.map((item, idx) => (
                   <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between text-xs">
@@ -931,8 +1077,15 @@ export default function CustomerOrderingView({
               </div>
 
               <div className="pt-3 border-t border-slate-800 space-y-3">
+                {selectedReward && selectedReward.rewardType === 'DISCOUNT' && (
+                  <div className="flex justify-between text-xs text-emerald-400 font-bold">
+                    <span>ส่วนลดแลกแต้ม ({selectedReward.title}):</span>
+                    <span>-฿{selectedReward.discountAmount}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between font-black text-base text-white">
-                  <span>รวมทั้งหมด:</span>
+                  <span>รวมสุทธิ:</span>
                   <span className="text-orange-400">฿{cartTotalAmount.toLocaleString()}</span>
                 </div>
 
