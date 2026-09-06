@@ -99,6 +99,30 @@ export default function PosPage() {
     }
   };
 
+  // Redirect to tenant responsive route if available
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const cookies = document.cookie.split('; ').reduce((acc: any, c) => {
+        const [k, v] = c.split('=');
+        if (k && v) acc[k] = v;
+        return acc;
+      }, {});
+      const targetSlug = cookies['last_store_slug'];
+      if (targetSlug) {
+        window.location.replace(`/r/${targetSlug}/pos`);
+        return;
+      }
+      fetch('/api/auth/me')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.user?.storeSlug) {
+            window.location.replace(`/r/${d.user.storeSlug}/pos`);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
 

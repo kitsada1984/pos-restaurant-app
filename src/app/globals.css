@@ -8,6 +8,11 @@
     --foreground: #0f172a;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     color: var(--foreground);
     background: var(--background);

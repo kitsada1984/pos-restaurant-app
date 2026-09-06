@@ -84,12 +84,16 @@ export async function middleware(request: NextRequest) {
   }
 
   // 4. Legacy Global Backoffice / POS / Kitchen Routes (/admin, /pos, /kitchen)
+  // Automatically redirect to tenant-specific modern responsive views so PWA and bookmarks render the correct mobile layout
   if (
     pathname.startsWith('/admin') ||
     pathname === '/pos' ||
     pathname === '/kitchen'
   ) {
     const token = request.cookies.get(COOKIE_NAME)?.value;
+    const lastStoreSlug = request.cookies.get('last_store_slug')?.value;
+    let targetSlug = lastStoreSlug || 'lung-pa';
+
     if (!token) {
       const url = new URL('/login', request.url);
       url.searchParams.set('redirect', pathname);
@@ -97,9 +101,24 @@ export async function middleware(request: NextRequest) {
     }
 
     try {
-      await jwtVerify(token, JWT_SECRET);
+      const { payload } = await jwtVerify(token, JWT_SECRET);
+      const user = payload as unknown as SessionPayload;
+      if (user.storeSlug) {
+        targetSlug = user.storeSlug;
+      }
     } catch (err) {
       return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    if (pathname === '/pos') {
+      return NextResponse.redirect(new URL(`/r/${targetSlug}/pos`, request.url));
+    }
+    if (pathname === '/kitchen') {
+      return NextResponse.redirect(new URL(`/r/${targetSlug}/kitchen`, request.url));
+    }
+    if (pathname.startsWith('/admin/')) {
+      const sub = pathname.replace('/admin/', '');
+      return NextResponse.redirect(new URL(`/r/${targetSlug}/admin/${sub}`, request.url));
     }
   }
 

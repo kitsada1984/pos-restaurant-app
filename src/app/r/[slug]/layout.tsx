@@ -42,6 +42,10 @@ export default function TenantStoreLayout({
         if (data) setStoreInfo(data);
       })
       .catch(() => {});
+
+    if (typeof document !== 'undefined' && slug) {
+      document.cookie = `last_store_slug=${slug}; path=/; max-age=31536000; SameSite=Lax`;
+    }
   }, [slug]);
 
   // Close more menu on route change
@@ -76,9 +80,15 @@ export default function TenantStoreLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-orange-500 selection:text-white pb-20 lg:pb-0 w-full max-w-full overflow-x-hidden">
+    <div
+      className="min-h-screen bg-[#F8FAFC] flex flex-col selection:bg-orange-500 selection:text-white lg:pb-0 w-full max-w-full overflow-x-hidden"
+      style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+    >
       {/* Top Header */}
-      <header className="sticky top-0 z-40 glass-header no-print border-b border-slate-200/80 bg-white/90 backdrop-blur-md w-full">
+      <header
+        className="sticky top-0 z-40 glass-header no-print border-b border-slate-200/80 bg-white/90 backdrop-blur-md w-full"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 w-full">
           <div className="flex items-center justify-between h-14 sm:h-18 gap-2 sm:gap-4">
             {/* Store Brand */}
@@ -158,7 +168,10 @@ export default function TenantStoreLayout({
       </div>
 
       {/* Mobile Bottom Navigation Bar (5 equal columns) */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-2xl py-1 px-2 grid grid-cols-5 gap-1 no-print">
+      <div
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-2xl py-1 px-2 grid grid-cols-5 gap-1 no-print"
+        style={{ paddingBottom: 'calc(6px + env(safe-area-inset-bottom, 0px))' }}
+      >
         {primaryMobileNav.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || (item.href !== `/r/${slug}` && pathname.startsWith(item.href));
