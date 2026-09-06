@@ -1,0 +1,70 @@
+import { MetadataRoute } from 'next';
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: 'ORDEO POS — ระบบร้านอาหารตามสั่ง',
+    short_name: 'ORDEO POS',
+    description: 'ระบบ POS ร้านอาหารตามสั่ง สแกนสั่งอาหาร สต็อกวัตถุดิบ และสะสมแต้มครบวงจร',
+    start_url: '/pos',
+    display: 'standalone',
+    background_color: '#0f172a',
+    theme_color: '#ea580c',
+    orientation: 'any',
+    icons: [
+      {
+        src: '/icons/icon-192x192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icons/icon-512x512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icons/icon-maskable-512x512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/icons/icon.svg',
+        sizes: '512x512',
+        type: 'image/svg+xml',
+        purpose: 'any',
+      },
+    ],
+    shortcuts: [
+      {
+        name: 'POS แคชเชียร์',
+        short_name: 'POS',
+        description: 'เปิดหน้าแคชเชียร์รับออเดอร์และเช็คบิล',
+        url: '/pos',
+        icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }],
+      },
+      {
+        name: 'จอครัว KDS',
+        short_name: 'ห้องครัว',
+        description: 'เปิดจอครัวรับออเดอร์เรียลไทม์',
+        url: '/kitchen',
+        icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }],
+      },
+      {
+        name: 'รายงานยอดขาย',
+        short_name: 'รายงาน',
+        description: 'ดูสรุปยอดขายประจำวันและกำไร',
+        url: '/admin/reports',
+        icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }],
+      },
+      {
+        name: 'สะสมแต้ม CRM',
+        short_name: 'สะสมแต้ม',
+        description: 'จัดการแต้มสมาชิกและของรางวัล',
+        url: '/admin/promotions',
+        icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }],
+      },
+    ],
+  };
+}
