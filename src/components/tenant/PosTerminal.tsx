@@ -583,8 +583,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   return (
     <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Top Header & Table Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
-        <div>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
+        <div className="flex-shrink-0">
           <div className="flex items-center space-x-2">
             <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">
               ผังโต๊ะ &amp; แคชเชียร์ (POS)
@@ -600,9 +600,10 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           </p>
         </div>
 
-        {/* Filter Pills & Action Buttons - Full Width on Mobile */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full">
+        {/* Filter Pills & Action Buttons */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 w-full xl:w-auto">
+          {/* Filter Pills */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2">
             {[
               { id: 'ALL', label: 'ทั้งหมด' },
               { id: 'OCCUPIED', label: `กำลังทาน (${totalOccupied})`, activeClass: 'bg-orange-500 text-white shadow-sm' },
@@ -612,7 +613,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               <button
                 key={f.id}
                 onClick={() => setStatusFilter(f.id as any)}
-                className={`py-2 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
+                className={`py-2 px-2.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center whitespace-nowrap ${
                   statusFilter === f.id
                     ? f.activeClass || 'bg-slate-900 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -623,12 +624,14 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Action CTAs */}
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto flex-shrink-0">
             <button
               onClick={() => handleOpenDeliveryModal('LINEMAN')}
-              className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-1.5 transition-all"
+              className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-1.5 transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer"
             >
-              <span>🛵 + รับเดลิเวอรี</span>
+              <span className="text-sm">🛵</span>
+              <span className="whitespace-nowrap">รับเดลิเวอรี</span>
             </button>
 
             <button
@@ -638,10 +641,10 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 setNewTableName(`โต๊ะ ${highestNo + 1}`);
                 setIsAddTableModalOpen(true);
               }}
-              className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20 flex items-center justify-center space-x-1.5 transition-all"
+              className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-extrabold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm hover:shadow-md shadow-orange-500/20 flex items-center justify-center space-x-1.5 transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>+ เพิ่มโต๊ะ</span>
+              <Plus className="w-4 h-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">เพิ่มโต๊ะ</span>
             </button>
           </div>
         </div>
@@ -657,7 +660,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             </h2>
             <button
               onClick={() => handleOpenDeliveryModal('LINEMAN')}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold hover:bg-emerald-700 shadow-sm whitespace-nowrap flex-shrink-0 transition-all cursor-pointer active:scale-95"
             >
               + คีย์ออเดอร์ LINE MAN / Grab
             </button>
