@@ -93,35 +93,52 @@ export function parseBankNotificationText(
   }
 
   // 4. ดึงยอดเงิน (Amount Extraction)
-  // ตัดส่วนยอดคงเหลือ (Balance) ออกก่อน เพื่อป้องกันการสับสนกับยอดเงินเข้า
-  const textWithoutBalance = text.replace(
-    /(?:ยอดเงินคงเหลือ|ยอดคงเหลือ|คงเหลือสุทธิ|คงเหลือ|balance)\s*:?\s*(?:฿|THB)?\s*[0-9,]+(?:\.[0-9]{1,2})?\s*(?:บาท|บ\.|THB)?/gi,
-    ' '
-  );
+  // กฎเหล็ก: ค้นหาและตัด "ยอดเงินคงเหลือ" (Account Balance) ทิ้งทั้งหมดอย่างเด็ดขาด
+  // เพื่อการันตี 100% ว่าจะอ่านเฉพาะ "ยอดเงินเข้า" เท่านั้น ไม่มียอดคงเหลือปะปน
+  const balancePattern = /(?:ยอดเงินคงเหลือ|ยอดคงเหลือ|เงินคงเหลือ|คงเหลือ|ยอดเงินที่ใช้ได้|ยอดเงินใช้ได้|คงเหลือใช้ได้|คงเหลือสุทธิ|ยอดในบัญชี|ยอดเงินในบัญชี|balance|available balance|avail\s*bal|ledger\s*bal|current balance|ending balance)[^0-9\n]{0,30}?(?:฿|THB)?\s*([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:บาท|บ\.|THB)?/gi;
+
+  const detectedBalances: number[] = [];
+  let bMatch: RegExpExecArray | null;
+  const balanceScanner = new RegExp(balancePattern.source, 'gi');
+  while ((bMatch = balanceScanner.exec(text)) !== null) {
+    if (bMatch[1]) {
+      const bVal = parseFloat(bMatch[1].replace(/,/g, ''));
+      if (!isNaN(bVal)) {
+        detectedBalances.push(bVal);
+      }
+    }
+  }
+
+  // ตัดคำว่ายอดคงเหลือและตัวเลขที่ผูกกับยอดคงเหลือทิ้งจากข้อความค้นหาทั้งหมด
+  const cleanSearchText = text.replace(balancePattern, ' ');
 
   let amount: number | undefined = undefined;
 
   const patterns = [
-    // 1. ข้อความที่ตามหลังคำว่า เงินเข้า / รับเงิน / รับโอน / โอนเข้า เช่น "เงินเข้า ฿150.00"
-    /(?:เงินเข้า|รับเงิน|รับโอน|โอนเข้า|เงินโอนเข้า|ยอดเงินเข้า|ได้รับเงิน|จำนวนเงินเข้า)\s*:?\s*(?:฿|THB)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
-    // 2. มีคำว่า "จำนวน" เช่น "จำนวน 150.00 บาท"
+    // 1. ระบุชัดเจนว่าเป็นเงินเข้า เช่น "เงินเข้า ฿150.00", "รับเงิน 150 บาท", "รับโอน 150.00"
+    /(?:เงินเข้า|รับเงิน|รับโอน|โอนเข้า|เงินโอนเข้า|ยอดเงินเข้า|ได้รับเงิน|ได้รับโอน|จำนวนเงินเข้า|deposit|received)\s*:?\s*(?:฿|THB)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+    // 2. มีคำว่าเงินเข้า นำหน้า แล้วตามด้วยจำนวน เช่น "เงินเข้าบัญชี x-1234 จำนวน 150.00 บาท"
+    /(?:เงินเข้า|รับเงิน|รับโอน|โอนเข้า|เงินโอนเข้า|ได้รับเงิน|ได้รับโอน)[\s\S]{1,60}?(?:จำนวน\s*)?(?:฿|THB)?\s*([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:บาท|บ\.|THB)/i,
+    // 3. มีคำว่า "จำนวน" เช่น "จำนวน 150.00 บาท", "จำนวน ฿150.00"
     /(?:จำนวน|amount)\s*:?\s*(?:฿|THB)?\s*([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:บาท|บ\.|THB)?/i,
-    // 3. ฿150.00 หรือ ฿ 150.00 หรือ ฿150 (ค้นหาในข้อความที่ตัดยอดคงเหลือออกแล้ว)
-    /(?:฿|THB)\s*([0-9,]+\.?[0-9]*)/i,
-    // 4. 150.00 บาท หรือ 150.00 บ. หรือ 150 บาท
+    // 4. สัญลักษณ์สกุลเงิน ฿150.00 หรือ THB 150.00 (ค้นหาในข้อความที่ตัดยอดคงเหลือทิ้งแล้ว)
+    /(?:฿|THB)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+    // 5. 150.00 บาท หรือ 150.00 บ. หรือ 150 บาท
     /([0-9,]+\.[0-9]{2})\s*(?:บาท|บ\.|THB)/i,
     /([0-9,]+)\s*(?:บาท|บ\.)/i,
-    // 5. ตัวเลขเงินที่มีทศนิยม 2 ตำแหน่ง
+    // 6. ตัวเลขเงินที่มีทศนิยม 2 ตำแหน่ง
     /\b([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2})\b/,
   ];
 
   for (const regex of patterns) {
-    const match = textWithoutBalance.match(regex);
+    const match = cleanSearchText.match(regex);
     if (match && match[1]) {
       const cleanNum = match[1].replace(/,/g, '');
-      const parsedVal = parseFloat(cleanNum);
-      if (!isNaN(parsedVal) && parsedVal > 0) {
-        amount = parsedVal;
+      const candidateVal = parseFloat(cleanNum);
+      // ตรวจสอบความปลอดภัย: ยอดเงินเข้าต้องมากกว่า 0 และต้องไม่ตรงกับยอดเงินคงเหลือใดๆ ในบัญชี
+      const isMatchingAnyBalance = detectedBalances.some(bal => Math.abs(bal - candidateVal) < 0.01);
+      if (!isNaN(candidateVal) && candidateVal > 0 && !isMatchingAnyBalance) {
+        amount = candidateVal;
         break;
       }
     }
