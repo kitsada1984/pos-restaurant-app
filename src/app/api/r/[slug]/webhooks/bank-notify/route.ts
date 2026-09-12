@@ -128,6 +128,25 @@ export async function POST(
 
     const incomingAmount = parsed.amount;
 
+    // 3.1 ป้องกันการส่ง Webhook ซ้ำซ้อน (Replay / Duplicate Webhook Protection ภายใน 30 วินาที)
+    const recentDuplicate = await prisma.bankNotificationLog.findFirst({
+      where: {
+        storeId: store.id,
+        rawText,
+        amount: incomingAmount,
+        createdAt: { gte: new Date(Date.now() - 30 * 1000) },
+      },
+    });
+
+    if (recentDuplicate) {
+      return NextResponse.json({
+        success: true,
+        isDuplicateWebhook: true,
+        message: 'ได้รับข้อความแจ้งเตือนนี้แล้ว (ตรวจจับการส่งซ้ำอัตโนมัติ)',
+        parsed,
+      });
+    }
+
     // 4. ดึงรายการออเดอร์และโต๊ะที่ค้างชำระเงินของร้าน
     const activeOrders = await prisma.order.findMany({
       where: {
@@ -153,7 +172,11 @@ export async function POST(
 
     const tableMap = new Map<string, TableCandidate>();
     for (const order of activeOrders) {
-      const groupKey = order.tableId ? `table_${order.tableId}` : `order_${order.id}`;
+      const groupKey = order.tableId
+        ? `table_${order.tableId}`
+        : order.tableNo
+        ? `table_no_${order.tableNo}`
+        : `order_${order.id}`;
       const existing = tableMap.get(groupKey);
       if (existing) {
         existing.orders.push(order);
