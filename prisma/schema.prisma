@@ -54,6 +54,12 @@ model Store {
   shopeeGp        Float          @default(30) // % GP ShopeeFood
   robinhoodGp     Float          @default(20) // % GP Robinhood
   deliveryWebhookSecret String?  // Webhook Security Token for Platform API
+
+  // การตั้งค่าระบบสแกนและอ่านสลิปโอนเงิน (Slip Verification Settings)
+  slipAutoCheckout Boolean       @default(false) // ปิดบิลและเคลียร์โต๊ะอัตโนมัติเมื่อสลิปผ่าน
+  slipProvider     String        @default("HYBRID") // HYBRID, INTERNAL, SLIPOK, EASYSLIP
+  slipApiKey       String?       // API Key สำหรับ SlipOK / EasySlip
+  slipBranchId     String?       // Branch ID สำหรับ SlipOK
   
   // ความสัมพันธ์ข้อมูลของร้าน
   users           User[]
@@ -306,7 +312,12 @@ model Order {
   
   paymentMethod  String?     // CASH, PROMPTPAY
   paymentStatus  String      @default("UNPAID") // UNPAID, PENDING_CONFIRMATION, PAID
-  slipUrl        String?     // รูปภาพสลิปที่ลูกค้าแนบ
+  slipUrl        String?     // รูปภาพสลิปที่ลูกค้าหรือแคชเชียร์แนบ
+  slipRef        String?     // รหัสอ้างอิงของสลิป (TransRef / Hash) เพื่อตรวจสลิปซ้ำ
+  slipAmount     Float?      // ยอดเงินที่ตรวจพบบนสลิป
+  slipVerifiedAt DateTime?   // เวลาที่ตรวจสลิปสำเร็จ
+  slipVerifiedBy String?     // ผู้ตรวจสอบ เช่น AUTO, MANUAL, SYSTEM
+  slipRawData    String?     // JSON บันทึกข้อมูลผลการอ่านสลิป
   cashReceived   Float?
   changeAmount   Float?
   customerLineId String?

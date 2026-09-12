@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2, Copy, Zap, ExternalLink } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2, Copy, Zap, ExternalLink, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 
 export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string }) {
@@ -24,6 +24,10 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     shopeeGp: 30,
     robinhoodGp: 20,
     deliveryWebhookSecret: '',
+    slipAutoCheckout: false,
+    slipProvider: 'HYBRID',
+    slipApiKey: '',
+    slipBranchId: '',
   });
 
   const [currentOrigin, setCurrentOrigin] = useState('');
@@ -50,6 +54,10 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
             shopeeGp: data.shopeeGp ?? 30,
             robinhoodGp: data.robinhoodGp ?? 20,
             deliveryWebhookSecret: data.deliveryWebhookSecret || '',
+            slipAutoCheckout: data.slipAutoCheckout ?? false,
+            slipProvider: data.slipProvider || 'HYBRID',
+            slipApiKey: data.slipApiKey || '',
+            slipBranchId: data.slipBranchId || '',
           });
         }
       })
@@ -416,6 +424,90 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   <span>⚡ ยิงจำลองออเดอร์ GrabFood</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 5: Bank Transfer Slip Verification Settings */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2 border-b border-slate-100 pb-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span>ระบบอ่านและตรวจสอบสลิปโอนเงิน (Bank Slip Verification)</span>
+          </h3>
+          <p className="text-xs text-slate-500">
+            ตั้งค่าระบบอ่านสลิปธนาคาร ป้องกันการใช้สลิปซ้ำ (Anti-Fraud) และกำหนดพฤติกรรมการปิดบิล
+          </p>
+
+          <div className="space-y-4">
+            {/* Auto Checkout Toggle */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <label className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 cursor-pointer">
+                  <span>⚡ ปิดบิลและเคลียร์โต๊ะอัตโนมัติเมื่อสลิปผ่าน (Auto Checkout)</span>
+                </label>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  หากเปิดใช้งาน: เมื่อระบบตรวจพบว่าสลิปถูกต้อง ยอดเงินตรง และไม่เป็นสลิปซ้ำ จะปิดบิลและเปิดโต๊ะให้อัตโนมัติทันที
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={form.slipAutoCheckout}
+                  onChange={(e) => setForm({ ...form, slipAutoCheckout: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+              </label>
+            </div>
+
+            {/* Provider Selector */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">
+                  เครื่องมือตรวจสอบสลิป (Verification Engine)
+                </label>
+                <select
+                  value={form.slipProvider}
+                  onChange={(e) => setForm({ ...form, slipProvider: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="HYBRID">ระบบไฮบริด (ตรวจในตัวฟรี + API Gateway หากมี Key) (แนะนำ)</option>
+                  <option value="INTERNAL">ตรวจด้วยระบบในตัวฟรี (Mini-QR + Anti-Duplicate Hash)</option>
+                  <option value="SLIPOK">SlipOK API Gateway (เช็คเงินเข้าบัญชีธนาคารจริง)</option>
+                  <option value="EASYSLIP">EasySlip API Gateway</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  ระบบในตัวสามารถอ่าน Mini-QR ตรวจยอดเงิน และบล็อกสลิปซ้ำได้ฟรีโดยไม่มีค่าใช้จ่าย
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">
+                  API Key (สำหรับ SlipOK หรือ EasySlip - ถ้ามี)
+                </label>
+                <input
+                  type="password"
+                  placeholder="กรอก API Key (เว้นว่างไว้เพื่อใช้ระบบฟรีในตัว)"
+                  value={form.slipApiKey}
+                  onChange={(e) => setForm({ ...form, slipApiKey: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              {form.slipProvider === 'SLIPOK' && (
+                <div className="sm:col-span-2">
+                  <label className="block text-slate-700 font-bold mb-1">
+                    Branch ID (SlipOK - ไม่บังคับ)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="รหัสสาขา SlipOK เช่น 12345 (ถ้ามี)"
+                    value={form.slipBranchId}
+                    onChange={(e) => setForm({ ...form, slipBranchId: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

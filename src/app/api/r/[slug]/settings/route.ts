@@ -35,6 +35,10 @@ export async function GET(
       shopeeGp: store.shopeeGp ?? 30,
       robinhoodGp: store.robinhoodGp ?? 20,
       deliveryWebhookSecret: store.deliveryWebhookSecret,
+      slipAutoCheckout: store.slipAutoCheckout ?? false,
+      slipProvider: store.slipProvider ?? 'HYBRID',
+      slipApiKey: store.slipApiKey || '',
+      slipBranchId: store.slipBranchId || '',
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -60,6 +64,10 @@ export async function PUT(
       shopeeGp,
       robinhoodGp,
       deliveryWebhookSecret,
+      slipAutoCheckout,
+      slipProvider,
+      slipApiKey,
+      slipBranchId,
     } = body;
 
     const store = await prisma.store.findUnique({
@@ -83,6 +91,10 @@ export async function PUT(
         shopeeGp: shopeeGp !== undefined ? parseFloat(shopeeGp) : store.shopeeGp,
         robinhoodGp: robinhoodGp !== undefined ? parseFloat(robinhoodGp) : store.robinhoodGp,
         deliveryWebhookSecret: deliveryWebhookSecret !== undefined ? deliveryWebhookSecret : store.deliveryWebhookSecret,
+        slipAutoCheckout: slipAutoCheckout !== undefined ? Boolean(slipAutoCheckout) : store.slipAutoCheckout,
+        slipProvider: slipProvider !== undefined ? slipProvider : store.slipProvider,
+        slipApiKey: slipApiKey !== undefined ? slipApiKey : store.slipApiKey,
+        slipBranchId: slipBranchId !== undefined ? slipBranchId : store.slipBranchId,
       },
       include: { plan: true },
     });
@@ -108,6 +120,10 @@ export async function PUT(
       shopeeGp: updated.shopeeGp,
       robinhoodGp: updated.robinhoodGp,
       deliveryWebhookSecret: updated.deliveryWebhookSecret,
+      slipAutoCheckout: updated.slipAutoCheckout,
+      slipProvider: updated.slipProvider,
+      slipApiKey: updated.slipApiKey,
+      slipBranchId: updated.slipBranchId,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

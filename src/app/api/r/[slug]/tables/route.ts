@@ -41,6 +41,8 @@ export async function GET(
         0
       );
       const firstOrderAt = activeOrders.length > 0 ? activeOrders[activeOrders.length - 1].createdAt : null;
+      const hasPendingSlip = activeOrders.some((o: any) => o.slipUrl || o.paymentStatus === 'PENDING_CONFIRMATION');
+      const latestSlipOrder = activeOrders.find((o: any) => o.slipUrl);
 
       return {
         id: t.tableNo, // integer table number for compatibility
@@ -53,6 +55,8 @@ export async function GET(
         totalAmount,
         activeOrders,
         firstOrderAt,
+        hasPendingSlip,
+        latestSlipUrl: latestSlipOrder?.slipUrl || null,
       };
     });
 

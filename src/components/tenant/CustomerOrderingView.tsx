@@ -31,10 +31,14 @@ import {
   User,
   Tag,
   Loader2,
+  Camera,
+  ShieldCheck,
+  UploadCloud,
 } from 'lucide-react';
 import { formatPrice, formatTime, formatImageUrl } from '@/lib/utils';
 import { playSuccessChime, playOrderChime } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
+import { scanSlipQrClient } from '@/lib/slip-scanner-client';
 import { useToast } from '@/context/ToastContext';
 
 const QUICK_NOTES = [
@@ -87,6 +91,67 @@ export default function CustomerOrderingView({
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [payMethod, setPayMethod] = useState<'PROMPTPAY' | 'CASH'>('PROMPTPAY');
   const [isCashCalled, setIsCashCalled] = useState(false);
+
+  // Slip Upload State for Customer
+  const [customerSlipPreview, setCustomerSlipPreview] = useState<string | null>(null);
+  const [isCustomerUploadingSlip, setIsCustomerUploadingSlip] = useState(false);
+  const [customerSlipSubmitted, setCustomerSlipSubmitted] = useState(false);
+  const [customerSlipMessage, setCustomerSlipMessage] = useState<string | null>(null);
+  const [customerSlipError, setCustomerSlipError] = useState<string | null>(null);
+
+  const handleCustomerSlipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsCustomerUploadingSlip(true);
+    setCustomerSlipError(null);
+    setCustomerSlipSubmitted(false);
+    try {
+      const scan = await scanSlipQrClient(file);
+      setCustomerSlipPreview(scan.compressedBase64);
+
+      const res = await fetch(`/api/r/${slug}/orders/verify-slip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableId,
+          tableNo: tableId,
+          qrPayload: scan.qrText,
+          slipImage: scan.compressedBase64,
+          manualConfirm: false,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.isPaid) {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        playSuccessChime();
+        setCustomerSlipSubmitted(true);
+        setCustomerSlipMessage('ชำระเงินเรียบร้อยแล้ว ขอบคุณที่ใช้บริการครับ! 🎉');
+        showSuccess('ชำระเงินเรียบร้อยแล้ว 🎉', 'ระบบตรวจสอบสลิปและปิดบิลสำเร็จ');
+        setTimeout(() => {
+          setIsPayModalOpen(false);
+          fetchData();
+        }, 2500);
+      } else if (data.isDuplicate) {
+        setCustomerSlipError(data.error || 'สลิปนี้เคยถูกใช้งานแล้ว');
+        showError('สลิปนี้เคยถูกใช้งานแล้ว', data.error);
+      } else if (data.isAmountMismatch) {
+        setCustomerSlipError(data.error || 'ยอดเงินในสลิปไม่ตรงกับยอดบิล');
+        showError('ยอดเงินไม่ตรง', data.error);
+      } else if (data.success) {
+        setCustomerSlipSubmitted(true);
+        setCustomerSlipMessage('แนบสลิปเรียบร้อยแล้ว แจ้งแคชเชียร์ตรวจสอบแล้วครับ 🔔');
+        showSuccess('แนบสลิปเรียบร้อยแล้ว 📷', 'แจ้งเตือนพนักงานเคาน์เตอร์แล้วครับ');
+      } else {
+        setCustomerSlipError(data.error || 'เกิดข้อผิดพลาดในการตรวจสอบสลิป');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setCustomerSlipError('เกิดข้อผิดพลาดในการประมวลผลรูปภาพ');
+    } finally {
+      setIsCustomerUploadingSlip(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -1157,9 +1222,54 @@ export default function CustomerOrderingView({
                     <span className="text-xs font-bold text-slate-300">
                       พร้อมเพย์: {store?.promptPayId} ({store?.promptPayName})
                     </span>
-                    <p className="text-[11px] text-slate-400">
-                      สแกนจ่ายผ่านแอปธนาคารใดก็ได้ แล้วแจ้งพนักงานที่หน้าร้านได้เลยครับ
-                    </p>
+                    {/* Hidden file input for customer slip */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="customer-slip-upload-input"
+                      className="hidden"
+                      onChange={handleCustomerSlipUpload}
+                    />
+
+                    {/* Slip Status or Upload Button */}
+                    {customerSlipSubmitted ? (
+                      <div className="w-full p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center space-x-2">
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>{customerSlipMessage || 'แนบสลิปเรียบร้อยแล้ว'}</span>
+                      </div>
+                    ) : (
+                      <div className="w-full space-y-2 pt-1">
+                        <label
+                          htmlFor="customer-slip-upload-input"
+                          className={`w-full py-2.5 px-3 rounded-xl border border-dashed border-orange-400/60 bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 font-extrabold text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all ${
+                            isCustomerUploadingSlip ? 'opacity-50 pointer-events-none' : ''
+                          }`}
+                        >
+                          {isCustomerUploadingSlip ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin text-orange-400" />
+                              <span>กำลังตรวจสอบสลิป...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Camera className="w-4 h-4 text-orange-400" />
+                              <span>📷 แนบสลิปโอนเงิน (คลิกเพื่ออัปโหลด)</span>
+                            </>
+                          )}
+                        </label>
+
+                        {customerSlipError && (
+                          <div className="p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[11px] font-bold text-left flex items-start space-x-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0 mt-0.5" />
+                            <span>{customerSlipError}</span>
+                          </div>
+                        )}
+
+                        <p className="text-[10px] text-slate-400">
+                          สแกนจ่ายแล้วแนบรูปสลิป ระบบจะตรวจสอบและแจ้งแคชเชียร์อัตโนมัติ
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-xs text-rose-400">ร้านยังไม่ได้ตั้งค่าพร้อมเพย์</p>
