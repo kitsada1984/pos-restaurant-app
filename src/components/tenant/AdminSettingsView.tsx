@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2, Copy, Zap, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2, Copy, Zap, ExternalLink, ShieldCheck, BellRing, RefreshCw, Smartphone } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 
 export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string }) {
@@ -10,6 +10,8 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
+  const [testingBankWebhook, setTestingBankWebhook] = useState(false);
+  const [regeneratingKey, setRegeneratingKey] = useState(false);
 
   const [form, setForm] = useState({
     storeName: '',
@@ -28,6 +30,8 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     slipProvider: 'HYBRID',
     slipApiKey: '',
     slipBranchId: '',
+    bankWebhookKey: '',
+    bankAutoCheckout: true,
   });
 
   const [currentOrigin, setCurrentOrigin] = useState('');
@@ -58,6 +62,8 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
             slipProvider: data.slipProvider || 'HYBRID',
             slipApiKey: data.slipApiKey || '',
             slipBranchId: data.slipBranchId || '',
+            bankWebhookKey: data.bankWebhookKey || '',
+            bankAutoCheckout: data.bankAutoCheckout ?? true,
           });
         }
       })
@@ -68,6 +74,52 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(text);
       showSuccess(`คัดลอก ${label} แล้ว 📋`, text);
+    }
+  };
+
+  const handleRegenerateBankKey = async () => {
+    if (!confirm('ต้องการสุ่ม Webhook Key ใหม่ใช่หรือไม่? (หากเปลี่ยน ต้องอัปเดตในแอปมือถือด้วย)')) return;
+    setRegeneratingKey(true);
+    try {
+      const res = await fetch(`/api/r/${slug}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regenerateBankKey: true }),
+      });
+      const data = await res.json();
+      if (res.ok && data.bankWebhookKey) {
+        setForm((prev) => ({ ...prev, bankWebhookKey: data.bankWebhookKey }));
+        showSuccess('สุ่ม Webhook Key ใหม่เรียบร้อยแล้ว 🔑', data.bankWebhookKey);
+      }
+    } catch (e: any) {
+      showError('ไม่สามารถสุ่มคีย์ใหม่ได้', e.message);
+    } finally {
+      setRegeneratingKey(false);
+    }
+  };
+
+  const handleTestBankWebhook = async () => {
+    setTestingBankWebhook(true);
+    try {
+      const mockTestAmount = 150;
+      const res = await fetch(`/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: 'SCB Connect',
+          text: `เงินเข้าบัญชี x-9999 จำนวน ฿${mockTestAmount}.00 จาก นาย กิตติศักดิ์ เมื่อ ${new Date().toLocaleDateString('th-TH')} ยอดเงินคงเหลือ ฿12,450.00`,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showSuccess('ส่งทดสอบสำเร็จแล้ว 🔔', data.message || `ยอด ฿${mockTestAmount} ถูกส่งเข้า POS แล้ว`);
+      } else {
+        showInfo('ส่งทดสอบแล้ว (เซิร์ฟเวอร์ตอบกลับ)', data.message || data.error);
+      }
+    } catch (e: any) {
+      showError('เกิดข้อผิดพลาดในการทดสอบ', e.message);
+    } finally {
+      setTestingBankWebhook(false);
     }
   };
 
@@ -508,6 +560,120 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   />
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Section 6: Bank / LINE Incoming Money Notification Webhook */}
+        <div className="space-y-4 pt-4 border-t border-slate-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2">
+              <BellRing className="w-4 h-4 text-orange-500" />
+              <span>ระบบรับแจ้งเตือนเงินเข้าอัตโนมัติ (LINE / ธนาคาร Webhook)</span>
+            </h3>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-700">
+              ทุกธนาคารในไทย 🇹🇭
+            </span>
+          </div>
+          <p className="text-xs text-slate-500">
+            เมื่อมีเงินโอนเข้าบัญชีร้านค้า แอปบนมือถือ (เช่น MacroDroid / Notification Forwarder) จะจับข้อความแจ้งเตือนจาก LINE (SCB Connect, KBank Live, Krungthai Connext ฯลฯ) หรือแอปธนาคาร แล้วส่งยอดยิงเข้า POS ทันที
+          </p>
+
+          <div className="space-y-4">
+            {/* Auto Checkout on Bank Notify */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <label className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 cursor-pointer">
+                  <span>⚡ ปิดบิลอัตโนมัติทันทีเมื่อยอดเงินตรงกับโต๊ะอาหาร (Auto-Match & Checkout)</span>
+                </label>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  หากเปิดใช้งาน: เมื่อยอดเงินที่โอนเข้ามาตรงกับบิลโต๊ะอาหาร (1 โต๊ะพอดี) ระบบจะปิดบิล เคลียร์โต๊ะว่าง และสะสมแต้มให้อัตโนมัติทันที
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={form.bankAutoCheckout}
+                  onChange={(e) => setForm({ ...form, bankAutoCheckout: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+              </label>
+            </div>
+
+            {/* Webhook Endpoint URL */}
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Smartphone className="w-4 h-4 text-orange-500" />
+                  <span>Webhook URL ประจำร้านของคุณ (นำไปใส่ในแอปบนมือถือ):</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleTestBankWebhook}
+                  disabled={testingBankWebhook}
+                  className="px-3 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-sm transition-all disabled:opacity-50"
+                >
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>{testingBankWebhook ? 'กำลังทดสอบ...' : '🧪 ทดสอบยิงเงินเข้า ฿150'}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${currentOrigin}/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`}
+                  className="flex-1 px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono text-slate-700 select-all focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCopy(`${currentOrigin}/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`, 'Webhook URL')}
+                  className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-all flex-shrink-0"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>คัดลอก URL</span>
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between pt-1 text-[11px] text-slate-500 gap-2">
+                <div className="flex items-center gap-2">
+                  <span>Secret Key: <strong className="font-mono text-slate-800">{form.bankWebhookKey || 'กำลังสร้าง...'}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRegenerateBankKey}
+                  disabled={regeneratingKey}
+                  className="text-orange-600 hover:underline flex items-center gap-1 font-bold"
+                >
+                  <RefreshCw className={`w-3 h-3 ${regeneratingKey ? 'animate-spin' : ''}`} />
+                  <span>สุ่มคีย์ใหม่ (Regenerate Key)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Step-by-Step Setup Guide Accordion */}
+            <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 space-y-2">
+              <div className="font-black flex items-center gap-1.5 text-amber-800">
+                <span>📱 วิธีตั้งค่าให้ส่งแจ้งเตือนจากมือถือเข้า POS อัตโนมัติ (ทำครั้งเดียว ใช้ได้ตลอดไป):</span>
+              </div>
+              <ol className="list-decimal list-inside space-y-1.5 text-slate-700 font-medium leading-relaxed pl-1">
+                <li>
+                  ติดตั้งแอปฟรี <strong>MacroDroid</strong> หรือ <strong>Notification Forwarder</strong> จาก Google Play Store บนมือถือที่รับแจ้งเตือน
+                </li>
+                <li>
+                  สร้างคำสั่ง (Macro):
+                  <ul className="list-disc list-inside pl-4 pt-1 space-y-0.5 text-slate-600">
+                    <li><strong>Trigger:</strong> เลือก <em>Notification Received</em> ➔ เลือกแอป <strong>LINE</strong> (หรือ K PLUS / SCB EASY / Krungthai NEXT)</li>
+                    <li><strong>Action:</strong> เลือก <em>HTTP Request</em> ➔ Method เลือก <strong>POST</strong> ➔ วาง <strong>Webhook URL</strong> ด้านบนลงไป</li>
+                    <li><strong>Content-Type:</strong> เลือก <code>application/json</code></li>
+                    <li><strong>Body:</strong> ใส่ <code>{`{"text":"[not_text]","sender":"[not_title]"}`}</code></li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>เสร็จสิ้น!</strong> เมื่อมีเงินโอนเข้าและ LINE แจ้งเตือน ระบบจะอ่านยอดเงินและปิดบิลที่หน้าจอ POS ให้ทันทีอัตโนมัติ ⚡
+                </li>
+              </ol>
             </div>
           </div>
         </div>

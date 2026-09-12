@@ -39,6 +39,8 @@ export async function GET(
       slipProvider: store.slipProvider ?? 'HYBRID',
       slipApiKey: store.slipApiKey || '',
       slipBranchId: store.slipBranchId || '',
+      bankWebhookKey: store.bankWebhookKey || (await ensureStoreBankKey(store.id)),
+      bankAutoCheckout: store.bankAutoCheckout ?? true,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -68,6 +70,9 @@ export async function PUT(
       slipProvider,
       slipApiKey,
       slipBranchId,
+      bankWebhookKey,
+      bankAutoCheckout,
+      regenerateBankKey,
     } = body;
 
     const store = await prisma.store.findUnique({
@@ -75,6 +80,13 @@ export async function PUT(
     });
 
     if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
+
+    let effectiveBankKey = store.bankWebhookKey;
+    if (regenerateBankKey) {
+      effectiveBankKey = generateRandomBankKey();
+    } else if (bankWebhookKey !== undefined) {
+      effectiveBankKey = bankWebhookKey;
+    }
 
     const updated = await prisma.store.update({
       where: { id: store.id },
@@ -95,6 +107,8 @@ export async function PUT(
         slipProvider: slipProvider !== undefined ? slipProvider : store.slipProvider,
         slipApiKey: slipApiKey !== undefined ? slipApiKey : store.slipApiKey,
         slipBranchId: slipBranchId !== undefined ? slipBranchId : store.slipBranchId,
+        bankWebhookKey: effectiveBankKey,
+        bankAutoCheckout: bankAutoCheckout !== undefined ? Boolean(bankAutoCheckout) : store.bankAutoCheckout,
       },
       include: { plan: true },
     });
@@ -124,8 +138,24 @@ export async function PUT(
       slipProvider: updated.slipProvider,
       slipApiKey: updated.slipApiKey,
       slipBranchId: updated.slipBranchId,
+      bankWebhookKey: updated.bankWebhookKey,
+      bankAutoCheckout: updated.bankAutoCheckout,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+function generateRandomBankKey(): string {
+  return `bk_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 10)}`;
+}
+
+async function ensureStoreBankKey(storeId: string): Promise<string> {
+  const newKey = generateRandomBankKey();
+  await prisma.store.update({
+    where: { id: storeId },
+    data: { bankWebhookKey: newKey },
+  }).catch(() => {});
+  return newKey;
+}
+

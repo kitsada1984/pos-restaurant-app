@@ -110,6 +110,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const [autoCheckoutEnabled, setAutoCheckoutEnabled] = useState<boolean>(false);
   const [isManualConfirming, setIsManualConfirming] = useState(false);
   const [previewSlipModalOpen, setPreviewSlipModalOpen] = useState(false);
+  const [ambiguousBankNotify, setAmbiguousBankNotify] = useState<any | null>(null);
 
   // Add Table Modal
   const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
@@ -169,7 +170,30 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         eventSource.onmessage = (event) => {
           try {
             const payload = JSON.parse(event.data);
-            if (payload.type === 'SLIP_SUBMITTED') {
+            if (payload.type === 'BANK_NOTIFY_RECEIVED') {
+              const d = payload.data;
+              if (d.action === 'AUTO_PAID') {
+                playSuccessChime();
+                showSuccess(
+                  `💰 รับเงิน ฿${d.amount?.toLocaleString()} จาก ${d.bankName || d.bank}`,
+                  `ปิดบิลและเคลียร์ ${d.tableName || `โต๊ะ ${d.tableNo}`} สำเร็จแล้ว 🎉`
+                );
+                fetchData();
+              } else if (d.action === 'AMBIGUOUS_CHOICE') {
+                playOrderChime();
+                setAmbiguousBankNotify(d);
+                showInfo(
+                  `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
+                  `มียอดตรงกับ ${d.candidates?.length} โต๊ะ กรุณาเลือกโต๊ะที่ต้องการตัดยอด`
+                );
+              } else if (d.action === 'UNMATCHED') {
+                playOrderChime();
+                showInfo(
+                  `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
+                  'ไม่พบโต๊ะที่มียอดตรงกันในขณะนี้'
+                );
+              }
+            } else if (payload.type === 'SLIP_SUBMITTED') {
               playOrderChime();
               showInfo(`📷 โต๊ะ ${payload.data?.tableNo || ''} ส่งสลิปโอนเงินเข้ามา!`, 'กรุณาตรวจสอบสลิปเพื่อยืนยันปิดบิล');
               fetchData();
@@ -2198,6 +2222,83 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition-all"
             >
               ปิดหน้าต่าง
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Ambiguous Bank Notification Modal: เลือกโต๊ะเมื่อมียอดเงินเข้าตรงกันหลายโต๊ะ */}
+      {ambiguousBankNotify && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-orange-100 flex items-center justify-center text-lg flex-shrink-0">
+                  🔔
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-slate-900">
+                    ตรวจพบเงินเข้า ฿{ambiguousBankNotify.amount?.toLocaleString()}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-bold">
+                    จาก {ambiguousBankNotify.bankName || ambiguousBankNotify.bank}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAmbiguousBankNotify(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              มียอดค้างชำระ ฿{ambiguousBankNotify.amount?.toLocaleString()} ตรงกัน {ambiguousBankNotify.candidates?.length} โต๊ะ กรุณาเลือกโต๊ะที่ต้องการตัดยอดปิดบิล:
+            </p>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {ambiguousBankNotify.candidates?.map((c: any) => (
+                <button
+                  key={c.tableId || c.tableNo}
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      for (const orderId of c.orderIds) {
+                        await fetch(`/api/r/${slug}/orders/${orderId}/pay`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ paymentMethod: 'PROMPTPAY' }),
+                        });
+                      }
+                      playSuccessChime();
+                      showSuccess(`ปิดบิล ${c.tableName} สำเร็จแล้ว ✅`, `ยอดรับ ฿${c.totalAmount}`);
+                      setAmbiguousBankNotify(null);
+                      fetchData();
+                    } catch (e: any) {
+                      showError('ไม่สามารถปิดบิลได้', e.message);
+                    }
+                  }}
+                  className="w-full p-3.5 rounded-2xl bg-orange-50/80 hover:bg-orange-100/90 border border-orange-200/90 text-left flex items-center justify-between group transition-all"
+                >
+                  <div>
+                    <span className="font-black text-sm text-slate-900 block">{c.tableName}</span>
+                    <span className="text-xs text-slate-500 font-medium">ยอดบิล: ฿{c.totalAmount?.toLocaleString()}</span>
+                  </div>
+                  <span className="px-3 py-1.5 rounded-xl bg-orange-500 text-white font-extrabold text-xs shadow-sm group-hover:scale-105 transition-transform flex items-center gap-1">
+                    <span>ตัดยอดโต๊ะนี้</span>
+                    <span>→</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setAmbiguousBankNotify(null)}
+              className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all"
+            >
+              ปิดหน้าต่าง / ไม่ใช่โต๊ะเหล่านี้
             </button>
           </div>
         </div>

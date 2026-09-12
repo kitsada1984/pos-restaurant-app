@@ -13,7 +13,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export type EventPayload = {
-  type: 'ORDER_CREATED' | 'ORDER_UPDATED' | 'TABLE_UPDATED' | 'PAYMENT_RECEIVED' | 'MENU_UPDATED' | 'SLIP_SUBMITTED';
+  type: 'ORDER_CREATED' | 'ORDER_UPDATED' | 'TABLE_UPDATED' | 'PAYMENT_RECEIVED' | 'MENU_UPDATED' | 'SLIP_SUBMITTED' | 'BANK_NOTIFY_RECEIVED';
   data: any;
   storeId?: string;
   timestamp: number;
