@@ -53,6 +53,9 @@ export async function scanSlipQrClient(file: File | Blob): Promise<ScanResult> {
             return;
           }
 
+          // รองรับภาพโปร่งแสง เช่น PNG หรือ Screenshot ขอบมน โดยเติมสีขาวเป็นพื้นหลังก่อน
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, w, h);
           ctx.drawImage(img, 0, 0, w, h);
 
           // ดึงพิกเซลข้อมูลรูปภาพเพื่อถอดรหัส QR

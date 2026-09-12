@@ -46,18 +46,22 @@ export async function POST(
 
     // ค้นหาออเดอร์
     let order: any = null;
+    const parsedTableNo = tableNo !== undefined && tableNo !== null && !isNaN(parseInt(String(tableNo), 10))
+      ? parseInt(String(tableNo), 10)
+      : undefined;
+
     if (orderId) {
       order = await prisma.order.findUnique({
         where: { id: orderId },
         include: { table: true, items: true },
       });
-    } else if (tableId || tableNo) {
+    } else if (tableId || parsedTableNo !== undefined) {
       order = await prisma.order.findFirst({
         where: {
           storeId: store.id,
           OR: [
             { tableId: tableId ? String(tableId) : undefined },
-            { tableNo: tableNo ? parseInt(tableNo) : undefined },
+            { tableNo: parsedTableNo },
           ],
           paymentStatus: { in: ['UNPAID', 'PENDING_CONFIRMATION'] },
           status: { in: ['PENDING', 'COOKING', 'READY', 'SERVED'] },
@@ -71,13 +75,32 @@ export async function POST(
       return NextResponse.json({ error: 'ไม่พบออเดอร์ที่ต้องการตรวจสอบ' }, { status: 404 });
     }
 
-    // ป้องกันการชำระเงินซ้ำ
+    // ป้องกันการชำระเงินซ้ำถ้าออเดอร์ปิดบิลไปแล้ว
     if (order.paymentStatus === 'PAID') {
       return NextResponse.json(
         { error: 'ออเดอร์นี้ได้รับการชำระเงินเรียบร้อยแล้ว' },
         { status: 400 }
       );
     }
+
+    // ตรวจสอบว่ามีออเดอร์ค้างชำระในโต๊ะนี้ทั้งหมดกี่รายการ (สำหรับโต๊ะที่สั่งอาหารหลายรอบ)
+    let tableOrders: any[] = [order];
+    if (order.tableId) {
+      const activeInTable = await prisma.order.findMany({
+        where: {
+          storeId: store.id,
+          tableId: order.tableId,
+          paymentStatus: { in: ['UNPAID', 'PENDING_CONFIRMATION'] },
+          status: { in: ['PENDING', 'COOKING', 'READY', 'SERVED'] },
+        },
+        include: { table: true, items: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (activeInTable.length > 0) {
+        tableOrders = activeInTable;
+      }
+    }
+    const totalTableAmount = tableOrders.reduce((sum, o) => sum + (o.netAmount || 0), 0);
 
     let parsed: ParsedSlipData | null = null;
 
@@ -96,23 +119,27 @@ export async function POST(
       }
     }
 
-    // 2. ตรวจสอบการใช้สลิปซ้ำ (Anti-Fraud Duplicate Prevention)
+    // 2. ตรวจสอบการใช้สลิปซ้ำ (Anti-Fraud Duplicate Prevention - เช็คทั้ง PAID และ PENDING_CONFIRMATION)
     if (parsed && parsed.slipRef) {
+      const currentOrderIds = tableOrders.map((o) => o.id);
       const duplicateOrder = await prisma.order.findFirst({
         where: {
           storeId: store.id,
           slipRef: parsed.slipRef,
-          id: { not: order.id },
-          paymentStatus: 'PAID',
+          id: { notIn: currentOrderIds },
+          paymentStatus: { in: ['PAID', 'PENDING_CONFIRMATION'] },
         },
       });
 
       if (duplicateOrder) {
+        const isPaidDup = duplicateOrder.paymentStatus === 'PAID';
         return NextResponse.json(
           {
             success: false,
             isDuplicate: true,
-            error: `⚠️ สลิปนี้เคยถูกใช้งานและปิดบิลไปแล้วในระบบ (ออเดอร์ #${duplicateOrder.id.slice(-4)}) ไม่อนุญาตให้ใช้ซ้ำเพื่อความปลอดภัย`,
+            error: isPaidDup
+              ? `⚠️ สลิปนี้เคยถูกใช้งานและปิดบิลไปแล้วในระบบ (ออเดอร์ #${duplicateOrder.id.slice(-4)}) ไม่อนุญาตให้ใช้ซ้ำเพื่อความปลอดภัย`
+              : `⚠️ สลิปนี้มีประวัติถูกส่งเข้าระบบแล้ว (ออเดอร์ #${duplicateOrder.id.slice(-4)}) กำลังรอตรวจสอบ ไม่อนุญาตให้ส่งซ้ำ`,
             parsed,
           },
           { status: 400 }
@@ -120,21 +147,23 @@ export async function POST(
       }
     }
 
-    // 3. ตรวจสอบความถูกต้องของยอดเงิน
-    let isAmountMismatch = false;
-    if (parsed && parsed.amount !== undefined) {
-      const diff = Math.abs(parsed.amount - order.netAmount);
-      if (diff > 1) {
-        isAmountMismatch = true;
-        // หากไม่ใช่การกดยืนยันด้วยมือ ให้แจ้งเตือนยอดไม่ตรง
-        if (!manualConfirm) {
+    // 3. ตรวจสอบบัญชีผู้รับเงิน (ป้องกันสลิปโอนไปบัญชีอื่น/คนอื่น)
+    if (parsed?.receiverAccount && store.promptPayId) {
+      const cleanStorePay = store.promptPayId.replace(/\D/g, '');
+      const cleanSlipReceiver = parsed.receiverAccount.replace(/\D/g, '');
+      if (cleanStorePay.length >= 4 && cleanSlipReceiver.length >= 4) {
+        const isReceiverMatch =
+          cleanStorePay.endsWith(cleanSlipReceiver) ||
+          cleanSlipReceiver.endsWith(cleanStorePay) ||
+          cleanStorePay.includes(cleanSlipReceiver) ||
+          cleanSlipReceiver.includes(cleanStorePay);
+
+        if (!isReceiverMatch && !manualConfirm) {
           return NextResponse.json(
             {
               success: false,
-              isAmountMismatch: true,
-              slipAmount: parsed.amount,
-              netAmount: order.netAmount,
-              error: `⚠️ ยอดเงินในสลิป (฿${parsed.amount.toLocaleString()}) ไม่ตรงกับยอดบิลที่ต้องชำระ (฿${order.netAmount.toLocaleString()})`,
+              isReceiverMismatch: true,
+              error: `⚠️ บัญชีผู้รับเงินในสลิป (${parsed.receiverAccount} ${parsed.receiverName || ''}) ไม่ตรงกับเบอร์พร้อมเพย์ของร้าน (${store.promptPayId}) กรุณาตรวจทาน`,
               parsed,
             },
             { status: 400 }
@@ -143,10 +172,46 @@ export async function POST(
       }
     }
 
-    // 4. ตัดสินใจว่าจะปิดบิลอัตโนมัติ หรือ บันทึกรอแคชเชียร์ยืนยัน
-    // ทำการปิดบิลทันทีเมื่อ:
-    // - manualConfirm === true (แคชเชียร์กดปุ่ม "บันทึกมือ")
-    // - หรือ store.slipAutoCheckout === true และสลิปผ่านการตรวจ (parsed.isValid && !isAmountMismatch)
+    // 4. ตรวจสอบความถูกต้องของยอดเงิน (เปรียบเทียบกับยอดบิลออเดอร์เดี่ยว หรือ ยอดรวมทั้งโต๊ะ)
+    let isAmountMismatch = false;
+    let isTableSettlement = false;
+
+    if (parsed && parsed.amount !== undefined) {
+      const diffSingle = Math.abs(parsed.amount - order.netAmount);
+      const diffTable = Math.abs(parsed.amount - totalTableAmount);
+
+      if (diffTable <= 1 && tableOrders.length > 1) {
+        // ยอดสลิปตรงกับยอดรวมทุกออเดอร์ของโต๊ะ
+        isTableSettlement = true;
+      } else if (diffSingle <= 1) {
+        // ยอดสลิปตรงกับออเดอร์เดี่ยวนี้
+        isTableSettlement = false;
+      } else {
+        isAmountMismatch = true;
+        if (!manualConfirm) {
+          const expectedStr =
+            tableOrders.length > 1
+              ? `฿${totalTableAmount.toLocaleString()} (ยอดรวมโต๊ะ) หรือ ฿${order.netAmount.toLocaleString()} (ยอดออเดอร์)`
+              : `฿${order.netAmount.toLocaleString()}`;
+          return NextResponse.json(
+            {
+              success: false,
+              isAmountMismatch: true,
+              slipAmount: parsed.amount,
+              netAmount: tableOrders.length > 1 ? totalTableAmount : order.netAmount,
+              error: `⚠️ ยอดเงินในสลิป (฿${parsed.amount.toLocaleString()}) ไม่ตรงกับยอดบิลที่ต้องชำระ (${expectedStr})`,
+              parsed,
+            },
+            { status: 400 }
+          );
+        }
+      }
+    } else if (tableOrders.length > 1) {
+      // ไม่มีข้อมูล amount ในสลิป แต่เป็นการชำระโต๊ะที่มีหลายออเดอร์
+      isTableSettlement = true;
+    }
+
+    // 5. ตัดสินใจว่าจะปิดบิลอัตโนมัติ หรือ บันทึกรอแคชเชียร์ยืนยัน
     const shouldAutoClose =
       manualConfirm ||
       (store.slipAutoCheckout && parsed?.isValid && !isAmountMismatch);
@@ -154,72 +219,83 @@ export async function POST(
     const effectiveSlipRef =
       parsed?.slipRef || (manualConfirm ? `MANUAL_${Date.now()}_${order.id.slice(-4)}` : null);
 
-    if (shouldAutoClose) {
-      // ปิดบิลทันที
-      const updatedOrder = await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          paymentMethod: 'PROMPTPAY',
-          paymentStatus: 'PAID',
-          status: 'COMPLETED',
-          slipUrl: slipImage || order.slipUrl,
-          slipRef: effectiveSlipRef,
-          slipAmount: parsed?.amount || order.netAmount,
-          slipVerifiedAt: new Date(),
-          slipVerifiedBy: manualConfirm ? 'MANUAL' : 'AUTO',
-          slipRawData: parsed ? JSON.stringify(parsed) : null,
-          paidAt: new Date(),
-          note: note || order.note,
-        },
-        include: {
-          table: true,
-          items: true,
-        },
-      });
+    const ordersToProcess = (isTableSettlement && tableOrders.length > 1) ? tableOrders : [order];
 
-      // จัดการสะสมแต้มให้ลูกค้าสมาชิก
-      if (updatedOrder.memberPhone && store.pointsRate > 0) {
-        const pointsEarned = Math.floor(updatedOrder.netAmount / store.pointsRate);
-        const pointsRedeemed = updatedOrder.pointsRedeemed || 0;
-        const netPointsChange = pointsEarned - pointsRedeemed;
+    if (shouldAutoClose) {
+      // ปิดบิลออเดอร์ที่เกี่ยวข้องทั้งหมด
+      const updatedOrders: any[] = [];
+      for (let i = 0; i < ordersToProcess.length; i++) {
+        const o = ordersToProcess[i];
+        const updated = await prisma.order.update({
+          where: { id: o.id },
+          data: {
+            paymentMethod: 'PROMPTPAY',
+            paymentStatus: 'PAID',
+            status: 'COMPLETED',
+            slipUrl: slipImage || o.slipUrl,
+            slipRef: effectiveSlipRef ? `${effectiveSlipRef}${ordersToProcess.length > 1 ? `_${i + 1}` : ''}` : null,
+            slipAmount: ordersToProcess.length === 1 ? (parsed?.amount || o.netAmount) : o.netAmount,
+            slipVerifiedAt: new Date(),
+            slipVerifiedBy: manualConfirm ? 'MANUAL' : 'AUTO',
+            slipRawData: parsed ? JSON.stringify(parsed) : null,
+            paidAt: new Date(),
+            note: o.id === order.id ? (note || o.note) : o.note,
+          },
+          include: {
+            table: true,
+            items: true,
+          },
+        });
+        updatedOrders.push(updated);
+      }
+
+      const primaryUpdatedOrder = updatedOrders[0];
+
+      // จัดการแต้มสะสมสมาชิก (รวมยอดใช้จ่ายทั้งหมดที่ชำระในรอบนี้)
+      const targetPhone = updatedOrders.find((o) => o.memberPhone)?.memberPhone;
+      if (targetPhone && store.pointsRate > 0) {
+        const totalPaidNet = updatedOrders.reduce((sum, o) => sum + (o.netAmount || 0), 0);
+        const totalRedeemed = updatedOrders.reduce((sum, o) => sum + (o.pointsRedeemed || 0), 0);
+        const pointsEarned = Math.floor(totalPaidNet / store.pointsRate);
+        const netPointsChange = pointsEarned - totalRedeemed;
 
         await prisma.customerMember.upsert({
           where: {
             storeId_phone: {
               storeId: store.id,
-              phone: updatedOrder.memberPhone,
+              phone: targetPhone,
             },
           },
           update: {
             points: { increment: netPointsChange },
-            totalSpent: { increment: updatedOrder.netAmount },
+            totalSpent: { increment: totalPaidNet },
             visitCount: { increment: 1 },
           },
           create: {
             storeId: store.id,
-            phone: updatedOrder.memberPhone,
-            name: updatedOrder.customerName || 'สมาชิก',
+            phone: targetPhone,
+            name: primaryUpdatedOrder.customerName || 'สมาชิก',
             points: Math.max(0, netPointsChange),
-            totalSpent: updatedOrder.netAmount,
+            totalSpent: totalPaidNet,
             visitCount: 1,
           },
         }).catch((err) => console.error('Error updating loyalty member:', err));
       }
 
-      // เคลียร์สถานะโต๊ะเป็น AVAILABLE ถ้าไม่มีออเดอร์ค้างชำระอื่น
-      if (updatedOrder.tableId) {
+      // เคลียร์สถานะโต๊ะเป็น AVAILABLE ถ้าไม่มีออเดอร์ค้างชำระอื่นเหลืออยู่
+      if (primaryUpdatedOrder.tableId) {
         const remainingOrders = await prisma.order.count({
           where: {
             storeId: store.id,
-            tableId: updatedOrder.tableId,
-            id: { not: updatedOrder.id },
+            tableId: primaryUpdatedOrder.tableId,
+            id: { notIn: updatedOrders.map((o) => o.id) },
             paymentStatus: { in: ['UNPAID', 'PENDING_CONFIRMATION'] },
           },
         });
 
         if (remainingOrders === 0) {
           await prisma.table.update({
-            where: { id: updatedOrder.tableId },
+            where: { id: primaryUpdatedOrder.tableId },
             data: {
               status: 'AVAILABLE',
               currentSessionId: null,
@@ -227,62 +303,75 @@ export async function POST(
           });
           broadcastEvent(
             'TABLE_UPDATED',
-            { tableNo: updatedOrder.tableNo, status: 'AVAILABLE' },
+            { tableNo: primaryUpdatedOrder.tableNo, status: 'AVAILABLE' },
             store.id
           );
         }
       }
 
-      broadcastEvent('PAYMENT_RECEIVED', updatedOrder, store.id);
-      broadcastEvent('ORDER_UPDATED', updatedOrder, store.id);
+      for (const o of updatedOrders) {
+        broadcastEvent('PAYMENT_RECEIVED', o, store.id);
+        broadcastEvent('ORDER_UPDATED', o, store.id);
+      }
 
       return NextResponse.json({
         success: true,
         isPaid: true,
         message: manualConfirm
-          ? 'บันทึกปิดบิลด้วยสลิปสำเร็จเรียบร้อยแล้ว ✅'
-          : 'ตรวจสอบสลิปถูกต้อง และปิดบิลให้อัตโนมัติเรียบร้อยแล้ว 🎉',
-        order: updatedOrder,
+          ? `บันทึกปิดบิลด้วยสลิปสำเร็จเรียบร้อยแล้ว (${updatedOrders.length} รายการบิล) ✅`
+          : `ตรวจสอบสลิปถูกต้อง และปิดบิลให้อัตโนมัติเรียบร้อยแล้ว (${updatedOrders.length} รายการบิล) 🎉`,
+        order: primaryUpdatedOrder,
+        orders: updatedOrders,
         parsed,
       });
     } else {
-      // ยังไม่ปิดบิล: บันทึกรูปสลิปและผลตรวจเป็น PENDING_CONFIRMATION เพื่อรอแคชเชียร์ตรวจสอบ
-      const pendingOrder = await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          paymentMethod: 'PROMPTPAY',
-          paymentStatus: 'PENDING_CONFIRMATION',
-          slipUrl: slipImage || order.slipUrl,
-          slipRef: effectiveSlipRef,
-          slipAmount: parsed?.amount || null,
-          slipRawData: parsed ? JSON.stringify(parsed) : null,
-        },
-        include: {
-          table: true,
-          items: true,
-        },
-      });
+      // ยังไม่ปิดบิล: บันทึกรูปสลิปและผลตรวจเป็น PENDING_CONFIRMATION
+      const pendingOrders: any[] = [];
+      for (const o of ordersToProcess) {
+        const pending = await prisma.order.update({
+          where: { id: o.id },
+          data: {
+            paymentMethod: 'PROMPTPAY',
+            paymentStatus: 'PENDING_CONFIRMATION',
+            slipUrl: slipImage || o.slipUrl,
+            slipRef: effectiveSlipRef,
+            slipAmount: parsed?.amount || null,
+            slipRawData: parsed ? JSON.stringify(parsed) : null,
+          },
+          include: {
+            table: true,
+            items: true,
+          },
+        });
+        pendingOrders.push(pending);
+      }
+
+      const primaryPending = pendingOrders[0];
 
       // ส่งสัญญาณ SSE แจ้งเตือนหน้าจอ POS ของแคชเชียร์
       broadcastEvent(
         'SLIP_SUBMITTED',
         {
-          orderId: order.id,
-          tableNo: order.tableNo,
-          slipUrl: slipImage || order.slipUrl,
-          amount: parsed?.amount || order.netAmount,
+          orderId: primaryPending.id,
+          tableNo: primaryPending.tableNo,
+          slipUrl: slipImage || primaryPending.slipUrl,
+          amount: parsed?.amount || (isTableSettlement ? totalTableAmount : primaryPending.netAmount),
           parsed,
         },
         store.id
       );
-      broadcastEvent('ORDER_UPDATED', pendingOrder, store.id);
+
+      for (const o of pendingOrders) {
+        broadcastEvent('ORDER_UPDATED', o, store.id);
+      }
 
       return NextResponse.json({
         success: true,
         isPaid: false,
         isPendingConfirmation: true,
         message: 'ส่งสลิปเรียบร้อยแล้ว แจ้งเตือนแคชเชียร์เพื่อตรวจสอบแล้ว 🔔',
-        order: pendingOrder,
+        order: primaryPending,
+        orders: pendingOrders,
         parsed,
       });
     }

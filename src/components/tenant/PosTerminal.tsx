@@ -624,10 +624,38 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       if (data.isPaid) {
         playSuccessChime();
         showSuccess('สลิปถูกต้อง และปิดบิลสำเร็จเรียบร้อย! 🎉', `${selectedTable.name} • ฿${finalNetAmount}`);
+
+        // เปิด Modal ใบเสร็จเพื่อให้พิมพ์สลิป/ใบเสร็จได้
+        setReceiptOrder({
+          storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
+          promptPayName: store?.promptPayName || '',
+          phone: store?.phone || '',
+          address: store?.address || '',
+          receiptFooter: store?.receiptFooter || '',
+          tableId: selectedTable.id || selectedTable.tableNo,
+          tableName: selectedTable.name,
+          orders: activeOrders,
+          totalAmount: rawTotalAmount,
+          discountAmount: totalCombinedDiscount,
+          netAmount: finalNetAmount,
+          paymentMethod: 'PROMPTPAY',
+          cashReceived: null,
+          changeAmount: 0,
+          paidAt: new Date().toISOString(),
+        });
+
         setIsPayModalOpen(false);
+        setIsReceiptModalOpen(true);
         setSlipPreview(null);
         setSlipResult(null);
         setSelectedTable(null);
+        setCashReceived('');
+        setDiscountAmount(0);
+        setMemberPhone('');
+        setMemberData(null);
+        setPointsToRedeem(0);
+        setPromoCodeInput('');
+        setAppliedPromo(null);
         fetchData();
       } else if (data.isDuplicate) {
         showError('สลิปนี้เคยถูกใช้งานแล้ว ⚠️', data.error);
@@ -666,11 +694,39 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       if (data.isPaid) {
         playSuccessChime();
         showSuccess('บันทึกปิดบิลด้วยสลิปสำเร็จแล้ว ✅', `${selectedTable.name} • ยอด ฿${finalNetAmount}`);
+
+        // เปิด Modal ใบเสร็จเพื่อให้พิมพ์สลิป/ใบเสร็จได้
+        setReceiptOrder({
+          storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
+          promptPayName: store?.promptPayName || '',
+          phone: store?.phone || '',
+          address: store?.address || '',
+          receiptFooter: store?.receiptFooter || '',
+          tableId: selectedTable.id || selectedTable.tableNo,
+          tableName: selectedTable.name,
+          orders: activeOrders,
+          totalAmount: rawTotalAmount,
+          discountAmount: totalCombinedDiscount,
+          netAmount: finalNetAmount,
+          paymentMethod: 'PROMPTPAY',
+          cashReceived: null,
+          changeAmount: 0,
+          paidAt: new Date().toISOString(),
+        });
+
         setIsPayModalOpen(false);
+        setIsReceiptModalOpen(true);
         setSlipPreview(null);
         setSlipQrPayload(null);
         setSlipResult(null);
         setSelectedTable(null);
+        setCashReceived('');
+        setDiscountAmount(0);
+        setMemberPhone('');
+        setMemberData(null);
+        setPointsToRedeem(0);
+        setPromoCodeInput('');
+        setAppliedPromo(null);
         fetchData();
       } else {
         showError('ไม่สามารถปิดบิลได้', data.error || 'เกิดข้อผิดพลาด');
@@ -1031,7 +1087,20 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   </button>
 
                   <button
-                    onClick={() => setIsPayModalOpen(true)}
+                    onClick={() => {
+                      if (selectedTable.hasPendingSlip && selectedTable.latestSlipUrl) {
+                        setSlipPreview(selectedTable.latestSlipUrl);
+                        const slipOrder = selectedTable.activeOrders?.find((o: any) => o.slipUrl);
+                        if (slipOrder?.slipRawData) {
+                          try {
+                            const parsed = JSON.parse(slipOrder.slipRawData);
+                            setSlipResult({ parsed, success: true });
+                          } catch (e) {}
+                        }
+                        setPaymentMethod('PROMPTPAY');
+                      }
+                      setIsPayModalOpen(true);
+                    }}
                     className={`px-5 py-2.5 rounded-xl font-black text-xs shadow-lg flex items-center space-x-1.5 transition-all ${
                       selectedTable.hasPendingSlip
                         ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-500/30 ring-2 ring-amber-400/50 animate-pulse'

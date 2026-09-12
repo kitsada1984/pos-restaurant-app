@@ -75,30 +75,32 @@ export function parseBankSlipQr(rawPayload: string): ParsedSlipData {
     };
   }
 
-  // รูปแบบ 1: ITMX BScanC Standard (ขึ้นต้นด้วย 0046... หรือ 005...)
-  if (trimmed.startsWith('0046') || trimmed.startsWith('005')) {
+  // รูปแบบ 1: ITMX BScanC Standard (ขึ้นต้นด้วย Tag 00 ตามด้วยความยาว เช่น 0046... หรือ 0050...)
+  if (/^00\d{2}/.test(trimmed) && trimmed.length >= 10 && !trimmed.startsWith('000201')) {
     try {
       const subPayload = trimmed.substring(4);
       const subTags = parseTLV(subPayload);
-      const bankCode = subTags['01'] || '';
-      const transRef = subTags['02'] || generateSlipHash(trimmed);
-      const transDate = subTags['03'] || '';
-      const amountStr = subTags['04'] || '';
-      const amount = amountStr ? parseFloat(amountStr) : undefined;
-      const bankInfo = THAI_BANKS[bankCode] || { name: 'ธนาคารในประเทศไทย', short: 'BANK', color: '#475569' };
+      if (subTags['01'] || subTags['02']) {
+        const bankCode = subTags['01'] || '';
+        const transRef = subTags['02'] || generateSlipHash(trimmed);
+        const transDate = subTags['03'] || '';
+        const amountStr = subTags['04'] || '';
+        const amount = amountStr ? parseFloat(amountStr) : undefined;
+        const bankInfo = THAI_BANKS[bankCode] || { name: 'ธนาคารในประเทศไทย', short: 'BANK', color: '#475569' };
 
-      return {
-        isValid: true,
-        rawPayload: trimmed,
-        slipRef: `${bankCode}_${transRef}`,
-        amount,
-        bankCode,
-        bankName: bankInfo.name,
-        transDate,
-        provider: 'INTERNAL',
-        verificationStatus: 'VALID',
-        message: `ตรวจพบสลิปธนาคาร ${bankInfo.name} (${bankInfo.short})`,
-      };
+        return {
+          isValid: true,
+          rawPayload: trimmed,
+          slipRef: `${bankCode}_${transRef}`,
+          amount,
+          bankCode,
+          bankName: bankInfo.name,
+          transDate,
+          provider: 'INTERNAL',
+          verificationStatus: 'VALID',
+          message: `ตรวจพบสลิปธนาคาร ${bankInfo.name} (${bankInfo.short})`,
+        };
+      }
     } catch {
       // Fallback to generic parsing
     }
