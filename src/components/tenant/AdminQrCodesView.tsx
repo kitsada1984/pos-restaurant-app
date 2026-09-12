@@ -77,7 +77,7 @@ export default function AdminQrCodesView({ slug = 'lung-pa' }: { slug?: string }
       </div>
 
       {/* Printable Grid of QR Codes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 print:grid-cols-2 print:gap-4">
+      <div id="printable-qr-sheet" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 print:grid-cols-2 print:gap-4">
         {tableList.map((table) => {
           const tNo = table.tableNo || table.id;
           const tableUrl = `${currentBaseUrl}/r/${slug}/table/${tNo}`;

@@ -553,18 +553,20 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     if (!selectedTable || activeOrders.length === 0) return;
     setIsProcessingPay(true);
     try {
-      for (const order of activeOrders) {
+      for (let i = 0; i < activeOrders.length; i++) {
+        const order = activeOrders[i];
+        const isFirst = i === 0;
         await fetch(`/api/r/${slug}/orders/${order.id}/pay`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             paymentMethod,
-            cashReceived: paymentMethod === 'CASH' ? parseFloat(cashReceived) : null,
-            changeAmount: paymentMethod === 'CASH' ? Math.max(0, change) : 0,
-            memberPhone: memberPhone || null,
-            pointsRedeemed: discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
-            promoCode: discountTab === 'PROMO' ? appliedPromo?.code || null : null,
-            discountAmount: totalCombinedDiscount,
+            cashReceived: paymentMethod === 'CASH' && isFirst ? parseFloat(cashReceived) : null,
+            changeAmount: paymentMethod === 'CASH' && isFirst ? Math.max(0, change) : 0,
+            memberPhone: isFirst ? (memberPhone || null) : null,
+            pointsRedeemed: isFirst && discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
+            promoCode: isFirst && discountTab === 'PROMO' ? appliedPromo?.code || null : null,
+            discountAmount: isFirst ? totalCombinedDiscount : 0,
           }),
         });
       }
@@ -601,8 +603,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       setPromoCodeInput('');
       setAppliedPromo(null);
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showError('เกิดข้อผิดพลาดในการชำระเงิน', err.message);
     } finally {
       setIsProcessingPay(false);
     }
@@ -640,6 +643,10 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           qrPayload: scan.qrText,
           slipImage: scan.compressedBase64,
           manualConfirm: autoCheckoutEnabled, // ถ้าเปิดโหมดบันทึกอัตโนมัติ ให้ปิดบิลทันทีเมื่อสลิปผ่าน
+          discountAmount: totalCombinedDiscount,
+          memberPhone: memberPhone || null,
+          pointsRedeemed: discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
+          promoCode: discountTab === 'PROMO' ? appliedPromo?.code || null : null,
         }),
       });
       const data = await res.json();
@@ -712,6 +719,10 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           qrPayload: slipQrPayload,
           slipImage: slipPreview,
           manualConfirm: true,
+          discountAmount: totalCombinedDiscount,
+          memberPhone: memberPhone || null,
+          pointsRedeemed: discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
+          promoCode: discountTab === 'PROMO' ? appliedPromo?.code || null : null,
         }),
       });
       const data = await res.json();

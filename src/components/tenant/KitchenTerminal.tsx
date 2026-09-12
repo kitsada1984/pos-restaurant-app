@@ -53,7 +53,9 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
           try {
             const payload = JSON.parse(event.data);
             if (payload.type === 'ORDER_CREATED') {
-              const ch = payload.order?.orderChannel;
+              // Bug #4: Read order object from payload.data (or fallback payload.order)
+              const orderData = payload.data || payload.order;
+              const ch = orderData?.orderChannel;
               const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(ch);
               if (soundEnabled) {
                 if (isDelivery) {
@@ -65,9 +67,9 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
 
               if (isDelivery) {
                 const label = ch === 'LINEMAN' ? 'LINE MAN' : ch === 'GRAB' ? 'GrabFood' : ch === 'SHOPEE_FOOD' ? 'ShopeeFood' : 'Robinhood';
-                showInfo(`🛵 ออเดอร์เดลิเวอรีเข้าใหม่ (${label})`, `#${payload.order?.deliveryOrderId || payload.order?.id?.slice(-4)}`);
+                showInfo(`🛵 ออเดอร์เดลิเวอรีเข้าใหม่ (${label})`, `#${orderData?.deliveryOrderId || orderData?.id?.slice(-4)}`);
               } else {
-                showInfo('มีออเดอร์ใหม่เข้าครัว 🛎️', `โต๊ะ ${payload.order?.tableNo || 'สั่งใหม่'}`);
+                showInfo('มีออเดอร์ใหม่เข้าครัว 🛎️', `โต๊ะ ${orderData?.tableNo || orderData?.table?.tableNo || 'สั่งใหม่'}`);
               }
               fetchOrders();
             } else if (payload.type === 'ORDER_UPDATED' || payload.type === 'TABLE_UPDATED') {

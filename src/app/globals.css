@@ -82,7 +82,9 @@
   body * {
     visibility: hidden;
   }
-  #printable-receipt, #printable-receipt * {
+  #printable-receipt, #printable-receipt *,
+  #printable-qr-sheet, #printable-qr-sheet *,
+  #printable-report, #printable-report * {
     visibility: visible;
   }
   #printable-receipt {
@@ -96,14 +98,15 @@
     color: #000;
     background: #fff;
   }
-  #printable-qr-sheet, #printable-qr-sheet * {
-    visibility: visible;
-  }
-  #printable-qr-sheet {
+  #printable-qr-sheet,
+  #printable-report {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    margin: 0;
+    background: #fff;
+    color: #000;
   }
   .no-print {
     display: none !important;

@@ -59,9 +59,11 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
       const menuData = await menuRes.json();
       if (ingData.ingredients) setIngredients(ingData.ingredients);
       if (Array.isArray(menuData)) {
-        setMenuItems(menuData);
-        if (menuData.length > 0 && !selectedMenuItem) {
-          loadRecipeForItem(menuData[0]);
+        // Bug #3: Flatten categories to extract individual menu items for BOM Recipe manager
+        const flatItems = menuData.flatMap((c: any) => (Array.isArray(c.items) ? c.items : [c]));
+        setMenuItems(flatItems);
+        if (flatItems.length > 0 && !selectedMenuItem) {
+          loadRecipeForItem(flatItems[0]);
         }
       }
     } catch (e) {

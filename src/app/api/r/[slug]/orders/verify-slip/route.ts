@@ -42,6 +42,10 @@ export async function POST(
       slipImage,
       manualConfirm = false,
       note,
+      discountAmount = 0,
+      memberPhone,
+      pointsRedeemed = 0,
+      promoCode,
     } = body;
 
     // ค้นหาออเดอร์
@@ -101,6 +105,9 @@ export async function POST(
       }
     }
     const totalTableAmount = tableOrders.reduce((sum, o) => sum + (o.netAmount || 0), 0);
+    const numericDiscount = Number(discountAmount) || 0;
+    const effectiveTableAmount = Math.max(0, totalTableAmount - numericDiscount);
+    const effectiveOrderAmount = Math.max(0, order.netAmount - numericDiscount);
 
     let parsed: ParsedSlipData | null = null;
 
@@ -172,13 +179,13 @@ export async function POST(
       }
     }
 
-    // 4. ตรวจสอบความถูกต้องของยอดเงิน (เปรียบเทียบกับยอดบิลออเดอร์เดี่ยว หรือ ยอดรวมทั้งโต๊ะ)
+    // 4. ตรวจสอบความถูกต้องของยอดเงิน (เปรียบเทียบกับยอดบิลออเดอร์เดี่ยว หรือ ยอดรวมทั้งโต๊ะ หลังหักส่วนลด)
     let isAmountMismatch = false;
     let isTableSettlement = false;
 
     if (parsed && parsed.amount !== undefined) {
-      const diffSingle = Math.abs(parsed.amount - order.netAmount);
-      const diffTable = Math.abs(parsed.amount - totalTableAmount);
+      const diffSingle = Math.abs(parsed.amount - effectiveOrderAmount);
+      const diffTable = Math.abs(parsed.amount - effectiveTableAmount);
 
       if (diffTable <= 1 && tableOrders.length > 1) {
         // ยอดสลิปตรงกับยอดรวมทุกออเดอร์ของโต๊ะ
@@ -191,14 +198,14 @@ export async function POST(
         if (!manualConfirm) {
           const expectedStr =
             tableOrders.length > 1
-              ? `฿${totalTableAmount.toLocaleString()} (ยอดรวมโต๊ะ) หรือ ฿${order.netAmount.toLocaleString()} (ยอดออเดอร์)`
-              : `฿${order.netAmount.toLocaleString()}`;
+              ? `฿${effectiveTableAmount.toLocaleString()} (ยอดรวมโต๊ะ${numericDiscount > 0 ? 'หักส่วนลด' : ''}) หรือ ฿${effectiveOrderAmount.toLocaleString()} (ยอดออเดอร์${numericDiscount > 0 ? 'หักส่วนลด' : ''})`
+              : `฿${effectiveOrderAmount.toLocaleString()}`;
           return NextResponse.json(
             {
               success: false,
               isAmountMismatch: true,
               slipAmount: parsed.amount,
-              netAmount: tableOrders.length > 1 ? totalTableAmount : order.netAmount,
+              netAmount: tableOrders.length > 1 ? effectiveTableAmount : effectiveOrderAmount,
               error: `⚠️ ยอดเงินในสลิป (฿${parsed.amount.toLocaleString()}) ไม่ตรงกับยอดบิลที่ต้องชำระ (${expectedStr})`,
               parsed,
             },
@@ -226,15 +233,26 @@ export async function POST(
       const updatedOrders: any[] = [];
       for (let i = 0; i < ordersToProcess.length; i++) {
         const o = ordersToProcess[i];
+        const isPrimary = i === 0;
+        const newDiscount = isPrimary && numericDiscount > 0
+          ? (o.discountAmount || 0) + numericDiscount
+          : (o.discountAmount || 0);
+        const newNetAmount = Math.max(0, o.totalAmount - newDiscount);
+
         const updated = await prisma.order.update({
           where: { id: o.id },
           data: {
             paymentMethod: 'PROMPTPAY',
             paymentStatus: 'PAID',
             status: 'COMPLETED',
+            discountAmount: newDiscount,
+            netAmount: newNetAmount,
+            memberPhone: isPrimary && memberPhone ? memberPhone.replace(/\D/g, '') : o.memberPhone,
+            pointsRedeemed: isPrimary && Number(pointsRedeemed) ? Number(pointsRedeemed) : o.pointsRedeemed,
+            promoCode: isPrimary && promoCode ? String(promoCode).toUpperCase().trim() : o.promoCode,
             slipUrl: slipImage || o.slipUrl,
             slipRef: effectiveSlipRef ? `${effectiveSlipRef}${ordersToProcess.length > 1 ? `_${i + 1}` : ''}` : null,
-            slipAmount: ordersToProcess.length === 1 ? (parsed?.amount || o.netAmount) : o.netAmount,
+            slipAmount: ordersToProcess.length === 1 ? (parsed?.amount || newNetAmount) : newNetAmount,
             slipVerifiedAt: new Date(),
             slipVerifiedBy: manualConfirm ? 'MANUAL' : 'AUTO',
             slipRawData: parsed ? JSON.stringify(parsed) : null,
@@ -251,8 +269,16 @@ export async function POST(
 
       const primaryUpdatedOrder = updatedOrders[0];
 
+      // จัดการโปรโมชั่นการใช้งาน
+      if (promoCode) {
+        await prisma.promotion.updateMany({
+          where: { storeId: store.id, code: String(promoCode).toUpperCase().trim() },
+          data: { usageCount: { increment: 1 } },
+        }).catch(() => {});
+      }
+
       // จัดการแต้มสะสมสมาชิก (รวมยอดใช้จ่ายทั้งหมดที่ชำระในรอบนี้)
-      const targetPhone = updatedOrders.find((o) => o.memberPhone)?.memberPhone;
+      const targetPhone = (memberPhone ? memberPhone.replace(/\D/g, '') : null) || updatedOrders.find((o) => o.memberPhone)?.memberPhone;
       if (targetPhone && store.pointsRate > 0) {
         const totalPaidNet = updatedOrders.reduce((sum, o) => sum + (o.netAmount || 0), 0);
         const totalRedeemed = updatedOrders.reduce((sum, o) => sum + (o.pointsRedeemed || 0), 0);

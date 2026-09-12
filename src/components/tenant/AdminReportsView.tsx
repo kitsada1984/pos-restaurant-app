@@ -82,8 +82,10 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
         </div>
       </div>
 
-      {/* Enterprise KPI Cards (Equal Height Grid) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 auto-rows-fr w-full">
+      {/* Printable Report Container (Bug #10) */}
+      <div id="printable-report" className="space-y-3.5 sm:space-y-6">
+        {/* Enterprise KPI Cards (Equal Height Grid) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 auto-rows-fr w-full">
         <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-1.5 sm:space-y-2 flex flex-col justify-between h-full">
           <div>
             <span className="text-xs font-bold text-slate-400">ยอดขายรวมสุทธิ</span>
@@ -302,6 +304,7 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
             </table>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Receipt Modal */}

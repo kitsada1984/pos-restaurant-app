@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireStoreAccess } from '@/lib/auth';
 
 export async function GET(
   request: Request,
@@ -43,6 +44,12 @@ export async function POST(
   { params }: { params: { slug: string } }
 ) {
   try {
+    try {
+      await requireStoreAccess(params.slug);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
       select: { id: true },
@@ -91,6 +98,12 @@ export async function PUT(
   { params }: { params: { slug: string } }
 ) {
   try {
+    try {
+      await requireStoreAccess(params.slug);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
       select: { id: true },
@@ -112,6 +125,14 @@ export async function PUT(
     }
 
     if (id) {
+      // Verify reward belongs to this store
+      const existing = await prisma.loyaltyReward.findFirst({
+        where: { id, storeId: store.id },
+      });
+      if (!existing) {
+        return NextResponse.json({ error: 'Reward not found in this store' }, { status: 404 });
+      }
+
       const updated = await prisma.loyaltyReward.update({
         where: { id },
         data: {
@@ -140,6 +161,21 @@ export async function DELETE(
   { params }: { params: { slug: string } }
 ) {
   try {
+    try {
+      await requireStoreAccess(params.slug);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { slug: params.slug },
+      select: { id: true },
+    });
+
+    if (!store) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -147,9 +183,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Missing reward id' }, { status: 400 });
     }
 
-    await prisma.loyaltyReward.delete({
-      where: { id },
+    // Bug #8: Scoped deletion to prevent cross-tenant IDOR deletion
+    const deleteResult = await prisma.loyaltyReward.deleteMany({
+      where: { id, storeId: store.id },
     });
+
+    if (deleteResult.count === 0) {
+      return NextResponse.json({ error: 'Reward not found in this store' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -16,11 +16,11 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
 
-    const targetDate = dateParam ? new Date(dateParam) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Bug #14: Calculate day boundaries in Thailand timezone (UTC+7 / Asia/Bangkok)
+    const bangkokDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+    const cleanDateStr = dateParam ? dateParam.slice(0, 10) : bangkokDateStr;
+    const startOfDay = new Date(`${cleanDateStr}T00:00:00+07:00`);
+    const endOfDay = new Date(`${cleanDateStr}T23:59:59.999+07:00`);
 
     const paidOrders = await prisma.order.findMany({
       where: {

@@ -153,6 +153,22 @@ export default function CustomerOrderingView({
     }
   };
 
+  // Bug #9: Notify POS cashier that customer called staff to pay cash
+  const handleCallStaffCash = async () => {
+    setIsCashCalled(true);
+    playSuccessChime();
+    try {
+      await fetch(`/api/r/${slug}/tables/${tableId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'PAYMENT_PENDING' }),
+      });
+      showSuccess('เรียกพนักงานสำเร็จ 🔔', 'พนักงานแคชเชียร์กำลังมาเก็บเงินสดที่โต๊ะครับ');
+    } catch (err) {
+      console.error('Failed to notify staff for cash payment:', err);
+    }
+  };
+
   const fetchData = async () => {
     try {
       const [menuRes, tableRes, settingsRes] = await Promise.all([
@@ -1288,10 +1304,7 @@ export default function CustomerOrderingView({
                   {!isCashCalled ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        setIsCashCalled(true);
-                        playSuccessChime();
-                      }}
+                      onClick={handleCallStaffCash}
                       className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-md shadow-emerald-500/25 transition-all"
                     >
                       🔔 กดเรียกพนักงานมาเก็บเงินสดที่โต๊ะ

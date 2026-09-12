@@ -128,17 +128,34 @@ export async function POST(
       });
     }
 
-    // 1. Calculate total amount & order items
+    // 1. Calculate total amount & order items with server-side price verification
+    const menuItemIds = items.map((i: any) => i.menuItemId).filter(Boolean);
+    const dbMenuItems = await prisma.menuItem.findMany({
+      where: { id: { in: menuItemIds }, storeId: store.id },
+    });
+    const dbMenuItemMap = new Map(dbMenuItems.map((m) => [m.id, m]));
+
     let totalAmount = 0;
     const orderItemsData = items.map((item: any) => {
-      const itemTotal = item.price * item.quantity;
+      const dbItem = item.menuItemId ? dbMenuItemMap.get(item.menuItemId) : null;
+      let extraPrice = 0;
+      if (Array.isArray(item.selectedOptions)) {
+        for (const opt of item.selectedOptions) {
+          if (typeof opt?.extraPrice === 'number' && opt.extraPrice > 0) {
+            extraPrice += opt.extraPrice;
+          }
+        }
+      }
+      const verifiedUnitPrice = dbItem ? (dbItem.basePrice + extraPrice) : (Number(item.price) || 0);
+      const quantity = Math.max(1, parseInt(item.quantity) || 1);
+      const itemTotal = verifiedUnitPrice * quantity;
       totalAmount += itemTotal;
 
       return {
-        menuItemId: item.menuItemId,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
+        menuItemId: item.menuItemId || null,
+        name: dbItem ? dbItem.name : (item.name || 'รายการอาหาร'),
+        price: verifiedUnitPrice,
+        quantity: quantity,
         selectedOptions: item.selectedOptions ? JSON.stringify(item.selectedOptions) : null,
         specialNote: item.specialNote || null,
         status: 'PENDING',
@@ -165,7 +182,6 @@ export async function POST(
     const netRevenue = isDelivery ? netAmount - gpAmount : netAmount;
 
     // 2. Enterprise Recipe BOM & Real-time Stock Deduction
-    const menuItemIds = items.map((i: any) => i.menuItemId).filter(Boolean);
     const recipes = await prisma.menuItemRecipe.findMany({
       where: { menuItemId: { in: menuItemIds } },
       include: { ingredient: true },
@@ -233,7 +249,9 @@ export async function POST(
               ingredientId: ded.ingredientId,
               changeQty: -ded.qty,
               reason: 'ORDER',
-              note: `ตัดสต็อกออเดอร์โต๊ะ ${table.tableNo} (#${newOrder.id.slice(-4)})`,
+              note: table
+                ? `ตัดสต็อกออเดอร์โต๊ะ ${table.tableNo} (#${newOrder.id.slice(-4)})`
+                : `ตัดสต็อกออเดอร์เดลิเวอรี/สั่งกลับบ้าน (#${newOrder.id.slice(-4)})`,
               cost: ded.cost,
             },
           });
@@ -260,7 +278,9 @@ export async function POST(
 
     // Broadcast SSE realtime events
     broadcastEvent('ORDER_CREATED', newOrder, store.id);
-    broadcastEvent('TABLE_UPDATED', { tableNo: table.tableNo, status: 'OCCUPIED' }, store.id);
+    if (table) {
+      broadcastEvent('TABLE_UPDATED', { tableNo: table.tableNo, status: 'OCCUPIED' }, store.id);
+    }
 
     return NextResponse.json(newOrder);
   } catch (error: any) {

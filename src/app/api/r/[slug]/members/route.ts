@@ -42,7 +42,16 @@ export async function GET(
       });
     }
 
-    // List all members for store admin
+    // List all members for store admin (Bug #7: Protected to prevent customer PII leakage)
+    try {
+      await requireStoreAccess(params.slug);
+    } catch {
+      return NextResponse.json(
+        { error: 'Unauthorized: เฉพาะเจ้าของร้านหรือพนักงานเท่านั้นที่สามารถดูรายชื่อสมาชิกทั้งหมดได้' },
+        { status: 401 }
+      );
+    }
+
     const members = await prisma.customerMember.findMany({
       where: { storeId: store.id },
       orderBy: { points: 'desc' },
@@ -71,6 +80,12 @@ export async function POST(
 
     // Update store points rate settings
     if (action === 'UPDATE_SETTINGS' && (pointsRate !== undefined || pointValue !== undefined)) {
+      try {
+        await requireStoreAccess(params.slug);
+      } catch {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
       const updatedStore = await prisma.store.update({
         where: { id: store.id },
         data: {
@@ -87,6 +102,12 @@ export async function POST(
 
     // Adjust points manually
     if (action === 'ADJUST_POINTS' && pointsDelta !== undefined) {
+      try {
+        await requireStoreAccess(params.slug);
+      } catch {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
       const member = await prisma.customerMember.upsert({
         where: {
           storeId_phone: {

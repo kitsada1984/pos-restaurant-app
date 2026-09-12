@@ -124,6 +124,32 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
     }
   };
 
+  // Add Category (Bug #13)
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryName.trim()) return;
+    try {
+      const res = await fetch(`/api/r/${slug}/menu`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE_CATEGORY',
+          name: categoryName.trim(),
+        }),
+      });
+      if (res.ok) {
+        showSuccess('เพิ่มหมวดหมู่ใหม่สำเร็จ 🎉', `หมวดหมู่ "${categoryName}" พร้อมใช้งานแล้ว`);
+        setCategoryName('');
+        setIsAddCategoryOpen(false);
+        fetchMenu();
+      } else {
+        showError('ไม่สามารถเพิ่มหมวดหมู่ได้', 'กรุณาลองใหม่อีกครั้ง');
+      }
+    } catch (err: any) {
+      showError('เกิดข้อผิดพลาด', err.message);
+    }
+  };
+
   // Open Edit Modal
   const openEditModal = (item: any) => {
     setEditingItem(item);
@@ -216,6 +242,13 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
         </div>
 
         <div className="flex items-center space-x-2.5 w-full md:w-auto">
+          <button
+            onClick={() => setIsAddCategoryOpen(true)}
+            className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs shadow-md flex items-center justify-center space-x-1.5 transition-all"
+          >
+            <FolderPlus className="w-4 h-4" />
+            <span>+ เพิ่มหมวดหมู่</span>
+          </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 flex items-center justify-center space-x-1.5 transition-all"
@@ -591,6 +624,51 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                 {isDeleting ? 'กำลังลบ...' : 'ลบเมนูนี้'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Category Modal (Bug #13) */}
+      {isAddCategoryOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-base text-slate-900 flex items-center space-x-2">
+                <FolderPlus className="w-5 h-5 text-orange-500" />
+                <span>เพิ่มหมวดหมู่อาหารใหม่</span>
+              </h3>
+              <button onClick={() => setIsAddCategoryOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateCategory} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อหมวดหมู่ *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="เช่น กับข้าว, เครื่องดื่ม, ของทานเล่น"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-orange-500 outline-none"
+                />
+              </div>
+              <div className="flex items-center space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddCategoryOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/20"
+                >
+                  บันทึกหมวดหมู่
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

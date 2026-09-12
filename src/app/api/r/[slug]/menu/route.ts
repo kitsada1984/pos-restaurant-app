@@ -56,6 +56,26 @@ export async function POST(
     }
 
     const body = await request.json();
+
+    // Action 1: Create Category
+    if (body.action === 'CREATE_CATEGORY' || body.type === 'category') {
+      const { name, icon } = body;
+      if (!name) {
+        return NextResponse.json({ error: 'กรุณากรอกชื่อหมวดหมู่' }, { status: 400 });
+      }
+      const count = await prisma.category.count({ where: { storeId: store.id } });
+      const newCategory = await prisma.category.create({
+        data: {
+          storeId: store.id,
+          name: name.trim(),
+          sortOrder: count + 1,
+        },
+      });
+      broadcastEvent('MENU_UPDATED', { action: 'create_category', category: newCategory }, store.id);
+      return NextResponse.json(newCategory);
+    }
+
+    // Action 2: Create Menu Item
     const { categoryId, name, description, basePrice, imageUrl, options } = body;
 
     const newItem = await prisma.menuItem.create({
@@ -98,5 +118,45 @@ export async function POST(
   } catch (error) {
     console.error('Error creating menu item:', error);
     return NextResponse.json({ error: 'Failed to create menu item' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    const store = await prisma.store.findUnique({
+      where: { slug: params.slug },
+      select: { id: true },
+    });
+
+    if (!store) {
+      return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const type = searchParams.get('type');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing ID' }, { status: 400 });
+    }
+
+    if (type === 'category') {
+      await prisma.category.deleteMany({
+        where: { id, storeId: store.id },
+      });
+    } else {
+      await prisma.menuItem.deleteMany({
+        where: { id, storeId: store.id },
+      });
+    }
+
+    broadcastEvent('MENU_UPDATED', { action: 'delete', id, type }, store.id);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting menu/category:', error);
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
   }
 }

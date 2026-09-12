@@ -45,7 +45,10 @@ export async function PATCH(
 
     const existingOrder = await prisma.order.findUnique({
       where: { id: params.id },
-      select: { storeId: true },
+      include: {
+        table: true,
+        items: true,
+      },
     });
 
     if (!existingOrder || existingOrder.storeId !== store.id) {
@@ -67,11 +70,82 @@ export async function PATCH(
     let updateData: any = {};
     if (status) {
       updateData.status = status;
+
       if (status === 'SERVED' || status === 'COMPLETED') {
         await prisma.orderItem.updateMany({
           where: { orderId: params.id },
           data: { status: 'SERVED' },
         });
+
+        // Bug #5: If delivery order is served/completed, ensure it is marked as PAID so it appears in daily sales reports
+        const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(existingOrder.orderChannel);
+        if (isDelivery && existingOrder.paymentStatus !== 'PAID') {
+          updateData.paymentStatus = 'PAID';
+          updateData.paidAt = new Date();
+          if (!existingOrder.paymentMethod) {
+            updateData.paymentMethod = 'DELIVERY_APP';
+          }
+        }
+      } else if (status === 'CANCELLED' && existingOrder.status !== 'CANCELLED') {
+        // Bug #12: Restock ingredients and release table when order is cancelled
+        await prisma.orderItem.updateMany({
+          where: { orderId: params.id },
+          data: { status: 'CANCELLED' },
+        });
+
+        const menuItemIds = existingOrder.items.map((i) => i.menuItemId).filter(Boolean) as string[];
+        if (menuItemIds.length > 0) {
+          const recipes = await prisma.menuItemRecipe.findMany({
+            where: { menuItemId: { in: menuItemIds } },
+            include: { ingredient: true },
+          });
+
+          for (const item of existingOrder.items) {
+            const itemRecipes = recipes.filter((r) => r.menuItemId === item.menuItemId);
+            for (const r of itemRecipes) {
+              const returnQty = r.quantity * (item.quantity || 1);
+              await prisma.ingredient.update({
+                where: { id: r.ingredientId },
+                data: { currentStock: { increment: returnQty } },
+              });
+
+              await prisma.stockLog.create({
+                data: {
+                  storeId: store.id,
+                  ingredientId: r.ingredientId,
+                  changeQty: returnQty,
+                  reason: 'CANCEL_RESTOCK',
+                  note: `คืนสต็อกยกเลิกออเดอร์ (#${existingOrder.id.slice(-4)})`,
+                  cost: returnQty * (r.ingredient?.costPerUnit || 0),
+                },
+              });
+            }
+          }
+        }
+
+        // Release table if no other active unpaid orders exist
+        if (existingOrder.tableId) {
+          const remainingOrders = await prisma.order.count({
+            where: {
+              storeId: store.id,
+              tableId: existingOrder.tableId,
+              id: { not: existingOrder.id },
+              status: { notIn: ['CANCELLED', 'COMPLETED'] },
+              paymentStatus: { in: ['UNPAID', 'PENDING_CONFIRMATION'] },
+            },
+          });
+
+          if (remainingOrders === 0) {
+            await prisma.table.update({
+              where: { id: existingOrder.tableId },
+              data: {
+                status: 'AVAILABLE',
+                currentSessionId: null,
+              },
+            });
+            broadcastEvent('TABLE_UPDATED', { tableNo: existingOrder.tableNo, status: 'AVAILABLE' }, store.id);
+          }
+        }
       }
     }
 
