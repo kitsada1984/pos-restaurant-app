@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { saveSlipImage } from '@/lib/google-drive-storage';
 
 export async function POST(
   request: Request,
@@ -9,7 +10,13 @@ export async function POST(
   try {
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
-      select: { id: true, pointsRate: true, pointValue: true },
+      select: {
+        id: true,
+        pointsRate: true,
+        pointValue: true,
+        googleDriveFolderId: true,
+        googleDriveWebhookUrl: true,
+      },
     });
 
     if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
@@ -43,6 +50,17 @@ export async function POST(
       pointsEarned = Math.floor(effectiveNetAmount / store.pointsRate);
     }
 
+    let finalSlipUrl = slipUrl || null;
+    if (slipUrl && typeof slipUrl === 'string' && (slipUrl.startsWith('data:image/') || slipUrl.length > 500)) {
+      finalSlipUrl = await saveSlipImage(slipUrl, {
+        slug: params.slug,
+        orderId: order.id,
+        tableNo: order.tableNo,
+        folderId: store.googleDriveFolderId,
+        webhookUrl: store.googleDriveWebhookUrl,
+      });
+    }
+
     const updatedOrder = await prisma.order.update({
       where: { id: params.id },
       data: {
@@ -57,7 +75,7 @@ export async function POST(
         pointsEarned,
         pointsRedeemed: effectivePointsRedeemed,
         promoCode: effectivePromoCode,
-        slipUrl,
+        slipUrl: finalSlipUrl,
         paidAt: new Date(),
       },
       include: {

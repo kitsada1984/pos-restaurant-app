@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
 
+import { testGoogleDriveWebhook } from '@/lib/google-drive-storage';
+
 export async function GET(
   request: Request,
   { params }: { params: { slug: string } }
@@ -41,6 +43,8 @@ export async function GET(
       slipBranchId: store.slipBranchId || '',
       bankWebhookKey: store.bankWebhookKey || (await ensureStoreBankKey(store.id)),
       bankAutoCheckout: store.bankAutoCheckout ?? true,
+      googleDriveFolderId: store.googleDriveFolderId || '',
+      googleDriveWebhookUrl: store.googleDriveWebhookUrl || '',
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -73,6 +77,9 @@ export async function PUT(
       bankWebhookKey,
       bankAutoCheckout,
       regenerateBankKey,
+      googleDriveFolderId,
+      googleDriveWebhookUrl,
+      testGoogleDrive,
     } = body;
 
     const store = await prisma.store.findUnique({
@@ -80,6 +87,14 @@ export async function PUT(
     });
 
     if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
+
+    // ทดสอบการเชื่อมต่อ Google Drive Webhook
+    if (testGoogleDrive) {
+      const targetUrl = googleDriveWebhookUrl || store.googleDriveWebhookUrl;
+      const targetFolder = googleDriveFolderId || store.googleDriveFolderId;
+      const testResult = await testGoogleDriveWebhook(targetUrl, targetFolder);
+      return NextResponse.json(testResult);
+    }
 
     let effectiveBankKey = store.bankWebhookKey;
     if (regenerateBankKey) {
@@ -109,6 +124,8 @@ export async function PUT(
         slipBranchId: slipBranchId !== undefined ? slipBranchId : store.slipBranchId,
         bankWebhookKey: effectiveBankKey,
         bankAutoCheckout: bankAutoCheckout !== undefined ? Boolean(bankAutoCheckout) : store.bankAutoCheckout,
+        googleDriveFolderId: googleDriveFolderId !== undefined ? (googleDriveFolderId ? googleDriveFolderId.trim() : null) : store.googleDriveFolderId,
+        googleDriveWebhookUrl: googleDriveWebhookUrl !== undefined ? (googleDriveWebhookUrl ? googleDriveWebhookUrl.trim() : null) : store.googleDriveWebhookUrl,
       },
       include: { plan: true },
     });
@@ -140,6 +157,8 @@ export async function PUT(
       slipBranchId: updated.slipBranchId,
       bankWebhookKey: updated.bankWebhookKey,
       bankAutoCheckout: updated.bankAutoCheckout,
+      googleDriveFolderId: updated.googleDriveFolderId || '',
+      googleDriveWebhookUrl: updated.googleDriveWebhookUrl || '',
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

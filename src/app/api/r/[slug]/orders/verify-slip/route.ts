@@ -7,6 +7,7 @@ import {
   verifyWithEasySlip,
   ParsedSlipData,
 } from '@/lib/slip-verifier';
+import { saveSlipImage } from '@/lib/google-drive-storage';
 
 export async function POST(
   request: Request,
@@ -26,6 +27,8 @@ export async function POST(
         slipProvider: true,
         slipApiKey: true,
         slipBranchId: true,
+        googleDriveFolderId: true,
+        googleDriveWebhookUrl: true,
       },
     });
 
@@ -228,6 +231,22 @@ export async function POST(
 
     const ordersToProcess = (isTableSettlement && tableOrders.length > 1) ? tableOrders : [order];
 
+    // จัดเก็บรูปภาพสลิปลง Google Drive หรือ Local Folder เพื่อไม่ให้ฐานข้อมูล Supabase บวม
+    let uploadedSlipUrl = order.slipUrl || null;
+    if (slipImage && typeof slipImage === 'string' && slipImage.trim()) {
+      if (slipImage.startsWith('data:image/') || slipImage.length > 500) {
+        uploadedSlipUrl = await saveSlipImage(slipImage, {
+          slug: params.slug,
+          orderId: order.id,
+          tableNo: order.tableNo,
+          folderId: store.googleDriveFolderId,
+          webhookUrl: store.googleDriveWebhookUrl,
+        });
+      } else {
+        uploadedSlipUrl = slipImage;
+      }
+    }
+
     if (shouldAutoClose) {
       // ปิดบิลออเดอร์ที่เกี่ยวข้องทั้งหมด
       const updatedOrders: any[] = [];
@@ -250,7 +269,7 @@ export async function POST(
             memberPhone: isPrimary && memberPhone ? memberPhone.replace(/\D/g, '') : o.memberPhone,
             pointsRedeemed: isPrimary && Number(pointsRedeemed) ? Number(pointsRedeemed) : o.pointsRedeemed,
             promoCode: isPrimary && promoCode ? String(promoCode).toUpperCase().trim() : o.promoCode,
-            slipUrl: slipImage || o.slipUrl,
+            slipUrl: uploadedSlipUrl || o.slipUrl,
             slipRef: effectiveSlipRef ? `${effectiveSlipRef}${ordersToProcess.length > 1 ? `_${i + 1}` : ''}` : null,
             slipAmount: ordersToProcess.length === 1 ? (parsed?.amount || newNetAmount) : newNetAmount,
             slipVerifiedAt: new Date(),
@@ -359,7 +378,7 @@ export async function POST(
           data: {
             paymentMethod: 'PROMPTPAY',
             paymentStatus: 'PENDING_CONFIRMATION',
-            slipUrl: slipImage || o.slipUrl,
+            slipUrl: uploadedSlipUrl || o.slipUrl,
             slipRef: effectiveSlipRef,
             slipAmount: parsed?.amount || null,
             slipRawData: parsed ? JSON.stringify(parsed) : null,
@@ -380,7 +399,7 @@ export async function POST(
         {
           orderId: primaryPending.id,
           tableNo: primaryPending.tableNo,
-          slipUrl: slipImage || primaryPending.slipUrl,
+          slipUrl: uploadedSlipUrl || primaryPending.slipUrl,
           amount: parsed?.amount || (isTableSettlement ? totalTableAmount : primaryPending.netAmount),
           parsed,
         },

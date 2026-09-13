@@ -65,6 +65,10 @@ model Store {
   bankWebhookKey   String?       // Secret Token สำหรับยืนยันความปลอดภัย Webhook ประจำร้าน
   bankAutoCheckout Boolean       @default(true) // ปิดบิลอัตโนมัติเมื่อยอดเงินตรงกับบิลโต๊ะอาหาร
   
+  // การตั้งค่าจัดเก็บสลิปบน Google Drive (Google Drive Slip Storage)
+  googleDriveFolderId   String?  // Folder ID ใน Google Drive สำหรับเก็บรูปสลิป
+  googleDriveWebhookUrl String?  // Webhook URL (Google Apps Script) สำหรับอัปโหลดตรงเข้า Drive
+  
   // ความสัมพันธ์ข้อมูลของร้าน
   users           User[]
   categories      Category[]
