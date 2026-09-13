@@ -201,6 +201,16 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   `ปิดบิลและเคลียร์ ${d.tableName || `โต๊ะ ${d.tableNo}`} สำเร็จแล้ว 🎉`
                 );
                 fetchData();
+              } else if (d.action === 'MANUAL_CONFIRM') {
+                playOrderChime();
+                if (voiceEnabled) {
+                  speakThaiVoice(`มีเงินเข้า ${d.amount} บาท ${d.tableName || `โต๊ะ ${d.tableNo}`} ค่ะ กรุณากดยืนยันปิดบิลค่ะ`);
+                }
+                setAmbiguousBankNotify(d);
+                showInfo(
+                  `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
+                  `ตรงกับ ${d.tableName || `โต๊ะ ${d.tableNo}`} กรุณากดยืนยันปิดบิล`
+                );
               } else if (d.action === 'AMBIGUOUS_CHOICE') {
                 playOrderChime();
                 if (voiceEnabled) {
@@ -2609,7 +2619,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              มียอดค้างชำระ ฿{ambiguousBankNotify.amount?.toLocaleString()} ตรงกัน {ambiguousBankNotify.candidates?.length} โต๊ะ กรุณาเลือกโต๊ะที่ต้องการตัดยอดปิดบิล:
+              {ambiguousBankNotify.candidates?.length === 1
+                ? `ตรวจพบยอดเงินตรงกับ ${ambiguousBankNotify.candidates[0].tableName} พอดี กรุณากดยืนยันเพื่อตัดยอดและปิดบิล:`
+                : `มียอดค้างชำระ ฿${ambiguousBankNotify.amount?.toLocaleString()} ตรงกัน ${ambiguousBankNotify.candidates?.length} โต๊ะ กรุณาเลือกโต๊ะที่ต้องการตัดยอดปิดบิล:`}
             </p>
 
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
@@ -2644,8 +2656,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                     <span className="text-xs text-slate-500 font-medium">ยอดบิล: ฿{c.totalAmount?.toLocaleString()}</span>
                   </div>
                   <span className="px-3 py-1.5 rounded-xl bg-orange-500 text-white font-extrabold text-xs shadow-sm group-hover:scale-105 transition-transform flex items-center gap-1">
-                    <span>ตัดยอดโต๊ะนี้</span>
-                    <span>→</span>
+                    <span>{ambiguousBankNotify.candidates?.length === 1 ? '✅ ยืนยันปิดบิล' : 'ตัดยอดโต๊ะนี้ →'}</span>
                   </span>
                 </button>
               ))}

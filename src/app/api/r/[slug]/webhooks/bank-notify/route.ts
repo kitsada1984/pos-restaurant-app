@@ -321,6 +321,52 @@ export async function POST(
         orders: updatedOrders,
         parsed,
       });
+    } else if (matchingCandidates.length === 1 && !store.bankAutoCheckout) {
+      // เคสที่ 1.5: พบโต๊ะเดียวที่ยอดตรงเป๊ะ แต่ตั้งค่าให้แคชเชียร์กดยืนยันเอง (MANUAL_CONFIRM)
+      const matched = matchingCandidates[0];
+      const logRecord = await prisma.bankNotificationLog.create({
+        data: {
+          storeId: store.id,
+          rawText,
+          sender: sender || title || parsed.bank,
+          bank: parsed.bank,
+          amount: incomingAmount,
+          account: parsed.account,
+          status: 'PENDING_CONFIRMATION',
+        },
+      });
+
+      broadcastEvent(
+        'BANK_NOTIFY_RECEIVED',
+        {
+          action: 'MANUAL_CONFIRM',
+          amount: incomingAmount,
+          bank: parsed.bank,
+          bankName: parsed.bankName,
+          tableNo: matched.tableNo,
+          tableName: matched.tableName,
+          candidates: [
+            {
+              tableNo: matched.tableNo,
+              tableName: matched.tableName,
+              tableId: matched.tableId,
+              totalAmount: matched.totalAmount,
+              orderIds: matched.orders.map((o) => o.id),
+            },
+          ],
+          logId: logRecord.id,
+        },
+        store.id
+      );
+
+      return NextResponse.json({
+        success: true,
+        action: 'MANUAL_CONFIRM',
+        message: `ตรวจพบยอดเงิน ฿${incomingAmount} ตรงกับ ${matched.tableName} กรุณายืนยันปิดบิลที่หน้าจอ POS`,
+        matchedTable: matched.tableName,
+        tableNo: matched.tableNo,
+        parsed,
+      });
     } else if (matchingCandidates.length > 1) {
       // เคสที่ 2: มียอดตรงกันมากกว่า 1 โต๊ะ (Ambiguous) -> ส่งสัญญาณให้แคชเชียร์เลือก
       const logRecord = await prisma.bankNotificationLog.create({
