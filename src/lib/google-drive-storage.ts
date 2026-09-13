@@ -155,7 +155,18 @@ export async function testGoogleDriveWebhook(
       }),
     });
 
-    const data = await res.json().catch(() => null);
+    if (res.status === 404) {
+      return {
+        success: false,
+        message: 'Google Apps Script ส่งกลับ 404 Not Found (URL นี้ไม่มีอยู่จริง หรือเป็น URL เก่าที่ถูกลบไปแล้ว กรุณาตรวจสอบ URL ให้ถูกต้อง)',
+      };
+    }
+
+    const data = await res.json().catch(async () => {
+      const text = await res.text().catch(() => '');
+      return { error: `เซิร์ฟเวอร์ตอบกลับรหัส ${res.status} (${text.slice(0, 80)}...)` };
+    });
+
     if (res.ok && data?.success) {
       return {
         success: true,
@@ -165,7 +176,7 @@ export async function testGoogleDriveWebhook(
     } else {
       return {
         success: false,
-        message: data?.error || 'เซิร์ฟเวอร์ Google Drive ปฏิเสธการบันทึก กรุณาตรวจสอบ Folder ID และสิทธิ์การเข้าถึง',
+        message: data?.error || `เซิร์ฟเวอร์ Google Drive ส่งกลับสถานะ HTTP ${res.status} กรุณาตรวจสอบสิทธิ์ Anyone และ Folder ID`,
         data,
       };
     }

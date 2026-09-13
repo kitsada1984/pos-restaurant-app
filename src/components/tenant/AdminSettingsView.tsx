@@ -661,9 +661,22 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
           <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-4 shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="sm:col-span-2">
-                <label className="block text-slate-800 font-bold mb-1">
-                  Google Apps Script Webhook URL (สำหรับส่งรูปไป Google Drive)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-800 font-bold">
+                    Google Apps Script Webhook URL (สำหรับส่งรูปไป Google Drive)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const latestUrl = 'https://script.google.com/macros/s/AKfycbw3SHPGQN2z4op26gJ2IAHTA3RVxakKlZK9Lj6IrTaES85XcmjyCLV0gdCnD1Xv4AFM/exec';
+                      setForm({ ...form, googleDriveWebhookUrl: latestUrl });
+                      showSuccess('เปลี่ยนเป็น URL ล่าสุดแล้ว ✨', 'กดปุ่มทดสอบเชื่อมต่อ Google Drive ได้เลยครับ');
+                    }}
+                    className="text-[11px] text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-lg font-bold flex items-center gap-1 transition-all"
+                  >
+                    <span>⚡ ใส่ URL ล่าสุดของระบบอัตโนมัติ</span>
+                  </button>
+                </div>
                 <input
                   type="text"
                   placeholder="https://script.google.com/macros/s/AKfycb.../exec"
@@ -671,6 +684,18 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   onChange={(e) => setForm({ ...form, googleDriveWebhookUrl: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
+                {form.googleDriveWebhookUrl.includes('AKfycbrzsxxYWicg') && (
+                  <div className="mt-1.5 p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold flex items-center justify-between">
+                    <span>⚠️ URL นี้เป็น URL เก่าที่ส่งผลลัพธ์ 404 (ไม่มีอยู่ในระบบ) กรุณากดปุ่มสีเขียวด้านบนเพื่อเปลี่ยนเป็น URL ล่าสุด</span>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, googleDriveWebhookUrl: 'https://script.google.com/macros/s/AKfycbw3SHPGQN2z4op26gJ2IAHTA3RVxakKlZK9Lj6IrTaES85XcmjyCLV0gdCnD1Xv4AFM/exec' })}
+                      className="ml-2 px-2 py-0.5 bg-rose-600 text-white rounded font-extrabold text-[10px] whitespace-nowrap"
+                    >
+                      แก้ทันที
+                    </button>
+                  </div>
+                )}
                 <p className="text-[10px] text-slate-400 mt-1">
                   นำ URL ที่ได้จากการ Deploy Web App ของ Google Apps Script มาวางที่นี่
                 </p>
