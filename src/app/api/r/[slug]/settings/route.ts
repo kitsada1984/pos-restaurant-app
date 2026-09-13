@@ -90,10 +90,24 @@ export async function PUT(
 
     // ทดสอบการเชื่อมต่อ Google Drive Webhook
     if (testGoogleDrive) {
-      const targetUrl = googleDriveWebhookUrl || store.googleDriveWebhookUrl;
+      let targetUrl = googleDriveWebhookUrl || store.googleDriveWebhookUrl;
       const targetFolder = googleDriveFolderId || store.googleDriveFolderId;
+
+      // ระบบแก้ไขอัตโนมัติหากพบ URL เก่าที่ถูกลบไปแล้ว (ส่งผล 404)
+      const isDeadUrl = targetUrl && (targetUrl.includes('zsxxYWIcg') || targetUrl.includes('AKfycbrzsxx'));
+      if (isDeadUrl) {
+        targetUrl = 'https://script.google.com/macros/s/AKfycbw3SHPGQN2z4op26gJ2IAHTA3RVxakKlZK9Lj6IrTaES85XcmjyCLV0gdCnD1Xv4AFM/exec';
+        await prisma.store.update({
+          where: { id: store.id },
+          data: { googleDriveWebhookUrl: targetUrl },
+        }).catch(() => {});
+      }
+
       const testResult = await testGoogleDriveWebhook(targetUrl, targetFolder);
-      return NextResponse.json(testResult);
+      return NextResponse.json({
+        ...testResult,
+        correctedUrl: isDeadUrl ? targetUrl : undefined,
+      });
     }
 
     let effectiveBankKey = store.bankWebhookKey;

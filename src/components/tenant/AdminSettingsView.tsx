@@ -105,11 +105,22 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
         }),
       });
       const data = await res.json();
-      if (res.ok && data.testResult?.success) {
-        setGoogleDriveTestResult(data.testResult);
-        showSuccess('เชื่อมต่อ Google Drive สำเร็จ! 🎉', data.testResult.message || 'ส่งรูปทดสอบเข้า Google Drive สำเร็จ');
+      const isSuccess = Boolean(data.success || data.testResult?.success);
+      const resultMessage = data.message || data.testResult?.message || 'เชื่อมต่อ Google Drive สำเร็จ! ไฟล์ทดสอบถูกบันทึกลงไดรฟ์เรียบร้อย';
+      const viewUrl = data.data?.viewUrl || data.testResult?.data?.viewUrl || data.viewUrl;
+
+      if (res.ok && isSuccess) {
+        if (data.correctedUrl) {
+          setForm((prev) => ({ ...prev, googleDriveWebhookUrl: data.correctedUrl }));
+        }
+        setGoogleDriveTestResult({
+          success: true,
+          message: resultMessage,
+          viewUrl,
+        });
+        showSuccess('เชื่อมต่อ Google Drive สำเร็จ! 🎉', resultMessage);
       } else {
-        const errMsg = data.testResult?.message || data.error || 'เชื่อมต่อ Google Drive ไม่สำเร็จ ตรวจสอบ Webhook URL หรือการ Deploy';
+        const errMsg = data.message || data.testResult?.message || data.error || 'เชื่อมต่อ Google Drive ไม่สำเร็จ ตรวจสอบ Webhook URL หรือการ Deploy';
         setGoogleDriveTestResult({ success: false, message: errMsg });
         showError('ทดสอบ Google Drive ไม่สำเร็จ', errMsg);
       }
@@ -684,15 +695,15 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   onChange={(e) => setForm({ ...form, googleDriveWebhookUrl: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
-                {form.googleDriveWebhookUrl.includes('AKfycbrzsxxYWicg') && (
+                {(form.googleDriveWebhookUrl.includes('zsxxYWIcg') || form.googleDriveWebhookUrl.includes('AKfycbrzsxx')) && (
                   <div className="mt-1.5 p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold flex items-center justify-between">
-                    <span>⚠️ URL นี้เป็น URL เก่าที่ส่งผลลัพธ์ 404 (ไม่มีอยู่ในระบบ) กรุณากดปุ่มสีเขียวด้านบนเพื่อเปลี่ยนเป็น URL ล่าสุด</span>
+                    <span>⚠️ URL นี้เป็น URL เก่าที่ส่งผลลัพธ์ 404 (ไม่มีอยู่ในระบบ) กรุณากดปุ่มเพื่อเปลี่ยนเป็น URL ล่าสุด</span>
                     <button
                       type="button"
-                      onClick={() => setForm({ ...form, googleDriveWebhookUrl: 'https://script.google.com/macros/s/AKfycbw3SHPGQN2z4op26gJ2IAHTA3RVxakKlZK9Lj6IrTaES85XcmjyCLV0gdCnD1Xv4AFM/exec' })}
-                      className="ml-2 px-2 py-0.5 bg-rose-600 text-white rounded font-extrabold text-[10px] whitespace-nowrap"
+                      onClick={() => setForm((prev) => ({ ...prev, googleDriveWebhookUrl: 'https://script.google.com/macros/s/AKfycbw3SHPGQN2z4op26gJ2IAHTA3RVxakKlZK9Lj6IrTaES85XcmjyCLV0gdCnD1Xv4AFM/exec' }))}
+                      className="ml-2 px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-extrabold text-[10px] whitespace-nowrap"
                     >
-                      แก้ทันที
+                      เปลี่ยนเป็น URL ล่าสุดทันที
                     </button>
                   </div>
                 )}
