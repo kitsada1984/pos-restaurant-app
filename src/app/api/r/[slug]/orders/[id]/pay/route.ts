@@ -22,7 +22,18 @@ export async function POST(
     if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
 
     const body = await request.json();
-    const { paymentMethod, cashReceived, changeAmount, slipUrl, memberPhone, pointsRedeemed, promoCode, discountAmount } = body;
+    const {
+      paymentMethod,
+      cashReceived,
+      changeAmount,
+      slipUrl,
+      memberPhone,
+      pointsRedeemed,
+      promoCode,
+      discountAmount,
+      skipVisitIncrement,
+      note,
+    } = body;
 
     const order = await prisma.order.findUnique({
       where: { id: params.id },
@@ -41,7 +52,8 @@ export async function POST(
     const effectiveMemberPhone = memberPhone ? memberPhone.replace(/\D/g, '') : order.memberPhone;
     const effectivePointsRedeemed = Number(pointsRedeemed) || order.pointsRedeemed || 0;
     const effectivePromoCode = promoCode || order.promoCode;
-    const effectiveDiscount = discountAmount !== undefined ? Number(discountAmount) : order.discountAmount;
+    const requestedDiscount = discountAmount !== undefined ? Number(discountAmount) : (order.discountAmount || 0);
+    const effectiveDiscount = Math.min(order.totalAmount, Math.max(0, requestedDiscount));
     const effectiveNetAmount = Math.max(0, order.totalAmount - effectiveDiscount);
 
     // Calculate Points Earned (e.g. netAmount / pointsRate)
@@ -77,6 +89,7 @@ export async function POST(
         promoCode: effectivePromoCode,
         slipUrl: finalSlipUrl,
         paidAt: new Date(),
+        ...(note !== undefined ? { note } : {}),
       },
       include: {
         table: true,
@@ -97,7 +110,7 @@ export async function POST(
         update: {
           points: { increment: netPointsChange },
           totalSpent: { increment: effectiveNetAmount },
-          visitCount: { increment: 1 },
+          ...(skipVisitIncrement ? {} : { visitCount: { increment: 1 } }),
         },
         create: {
           storeId: store.id,
@@ -107,7 +120,7 @@ export async function POST(
           totalSpent: effectiveNetAmount,
           visitCount: 1,
         },
-      });
+      }).catch((err) => console.error('Error updating loyalty member:', err));
     }
 
     // Increment Promotion Usage Count

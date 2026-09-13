@@ -75,6 +75,15 @@ export async function scanSlipQrClient(file: File | Blob): Promise<ScanResult> {
             });
           }
 
+          // ถ้ายังไม่พบ ลองสแกนโซนครึ่งบน (สำหรับสลิปแบบครอปหรือบางธนาคาร)
+          if (!qrCode && h > 400) {
+            const upperH = Math.round(h * 0.6);
+            const upperData = ctx.getImageData(0, 0, w, upperH);
+            qrCode = jsQR(upperData.data, upperData.width, upperData.height, {
+              inversionAttempts: 'attemptBoth',
+            });
+          }
+
           // บีบอัดรูปภาพเป็น JPEG คุณภาพ 0.72 เพื่อประหยัดพื้นที่
           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.72);
 

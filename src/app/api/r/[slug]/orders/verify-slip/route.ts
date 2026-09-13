@@ -250,12 +250,14 @@ export async function POST(
     if (shouldAutoClose) {
       // ปิดบิลออเดอร์ที่เกี่ยวข้องทั้งหมด
       const updatedOrders: any[] = [];
+      let remainingDiscount = numericDiscount;
       for (let i = 0; i < ordersToProcess.length; i++) {
         const o = ordersToProcess[i];
         const isPrimary = i === 0;
-        const newDiscount = isPrimary && numericDiscount > 0
-          ? (o.discountAmount || 0) + numericDiscount
-          : (o.discountAmount || 0);
+        const currentOrderRemaining = Math.max(0, o.totalAmount - (o.discountAmount || 0));
+        const orderDiscount = Math.min(currentOrderRemaining, remainingDiscount);
+        remainingDiscount -= orderDiscount;
+        const newDiscount = (o.discountAmount || 0) + orderDiscount;
         const newNetAmount = Math.max(0, o.totalAmount - newDiscount);
 
         const updated = await prisma.order.update({
@@ -266,7 +268,7 @@ export async function POST(
             status: 'COMPLETED',
             discountAmount: newDiscount,
             netAmount: newNetAmount,
-            memberPhone: isPrimary && memberPhone ? memberPhone.replace(/\D/g, '') : o.memberPhone,
+            memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : o.memberPhone,
             pointsRedeemed: isPrimary && Number(pointsRedeemed) ? Number(pointsRedeemed) : o.pointsRedeemed,
             promoCode: isPrimary && promoCode ? String(promoCode).toUpperCase().trim() : o.promoCode,
             slipUrl: uploadedSlipUrl || o.slipUrl,

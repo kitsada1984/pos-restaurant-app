@@ -594,9 +594,14 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     if (!selectedTable || activeOrders.length === 0) return;
     setIsProcessingPay(true);
     try {
+      let remainingDiscount = totalCombinedDiscount;
       for (let i = 0; i < activeOrders.length; i++) {
         const order = activeOrders[i];
         const isFirst = i === 0;
+        const currentOrderAmount = order.netAmount ?? order.totalAmount ?? 0;
+        const orderDiscount = Math.min(currentOrderAmount, remainingDiscount);
+        remainingDiscount -= orderDiscount;
+
         await fetch(`/api/r/${slug}/orders/${order.id}/pay`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -604,10 +609,11 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             paymentMethod,
             cashReceived: paymentMethod === 'CASH' && isFirst ? parseFloat(cashReceived) : null,
             changeAmount: paymentMethod === 'CASH' && isFirst ? Math.max(0, change) : 0,
-            memberPhone: isFirst ? (memberPhone || null) : null,
+            memberPhone: memberPhone || null,
             pointsRedeemed: isFirst && discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
             promoCode: isFirst && discountTab === 'PROMO' ? appliedPromo?.code || null : null,
-            discountAmount: isFirst ? totalCombinedDiscount : 0,
+            discountAmount: orderDiscount,
+            skipVisitIncrement: !isFirst,
           }),
         });
       }
@@ -845,18 +851,25 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
     setIsProcessingBankText(true);
     try {
+      let remainingDiscount = totalCombinedDiscount;
       for (let i = 0; i < activeOrders.length; i++) {
         const order = activeOrders[i];
         const isFirst = i === 0;
+        const currentOrderAmount = order.netAmount ?? order.totalAmount ?? 0;
+        const orderDiscount = Math.min(currentOrderAmount, remainingDiscount);
+        remainingDiscount -= orderDiscount;
+
         await fetch(`/api/r/${slug}/orders/${order.id}/pay`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             paymentMethod: 'PROMPTPAY',
-            memberPhone: isFirst ? (memberPhone || null) : null,
+            memberPhone: memberPhone || null,
             pointsRedeemed: isFirst && discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
             promoCode: isFirst && discountTab === 'PROMO' ? appliedPromo?.code || null : null,
-            discountAmount: isFirst ? totalCombinedDiscount : 0,
+            discountAmount: orderDiscount,
+            skipVisitIncrement: !isFirst,
+            note: `${selectedTable.name} (ชำระผ่าน ${parsedBankText.bankName || parsedBankText.bank || 'ธนาคาร'})`,
           }),
         });
       }
@@ -2635,7 +2648,10 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                         await fetch(`/api/r/${slug}/orders/${orderId}/pay`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ paymentMethod: 'PROMPTPAY' }),
+                          body: JSON.stringify({
+                            paymentMethod: 'PROMPTPAY',
+                            note: `${c.tableName} (โอนผ่าน ${ambiguousBankNotify.bankName || ambiguousBankNotify.bank || 'ธนาคาร'})`,
+                          }),
                         });
                       }
                       playSuccessChime();
