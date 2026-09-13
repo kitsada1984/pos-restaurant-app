@@ -45,7 +45,20 @@ import {
   Clipboard,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime, formatImageUrl } from '@/lib/utils';
-import { playOrderChime, playSuccessChime, playDeliveryChime, speakThaiVoice, speakMoneyReceived } from '@/lib/sound';
+import {
+  playOrderChime,
+  playSuccessChime,
+  playDeliveryChime,
+  speakThaiVoice,
+  speakMoneyReceived,
+  speakSlipVerified,
+  speakSlipReadSuccess,
+  speakSlipDuplicate,
+  speakSlipAmountMismatch,
+  speakSlipReceiverMismatch,
+  speakSlipNoQr,
+  speakSlipSubmitted,
+} from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import { scanSlipQrClient } from '@/lib/slip-scanner-client';
 import { parseBankNotificationText } from '@/lib/bank-message-parser';
@@ -233,16 +246,26 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               }
             } else if (payload.type === 'SLIP_SUBMITTED') {
               playOrderChime();
-              if (voiceEnabled && payload.data?.tableNo) {
-                speakThaiVoice(`โต๊ะ ${payload.data.tableNo} ส่งสลิปโอนเงินเข้ามาค่ะ`);
+              if (voiceEnabled) {
+                speakSlipSubmitted(payload.data?.tableNo, payload.data?.amount);
               }
               showInfo(`📷 โต๊ะ ${payload.data?.tableNo || ''} ส่งสลิปโอนเงินเข้ามา!`, 'กรุณาตรวจสอบสลิปเพื่อยืนยันปิดบิล');
+              fetchData();
+            } else if (payload.type === 'PAYMENT_RECEIVED') {
+              playSuccessChime();
+              if (voiceEnabled && payload.data) {
+                const orderData = payload.data;
+                const tableText = orderData.tableNo ? `โต๊ะ ${orderData.tableNo}` : (orderData.tableName || '');
+                const amt = orderData.netAmount || orderData.totalAmount || orderData.slipAmount;
+                if (amt) {
+                  speakMoneyReceived(amt, tableText);
+                }
+              }
               fetchData();
             } else if (
               payload.type === 'ORDER_CREATED' ||
               payload.type === 'ORDER_UPDATED' ||
-              payload.type === 'TABLE_UPDATED' ||
-              payload.type === 'PAYMENT_RECEIVED'
+              payload.type === 'TABLE_UPDATED'
             ) {
               fetchData();
             }
@@ -705,7 +728,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       if (data.isPaid) {
         playSuccessChime();
         if (voiceEnabled) {
-          speakMoneyReceived(finalNetAmount, selectedTable.name);
+          speakSlipVerified(finalNetAmount, selectedTable.name);
         }
         showSuccess('สลิปถูกต้อง และปิดบิลสำเร็จเรียบร้อย! 🎉', `${selectedTable.name} • ฿${finalNetAmount}`);
 
@@ -742,12 +765,29 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         setAppliedPromo(null);
         fetchData();
       } else if (data.isDuplicate) {
+        if (voiceEnabled) {
+          speakSlipDuplicate();
+        }
         showError('สลิปนี้เคยถูกใช้งานแล้ว ⚠️', data.error);
       } else if (data.isAmountMismatch) {
+        if (voiceEnabled) {
+          speakSlipAmountMismatch(data.slipAmount, data.netAmount || finalNetAmount);
+        }
         showError('ยอดเงินในสลิปไม่ตรงกับยอดบิล ⚠️', data.error);
+      } else if (data.isReceiverMismatch) {
+        if (voiceEnabled) {
+          speakSlipReceiverMismatch();
+        }
+        showError('บัญชีผู้รับเงินไม่ตรง ⚠️', data.error);
       } else if (data.parsed?.isValid) {
+        if (voiceEnabled) {
+          speakSlipReadSuccess(data.parsed.amount || finalNetAmount, selectedTable.name);
+        }
         showSuccess('อ่านสลิปสำเร็จ ตรวจสอบยอดเงินตรง ✅', 'สามารถกดปุ่ม "บันทึกมือ" เพื่อยืนยันปิดบิล');
       } else {
+        if (voiceEnabled) {
+          speakSlipNoQr();
+        }
         showInfo('แนบรูปสลิปแล้ว (ไม่พบ Mini-QR บนรูป)', 'กรุณาตรวจทานด้วยสายตา แล้วกดปุ่ม "บันทึกมือ"');
       }
     } catch (err: any) {
@@ -782,7 +822,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       if (data.isPaid) {
         playSuccessChime();
         if (voiceEnabled) {
-          speakMoneyReceived(finalNetAmount, selectedTable.name);
+          speakSlipVerified(finalNetAmount, selectedTable.name);
         }
         showSuccess('บันทึกปิดบิลด้วยสลิปสำเร็จแล้ว ✅', `${selectedTable.name} • ยอด ฿${finalNetAmount}`);
 
@@ -2234,6 +2274,32 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                             ℹ️ รูปสลิปพร้อมใช้งาน สามารถกด "บันทึกมือ" เพื่อยืนยันปิดบิล
                           </div>
                         )}
+
+                        {/* Audio Replay Button for Slip */}
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (slipResult?.isDuplicate) {
+                                speakSlipDuplicate();
+                              } else if (slipResult?.isAmountMismatch) {
+                                speakSlipAmountMismatch(slipResult.slipAmount, finalNetAmount);
+                              } else if (slipResult?.isReceiverMismatch) {
+                                speakSlipReceiverMismatch();
+                              } else if (slipResult?.parsed?.isValid) {
+                                speakSlipReadSuccess(slipResult.parsed.amount || finalNetAmount, selectedTable?.name);
+                              } else if (slipResult?.isPaid) {
+                                speakSlipVerified(finalNetAmount, selectedTable?.name);
+                              } else {
+                                speakThaiVoice(`สลิปโต๊ะ ${selectedTable?.name || ''} ยอดบิล ${finalNetAmount} บาทค่ะ`);
+                              }
+                            }}
+                            className="flex items-center space-x-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 cursor-pointer transition-colors"
+                          >
+                            <Volume2 className="w-3.5 h-3.5 text-amber-600" />
+                            <span>🔊 ฟังเสียงอ่านสลิป</span>
+                          </button>
+                        </div>
 
                         {/* BUTTON: MANUAL SAVE / CONFIRM (ปุ่มบันทึกมือ) */}
                         <button

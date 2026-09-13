@@ -105,18 +105,57 @@ export function playDeliveryChime() {
   }
 }
 
+export function formatThaiCurrencyForSpeech(amount: number): string {
+  const num = Number(amount);
+  if (isNaN(num) || num <= 0) return '0 บาท';
+  const baht = Math.floor(num);
+  const satang = Math.round((num - baht) * 100);
+  if (satang > 0) {
+    return `${baht} บาท ${satang} สตางค์`;
+  }
+  return `${baht} บาท`;
+}
+
 let cachedThaiVoice: SpeechSynthesisVoice | null = null;
+
+function findBestThaiVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  try {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    // กรองเฉพาะเสียงภาษาไทย (th-TH, th_TH, th)
+    const thaiVoices = voices.filter((v) => {
+      const lang = (v.lang || '').toLowerCase().replace('_', '-');
+      return lang === 'th-th' || lang.startsWith('th');
+    });
+
+    if (thaiVoices.length === 0) return null;
+
+    // ให้ความสำคัญกับเสียง Natural, Google หรือเสียงพรีเมียมก่อน
+    const premiumVoice = thaiVoices.find((v) => {
+      const name = (v.name || '').toLowerCase();
+      return (
+        name.includes('natural') ||
+        name.includes('google') ||
+        name.includes('premwadee') ||
+        name.includes('online') ||
+        name.includes('narisa') ||
+        name.includes('kanya')
+      );
+    });
+
+    return premiumVoice || thaiVoices[0];
+  } catch {
+    return null;
+  }
+}
 
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   const loadVoices = () => {
     try {
-      const voices = window.speechSynthesis.getVoices();
-      cachedThaiVoice =
-        voices.find(
-          (v) =>
-            v.lang === 'th-TH' ||
-            v.lang.toLowerCase().replace('_', '-').startsWith('th')
-        ) || null;
+      const best = findBestThaiVoice();
+      if (best) cachedThaiVoice = best;
     } catch {}
   };
 
@@ -132,28 +171,20 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
  */
 export function speakThaiVoice(text: string) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  if (!text || !text.trim()) return;
   try {
     // ยกเลิกเสียงที่กำลังพูดค้างอยู่ก่อนหน้า
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(text.trim());
     utterance.lang = 'th-TH';
     utterance.rate = 1.0; // ความเร็วมาตรฐานชัดเจน
     utterance.pitch = 1.0;
 
-    if (cachedThaiVoice) {
-      utterance.voice = cachedThaiVoice;
-    } else {
-      const voices = window.speechSynthesis.getVoices();
-      const thaiVoice = voices.find(
-        (v) =>
-          v.lang === 'th-TH' ||
-          v.lang.toLowerCase().replace('_', '-').startsWith('th')
-      );
-      if (thaiVoice) {
-        cachedThaiVoice = thaiVoice;
-        utterance.voice = thaiVoice;
-      }
+    const voice = cachedThaiVoice || findBestThaiVoice();
+    if (voice) {
+      cachedThaiVoice = voice;
+      utterance.voice = voice;
     }
 
     window.speechSynthesis.speak(utterance);
@@ -167,10 +198,71 @@ export function speakThaiVoice(text: string) {
  * อ่านเฉพาะยอดเงินเข้า ไม่มียอดคงเหลือปะปน
  */
 export function speakMoneyReceived(amount: number, tableName?: string) {
-  const num = Number(amount);
-  const formattedAmount = isNaN(num) ? amount : num % 1 === 0 ? num : num.toFixed(2);
+  const formattedAmount = formatThaiCurrencyForSpeech(amount);
   const target = tableName ? ` ${tableName}` : '';
-  speakThaiVoice(`ได้รับเงินเข้า ${formattedAmount} บาท${target} เรียบร้อยค่ะ`);
+  speakThaiVoice(`ได้รับเงินเข้า ${formattedAmount}${target} เรียบร้อยค่ะ`);
 }
+
+/**
+ * อ่านออกเสียงเมื่อตรวจสอบสลิปโอนเงินถูกต้องและปิดบิลสำเร็จ
+ */
+export function speakSlipVerified(amount: number, tableName?: string) {
+  const formattedAmount = formatThaiCurrencyForSpeech(amount);
+  const target = tableName ? ` ${tableName}` : '';
+  speakThaiVoice(`สลิปถูกต้อง ได้รับเงินเข้า ${formattedAmount}${target} เรียบร้อยค่ะ`);
+}
+
+/**
+ * อ่านออกเสียงเมื่อระบบสแกนอ่านสลิปสำเร็จ (โหมดรอแคชเชียร์กดยืนยันปิดบิล)
+ */
+export function speakSlipReadSuccess(amount: number, tableName?: string) {
+  const formattedAmount = formatThaiCurrencyForSpeech(amount);
+  const target = tableName ? ` ${tableName}` : '';
+  speakThaiVoice(`อ่านสลิปถูกต้อง ได้รับเงิน ${formattedAmount}${target} ค่ะ กรุณากดยืนยันปิดบิลค่ะ`);
+}
+
+/**
+ * แจ้งเตือนสลิปซ้ำ
+ */
+export function speakSlipDuplicate() {
+  speakThaiVoice('แจ้งเตือนค่ะ สลิปนี้เคยถูกใช้งานในระบบแล้วค่ะ');
+}
+
+/**
+ * แจ้งเตือนยอดเงินในสลิปไม่ตรงกับยอดบิล
+ */
+export function speakSlipAmountMismatch(slipAmount?: number, expectedAmount?: number) {
+  if (slipAmount && expectedAmount) {
+    const slipText = formatThaiCurrencyForSpeech(slipAmount);
+    const expText = formatThaiCurrencyForSpeech(expectedAmount);
+    speakThaiVoice(`แจ้งเตือนค่ะ ยอดเงินในสลิป ${slipText} ไม่ตรงกับยอดบิล ${expText} ค่ะ`);
+  } else {
+    speakThaiVoice('แจ้งเตือนค่ะ ยอดเงินในสลิปไม่ตรงกับยอดบิลที่ต้องชำระค่ะ');
+  }
+}
+
+/**
+ * แจ้งเตือนบัญชีผู้รับเงินในสลิปไม่ตรงกับร้านค้า
+ */
+export function speakSlipReceiverMismatch() {
+  speakThaiVoice('แจ้งเตือนค่ะ บัญชีผู้รับเงินในสลิป ไม่ตรงกับพร้อมเพย์ของร้านค่ะ');
+}
+
+/**
+ * แจ้งเตือนเมื่อไม่พบคิวอาร์โค้ดบนสลิป
+ */
+export function speakSlipNoQr() {
+  speakThaiVoice('แนบรูปสลิปแล้ว ไม่พบคิวอาร์โค้ดบนรูป กรุณาตรวจทานด้วยสายตาค่ะ');
+}
+
+/**
+ * แจ้งเตือนเมื่อโต๊ะส่งสลิปเข้ามาผ่านหน้าเว็บ
+ */
+export function speakSlipSubmitted(tableNo?: number | string, amount?: number) {
+  const tablePart = tableNo ? `โต๊ะ ${tableNo} ` : '';
+  const amountPart = amount ? `ยอด ${formatThaiCurrencyForSpeech(amount)} ` : '';
+  speakThaiVoice(`${tablePart}ส่งสลิปโอนเงิน ${amountPart}เข้ามาค่ะ กรุณาตรวจสอบค่ะ`);
+}
+
 
 

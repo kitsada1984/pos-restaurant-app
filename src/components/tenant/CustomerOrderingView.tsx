@@ -36,7 +36,7 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { formatPrice, formatTime, formatImageUrl } from '@/lib/utils';
-import { playSuccessChime, playOrderChime } from '@/lib/sound';
+import { playSuccessChime, playOrderChime, speakThaiVoice } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import { scanSlipQrClient } from '@/lib/slip-scanner-client';
 import { useToast } from '@/context/ToastContext';
@@ -125,6 +125,7 @@ export default function CustomerOrderingView({
       if (data.isPaid) {
         confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
         playSuccessChime();
+        speakThaiVoice('ชำระเงินเรียบร้อยแล้วค่ะ ขอบคุณที่ใช้บริการค่ะ');
         setCustomerSlipSubmitted(true);
         setCustomerSlipMessage('ชำระเงินเรียบร้อยแล้ว ขอบคุณที่ใช้บริการครับ! 🎉');
         showSuccess('ชำระเงินเรียบร้อยแล้ว 🎉', 'ระบบตรวจสอบสลิปและปิดบิลสำเร็จ');
@@ -133,12 +134,15 @@ export default function CustomerOrderingView({
           fetchData();
         }, 2500);
       } else if (data.isDuplicate) {
+        speakThaiVoice('สลิปนี้เคยใช้งานแล้วค่ะ');
         setCustomerSlipError(data.error || 'สลิปนี้เคยถูกใช้งานแล้ว');
         showError('สลิปนี้เคยถูกใช้งานแล้ว', data.error);
       } else if (data.isAmountMismatch) {
+        speakThaiVoice('ยอดเงินในสลิปไม่ตรงกับยอดบิลค่ะ');
         setCustomerSlipError(data.error || 'ยอดเงินในสลิปไม่ตรงกับยอดบิล');
         showError('ยอดเงินไม่ตรง', data.error);
       } else if (data.success) {
+        speakThaiVoice('ส่งสลิปเรียบร้อยแล้วค่ะ รอพนักงานตรวจสอบค่ะ');
         setCustomerSlipSubmitted(true);
         setCustomerSlipMessage('แนบสลิปเรียบร้อยแล้ว แจ้งแคชเชียร์ตรวจสอบแล้วครับ 🔔');
         showSuccess('แนบสลิปเรียบร้อยแล้ว 📷', 'แจ้งเตือนพนักงานเคาน์เตอร์แล้วครับ');
