@@ -39,11 +39,16 @@ import {
   Eye,
   FileCheck,
   CheckCircle,
+  Volume2,
+  VolumeX,
+  MessageSquare,
+  Clipboard,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime, formatImageUrl } from '@/lib/utils';
-import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
+import { playOrderChime, playSuccessChime, playDeliveryChime, speakThaiVoice, speakMoneyReceived } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import { scanSlipQrClient } from '@/lib/slip-scanner-client';
+import { parseBankNotificationText } from '@/lib/bank-message-parser';
 import { useToast } from '@/context/ToastContext';
 
 export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
@@ -112,6 +117,20 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const [previewSlipModalOpen, setPreviewSlipModalOpen] = useState(false);
   const [ambiguousBankNotify, setAmbiguousBankNotify] = useState<any | null>(null);
 
+  // Voice Announcement State
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('pos_voice_enabled');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+
+  // Bank Notification Text Reader States
+  const [promptPayVerifyMode, setPromptPayVerifyMode] = useState<'SLIP' | 'TEXT'>('SLIP');
+  const [bankNotificationInput, setBankNotificationInput] = useState<string>('');
+  const [isProcessingBankText, setIsProcessingBankText] = useState<boolean>(false);
+
   // Add Table Modal
   const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
   const [newTableId, setNewTableId] = useState('');
@@ -174,6 +193,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               const d = payload.data;
               if (d.action === 'AUTO_PAID') {
                 playSuccessChime();
+                if (voiceEnabled) {
+                  speakMoneyReceived(d.amount, d.tableName || (d.tableNo ? `โต๊ะ ${d.tableNo}` : ''));
+                }
                 showSuccess(
                   `💰 รับเงิน ฿${d.amount?.toLocaleString()} จาก ${d.bankName || d.bank}`,
                   `ปิดบิลและเคลียร์ ${d.tableName || `โต๊ะ ${d.tableNo}`} สำเร็จแล้ว 🎉`
@@ -181,6 +203,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 fetchData();
               } else if (d.action === 'AMBIGUOUS_CHOICE') {
                 playOrderChime();
+                if (voiceEnabled) {
+                  speakThaiVoice(`มีเงินเข้า ${d.amount} บาท กรุณาเลือกโต๊ะค่ะ`);
+                }
                 setAmbiguousBankNotify(d);
                 showInfo(
                   `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
@@ -188,6 +213,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 );
               } else if (d.action === 'UNMATCHED') {
                 playOrderChime();
+                if (voiceEnabled) {
+                  speakThaiVoice(`มีเงินเข้า ${d.amount} บาท ไม่พบโต๊ะที่ตรงกันค่ะ`);
+                }
                 showInfo(
                   `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
                   'ไม่พบโต๊ะที่มียอดตรงกันในขณะนี้'
@@ -195,6 +223,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               }
             } else if (payload.type === 'SLIP_SUBMITTED') {
               playOrderChime();
+              if (voiceEnabled && payload.data?.tableNo) {
+                speakThaiVoice(`โต๊ะ ${payload.data.tableNo} ส่งสลิปโอนเงินเข้ามาค่ะ`);
+              }
               showInfo(`📷 โต๊ะ ${payload.data?.tableNo || ''} ส่งสลิปโอนเงินเข้ามา!`, 'กรุณาตรวจสอบสลิปเพื่อยืนยันปิดบิล');
               fetchData();
             } else if (
@@ -572,6 +603,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       }
 
       playSuccessChime();
+      if (voiceEnabled) {
+        speakMoneyReceived(finalNetAmount, selectedTable.name);
+      }
       showSuccess('ชำระเงินสำเร็จ 💰', `${selectedTable.name} • ยอดรับเงิน ฿${finalNetAmount}`);
 
       setReceiptOrder({
@@ -654,6 +688,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
       if (data.isPaid) {
         playSuccessChime();
+        if (voiceEnabled) {
+          speakMoneyReceived(finalNetAmount, selectedTable.name);
+        }
         showSuccess('สลิปถูกต้อง และปิดบิลสำเร็จเรียบร้อย! 🎉', `${selectedTable.name} • ฿${finalNetAmount}`);
 
         // เปิด Modal ใบเสร็จเพื่อให้พิมพ์สลิป/ใบเสร็จได้
@@ -728,6 +765,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       const data = await res.json();
       if (data.isPaid) {
         playSuccessChime();
+        if (voiceEnabled) {
+          speakMoneyReceived(finalNetAmount, selectedTable.name);
+        }
         showSuccess('บันทึกปิดบิลด้วยสลิปสำเร็จแล้ว ✅', `${selectedTable.name} • ยอด ฿${finalNetAmount}`);
 
         // เปิด Modal ใบเสร็จเพื่อให้พิมพ์สลิป/ใบเสร็จได้
@@ -770,6 +810,94 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       showError('เกิดข้อผิดพลาด', err.message);
     } finally {
       setIsManualConfirming(false);
+    }
+  };
+
+  // Live Parsed Result of Bank Notification Text (LINE / SMS)
+  const parsedBankText = useMemo(() => {
+    return parseBankNotificationText(bankNotificationInput);
+  }, [bankNotificationInput]);
+
+  // Handle Process Payment from Bank Text Notification
+  const handleProcessBankTextMessage = async () => {
+    if (!selectedTable || activeOrders.length === 0) return;
+    if (!parsedBankText.isValid || !parsedBankText.amount) {
+      showError('ไม่พบยอดเงินเข้าที่ถูกต้องในข้อความ', parsedBankText.message);
+      return;
+    }
+
+    if (Math.abs(parsedBankText.amount - finalNetAmount) >= 0.01) {
+      const ok = window.confirm(
+        `⚠️ ยอดเงินในข้อความ (฿${parsedBankText.amount.toLocaleString()}) ไม่ตรงกับยอดบิล (฿${finalNetAmount.toLocaleString()})\n\nคุณต้องการยืนยันปิดบิลด้วยยอดนี้หรือไม่?`
+      );
+      if (!ok) return;
+    }
+
+    setIsProcessingBankText(true);
+    try {
+      for (let i = 0; i < activeOrders.length; i++) {
+        const order = activeOrders[i];
+        const isFirst = i === 0;
+        await fetch(`/api/r/${slug}/orders/${order.id}/pay`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentMethod: 'PROMPTPAY',
+            memberPhone: isFirst ? (memberPhone || null) : null,
+            pointsRedeemed: isFirst && discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
+            promoCode: isFirst && discountTab === 'PROMO' ? appliedPromo?.code || null : null,
+            discountAmount: isFirst ? totalCombinedDiscount : 0,
+          }),
+        });
+      }
+
+      playSuccessChime();
+      if (voiceEnabled) {
+        speakMoneyReceived(parsedBankText.amount, selectedTable.name);
+      }
+      showSuccess(
+        `ตัดยอดเงินเข้า ฿${parsedBankText.amount.toLocaleString()} สำเร็จ! 🎉`,
+        `${selectedTable.name} • (${parsedBankText.bankName || parsedBankText.bank || 'ธนาคาร'})`
+      );
+
+      setReceiptOrder({
+        storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
+        promptPayName: store?.promptPayName || '',
+        phone: store?.phone || '',
+        address: store?.address || '',
+        receiptFooter: store?.receiptFooter || '',
+        tableId: selectedTable.id || selectedTable.tableNo,
+        tableName: selectedTable.name,
+        orders: activeOrders,
+        totalAmount: rawTotalAmount,
+        discountAmount: totalCombinedDiscount,
+        netAmount: finalNetAmount,
+        paymentMethod: 'PROMPTPAY',
+        cashReceived: null,
+        changeAmount: 0,
+        paidAt: new Date().toISOString(),
+      });
+
+      setIsPayModalOpen(false);
+      setIsReceiptModalOpen(true);
+      setSlipPreview(null);
+      setSlipQrPayload(null);
+      setSlipResult(null);
+      setSelectedTable(null);
+      setCashReceived('');
+      setDiscountAmount(0);
+      setMemberPhone('');
+      setMemberData(null);
+      setPointsToRedeem(0);
+      setPromoCodeInput('');
+      setAppliedPromo(null);
+      setBankNotificationInput('');
+      fetchData();
+    } catch (err: any) {
+      console.error(err);
+      showError('ไม่สามารถปิดบิลได้', err.message);
+    } finally {
+      setIsProcessingBankText(false);
     }
   };
 
@@ -848,7 +976,33 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           </div>
 
           {/* Action CTAs */}
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto flex-shrink-0">
+          <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 w-full sm:w-auto flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !voiceEnabled;
+                setVoiceEnabled(next);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('pos_voice_enabled', next ? 'true' : 'false');
+                }
+                if (next) {
+                  speakThaiVoice('เปิดระบบเสียงอ่านแจ้งเตือนเงินเข้าแล้วค่ะ');
+                  showSuccess('🔊 เปิดเสียงอ่านแจ้งเตือนเงินเข้าแล้ว');
+                } else {
+                  showInfo('🔇 ปิดเสียงอ่านแจ้งเตือนเงินเข้า');
+                }
+              }}
+              className={`h-10 px-3 rounded-xl text-xs font-extrabold border flex items-center justify-center space-x-1.5 transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer ${
+                voiceEnabled
+                  ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-sm'
+                  : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
+              }`}
+              title={voiceEnabled ? 'คลิกเพื่อปิดเสียงพูดเงินเข้า' : 'คลิกเพื่อเปิดเสียงพูดเงินเข้า'}
+            >
+              {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-600" /> : <VolumeX className="w-4 h-4" />}
+              <span className="hidden sm:inline">{voiceEnabled ? 'เสียงพูดเงินเข้า' : 'ปิดเสียงพูด'}</span>
+            </button>
+
             <button
               onClick={() => handleOpenDeliveryModal('LINEMAN')}
               className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-1.5 transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer"
@@ -1890,164 +2044,354 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   )}
                 </div>
 
-                {/* Slip Upload & Verification Section */}
-                <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-2.5 text-left">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1.5">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span className="text-xs font-black text-slate-800">ระบบอ่านสลิปโอนเงิน (Slip Reader)</span>
-                    </div>
-                    {/* Auto Checkout Checkbox */}
-                    <label className="flex items-center space-x-1.5 cursor-pointer select-none text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
-                      <input
-                        type="checkbox"
-                        checked={autoCheckoutEnabled}
-                        onChange={(e) => setAutoCheckoutEnabled(e.target.checked)}
-                        className="rounded text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
-                      />
-                      <span>⚡ บันทึกอัตโนมัติ</span>
-                    </label>
-                  </div>
+                {/* Mode Selector: Slip Photo vs Bank Text Message */}
+                <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                  <button
+                    type="button"
+                    onClick={() => setPromptPayVerifyMode('SLIP')}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-extrabold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                      promptPayVerifyMode === 'SLIP'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>📷 แนบรูปสลิป / Mini-QR</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPromptPayVerifyMode('TEXT')}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-extrabold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                      promptPayVerifyMode === 'TEXT'
+                        ? 'bg-white text-orange-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>💬 อ่านข้อความเงินเข้า (LINE/SMS)</span>
+                  </button>
+                </div>
 
-                  {/* Hidden File Input */}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    id="cashier-slip-input"
-                    className="hidden"
-                    onChange={handleSelectSlipFile}
-                  />
-
-                  {/* Upload / Re-upload Button */}
-                  {!slipPreview ? (
-                    <label
-                      htmlFor="cashier-slip-input"
-                      className={`w-full py-3 px-4 rounded-xl border-2 border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-50 text-orange-700 font-extrabold text-xs flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
-                        isVerifyingSlip ? 'opacity-50 pointer-events-none' : ''
-                      }`}
-                    >
-                      {isVerifyingSlip ? (
-                        <div className="flex items-center space-x-2">
-                          <RefreshCw className="w-4 h-4 animate-spin text-orange-600" />
-                          <span>กำลังอ่าน Mini-QR และตรวจสอบสลิป...</span>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center space-x-1.5">
-                            <Camera className="w-4 h-4 text-orange-600" />
-                            <span>📷 สแกนสลิป / แนบรูปภาพสลิปโอนเงิน</span>
-                          </div>
-                          <span className="text-[10px] text-orange-500 font-normal">
-                            รองรับไฟล์ภาพจากมือถือ, แคปหน้าจอ, หรือถ่ายจากกล้อง
-                          </span>
-                        </>
-                      )}
-                    </label>
-                  ) : (
-                    /* Attached Slip Preview & Verification Card */
-                    <div className="space-y-2">
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
-                        <div className="flex items-center space-x-2 min-w-0">
-                          <div
-                            onClick={() => setPreviewSlipModalOpen(true)}
-                            className="relative w-12 h-14 rounded-lg overflow-hidden border border-slate-300 flex-shrink-0 cursor-pointer group bg-black/5"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={slipPreview} alt="Slip" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Eye className="w-3.5 h-3.5 text-white" />
-                            </div>
-                          </div>
-                          <div className="truncate text-left text-xs">
-                            <span className="font-extrabold text-slate-800 block truncate">
-                              {slipResult?.parsed?.bankName || 'สลิปโอนเงินธนาคาร'}
-                            </span>
-                            <span className="text-[11px] text-slate-500 block">
-                              {slipResult?.parsed?.amount !== undefined ? `ยอดในสลิป: ฿${slipResult.parsed.amount.toLocaleString()}` : 'แนบรูปภาพแล้ว'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-1">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewSlipModalOpen(true)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-200 text-xs font-bold"
-                            title="ดูรูปใหญ่"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <label
-                            htmlFor="cashier-slip-input"
-                            className="p-1.5 rounded-lg text-orange-600 hover:bg-orange-100 cursor-pointer text-xs font-bold"
-                            title="เปลี่ยนรูปสลิป"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSlipPreview(null);
-                              setSlipQrPayload(null);
-                              setSlipResult(null);
-                            }}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-100 text-xs font-bold"
-                            title="ลบสลิป"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
+                {/* Sub-mode 1: Slip Upload & Verification Section */}
+                {promptPayVerifyMode === 'SLIP' && (
+                  <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-2.5 text-left">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-black text-slate-800">ระบบอ่านสลิปโอนเงิน (Slip Reader)</span>
                       </div>
+                      {/* Auto Checkout Checkbox */}
+                      <label className="flex items-center space-x-1.5 cursor-pointer select-none text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
+                        <input
+                          type="checkbox"
+                          checked={autoCheckoutEnabled}
+                          onChange={(e) => setAutoCheckoutEnabled(e.target.checked)}
+                          className="rounded text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
+                        />
+                        <span>⚡ บันทึกอัตโนมัติ</span>
+                      </label>
+                    </div>
 
-                      {/* Verification Status Feedback Badge */}
-                      {isVerifyingSlip ? (
-                        <div className="p-2.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold flex items-center space-x-2">
-                          <RefreshCw className="w-4 h-4 animate-spin text-orange-500" />
-                          <span>กำลังตรวจสอบสลิปกับระบบ...</span>
-                        </div>
-                      ) : slipResult?.isDuplicate ? (
-                        <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center space-x-2">
-                          <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                          <span>⚠️ สลิปนี้เคยถูกใช้งานและปิดบิลไปแล้วในระบบ!</span>
-                        </div>
-                      ) : slipResult?.isAmountMismatch ? (
-                        <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold flex items-center space-x-2">
-                          <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                          <span>⚠️ ยอดในสลิป (฿{slipResult.slipAmount}) ไม่ตรงกับยอดบิล (฿{finalNetAmount})</span>
-                        </div>
-                      ) : slipResult?.parsed?.isValid ? (
-                        <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between">
-                          <div className="flex items-center space-x-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                            <span>ตรวจสลิปผ่านแล้ว ✅ (ยอด ฿{slipResult.parsed.amount || finalNetAmount})</span>
-                          </div>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">สลิปแท้ ไม่ซ้ำ</span>
-                        </div>
-                      ) : (
-                        <div className="p-2.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-bold">
-                          ℹ️ รูปสลิปพร้อมใช้งาน สามารถกด "บันทึกมือ" เพื่อยืนยันปิดบิล
-                        </div>
-                      )}
+                    {/* Hidden File Input */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="cashier-slip-input"
+                      className="hidden"
+                      onChange={handleSelectSlipFile}
+                    />
 
-                      {/* BUTTON: MANUAL SAVE / CONFIRM (ปุ่มบันทึกมือ) */}
-                      <button
-                        type="button"
-                        disabled={isManualConfirming}
-                        onClick={handleManualConfirmSlip}
-                        className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 flex items-center justify-center space-x-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                    {/* Upload / Re-upload Button */}
+                    {!slipPreview ? (
+                      <label
+                        htmlFor="cashier-slip-input"
+                        className={`w-full py-3 px-4 rounded-xl border-2 border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-50 text-orange-700 font-extrabold text-xs flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
+                          isVerifyingSlip ? 'opacity-50 pointer-events-none' : ''
+                        }`}
                       >
-                        {isManualConfirming ? (
-                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        {isVerifyingSlip ? (
+                          <div className="flex items-center space-x-2">
+                            <RefreshCw className="w-4 h-4 animate-spin text-orange-600" />
+                            <span>กำลังอ่าน Mini-QR และตรวจสอบสลิป...</span>
+                          </div>
                         ) : (
                           <>
-                            <FileCheck className="w-4 h-4" />
-                            <span>💾 บันทึกมือ (ยืนยันปิดบิลด้วยสลิปนี้)</span>
+                            <div className="flex items-center space-x-1.5">
+                              <Camera className="w-4 h-4 text-orange-600" />
+                              <span>📷 สแกนสลิป / แนบรูปภาพสลิปโอนเงิน</span>
+                            </div>
+                            <span className="text-[10px] text-orange-500 font-normal">
+                              รองรับไฟล์ภาพจากมือถือ, แคปหน้าจอ, หรือถ่ายจากกล้อง
+                            </span>
                           </>
                         )}
+                      </label>
+                    ) : (
+                      /* Attached Slip Preview & Verification Card */
+                      <div className="space-y-2">
+                        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <div
+                              onClick={() => setPreviewSlipModalOpen(true)}
+                              className="relative w-12 h-14 rounded-lg overflow-hidden border border-slate-300 flex-shrink-0 cursor-pointer group bg-black/5"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={slipPreview} alt="Slip" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Eye className="w-3.5 h-3.5 text-white" />
+                              </div>
+                            </div>
+                            <div className="truncate text-left text-xs">
+                              <span className="font-extrabold text-slate-800 block truncate">
+                                {slipResult?.parsed?.bankName || 'สลิปโอนเงินธนาคาร'}
+                              </span>
+                              <span className="text-[11px] text-slate-500 block">
+                                {slipResult?.parsed?.amount !== undefined ? `ยอดในสลิป: ฿${slipResult.parsed.amount.toLocaleString()}` : 'แนบรูปภาพแล้ว'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewSlipModalOpen(true)}
+                              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-200 text-xs font-bold cursor-pointer"
+                              title="ดูรูปใหญ่"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <label
+                              htmlFor="cashier-slip-input"
+                              className="p-1.5 rounded-lg text-orange-600 hover:bg-orange-100 cursor-pointer text-xs font-bold"
+                              title="เปลี่ยนรูปสลิป"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSlipPreview(null);
+                                setSlipQrPayload(null);
+                                setSlipResult(null);
+                              }}
+                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-100 text-xs font-bold cursor-pointer"
+                              title="ลบสลิป"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Verification Status Feedback Badge */}
+                        {isVerifyingSlip ? (
+                          <div className="p-2.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold flex items-center space-x-2">
+                            <RefreshCw className="w-4 h-4 animate-spin text-orange-500" />
+                            <span>กำลังตรวจสอบสลิปกับระบบ...</span>
+                          </div>
+                        ) : slipResult?.isDuplicate ? (
+                          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center space-x-2">
+                            <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                            <span>⚠️ สลิปนี้เคยถูกใช้งานและปิดบิลไปแล้วในระบบ!</span>
+                          </div>
+                        ) : slipResult?.isAmountMismatch ? (
+                          <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold flex items-center space-x-2">
+                            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                            <span>⚠️ ยอดในสลิป (฿${slipResult.slipAmount}) ไม่ตรงกับยอดบิล (฿${finalNetAmount})</span>
+                          </div>
+                        ) : slipResult?.parsed?.isValid ? (
+                          <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between">
+                            <div className="flex items-center space-x-1.5">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                              <span>ตรวจสลิปผ่านแล้ว ✅ (ยอด ฿${slipResult.parsed.amount || finalNetAmount})</span>
+                            </div>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">สลิปแท้ ไม่ซ้ำ</span>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-bold">
+                            ℹ️ รูปสลิปพร้อมใช้งาน สามารถกด "บันทึกมือ" เพื่อยืนยันปิดบิล
+                          </div>
+                        )}
+
+                        {/* BUTTON: MANUAL SAVE / CONFIRM (ปุ่มบันทึกมือ) */}
+                        <button
+                          type="button"
+                          disabled={isManualConfirming}
+                          onClick={handleManualConfirmSlip}
+                          className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 flex items-center justify-center space-x-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                        >
+                          {isManualConfirming ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <FileCheck className="w-4 h-4" />
+                              <span>💾 บันทึกมือ (ยืนยันปิดบิลด้วยสลิปนี้)</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sub-mode 2: Bank Notification Text Reader (LINE / SMS) */}
+                {promptPayVerifyMode === 'TEXT' && (
+                  <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3 text-left">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <MessageSquare className="w-4 h-4 text-orange-600" />
+                        <span className="text-xs font-black text-slate-800">ระบบอ่านข้อความเงินเข้าธนาคาร</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (voiceEnabled) {
+                            if (parsedBankText?.isValid && parsedBankText?.amount) {
+                              speakMoneyReceived(parsedBankText.amount, selectedTable?.name);
+                            } else {
+                              speakThaiVoice(`ยอดบิลนี้คือ ${finalNetAmount} บาทค่ะ`);
+                            }
+                          } else {
+                            showInfo('กรุณาเปิดเสียงที่แถบด้านบนเพื่อฟังเสียงอ่าน');
+                          }
+                        }}
+                        className="flex items-center space-x-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 cursor-pointer transition-colors"
+                      >
+                        <Volume2 className="w-3.5 h-3.5 text-amber-600" />
+                        <span>🔊 ฟังเสียงอ่าน</span>
                       </button>
                     </div>
-                  )}
-                </div>
+
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      คัดลอกข้อความแจ้งเตือนเงินเข้าจาก LINE (SCB Connect, KBank Live, Krungthai Connext, เป๋าตัง ฯลฯ) หรือ SMS มาวางที่นี่ ระบบจะอ่านเฉพาะยอดเงินเข้าและตัดยอดปิดบิลให้อัตโนมัติ
+                    </p>
+
+                    <div className="relative">
+                      <textarea
+                        value={bankNotificationInput}
+                        onChange={(e) => setBankNotificationInput(e.target.value)}
+                        rows={3}
+                        placeholder="ตัวอย่าง: เงินเข้า ฿150.00 จาก นาย ก เข้าบัญชี SCB xxx-1234 เวลา 12:30 น."
+                        className="w-full p-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium text-slate-800 placeholder:text-slate-400 resize-none"
+                      />
+                      {bankNotificationInput && (
+                        <button
+                          type="button"
+                          onClick={() => setBankNotificationInput('')}
+                          className="absolute top-2 right-2 p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                          title="ล้างข้อความ"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Action Tools: Paste Clipboard & Clear */}
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+                              const text = await navigator.clipboard.readText();
+                              if (text && text.trim()) {
+                                setBankNotificationInput(text);
+                                showSuccess('วางข้อความจากคลิปบอร์ดแล้ว 📋');
+                              } else {
+                                showInfo('คลิปบอร์ดว่างเปล่า ไม่พบข้อความ');
+                              }
+                            } else {
+                              showInfo('คลิกในช่องข้อความแล้วกด Ctrl+V เพื่อวาง');
+                            }
+                          } catch {
+                            showInfo('คลิกในช่องข้อความแล้วกด Ctrl+V เพื่อวาง');
+                          }
+                        }}
+                        className="py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center space-x-1 cursor-pointer transition-colors"
+                      >
+                        <Clipboard className="w-3.5 h-3.5 text-slate-500" />
+                        <span>📋 วางข้อความจากคลิปบอร์ด</span>
+                      </button>
+
+                      {bankNotificationInput && (
+                        <button
+                          type="button"
+                          onClick={() => setBankNotificationInput('')}
+                          className="py-1.5 px-2.5 rounded-lg text-slate-500 hover:bg-slate-100 font-bold text-[11px] cursor-pointer"
+                        >
+                          ล้างค่า
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Parsed Result & Amount Check */}
+                    {bankNotificationInput.trim() && (
+                      <div className="space-y-2.5 pt-1">
+                        {parsedBankText.isValid && parsedBankText.amount !== undefined ? (
+                          <div
+                            className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                              Math.abs(parsedBankText.amount - finalNetAmount) < 0.01
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                                : 'bg-amber-50 border-amber-200 text-amber-900'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between font-black">
+                              <span className="flex items-center gap-1.5">
+                                {Math.abs(parsedBankText.amount - finalNetAmount) < 0.01 ? (
+                                  <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                ) : (
+                                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                )}
+                                <span>{parsedBankText.bankName || parsedBankText.bank || 'ธนาคาร'}</span>
+                              </span>
+                              <span className="text-sm font-extrabold">
+                                ยอดเงินเข้า: ฿{parsedBankText.amount.toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div className="text-[11px] font-semibold flex items-center justify-between">
+                              {Math.abs(parsedBankText.amount - finalNetAmount) < 0.01 ? (
+                                <span className="text-emerald-700 font-bold">
+                                  ✅ ยอดเงินเข้าตรงกับยอดบิลเป๊ะ (฿{finalNetAmount})
+                                </span>
+                              ) : (
+                                <span className="text-amber-700 font-bold">
+                                  ⚠️ ยอดในข้อความ (฿{parsedBankText.amount}) ไม่ตรงกับยอดบิล (฿{finalNetAmount})
+                                </span>
+                              )}
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/5 text-slate-600">
+                                ไม่อ่านยอดคงเหลือ
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center space-x-2">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
+                            <span>{parsedBankText.message || 'ไม่พบยอดเงินเข้าในข้อความนี้ กรุณาตรวจทาน'}</span>
+                          </div>
+                        )}
+
+                        {/* Pay Confirm Button with Bank Text */}
+                        <button
+                          type="button"
+                          disabled={isProcessingBankText || !parsedBankText.isValid || !parsedBankText.amount}
+                          onClick={handleProcessBankTextMessage}
+                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/25 flex items-center justify-center space-x-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                        >
+                          {isProcessingBankText ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>
+                                ⚡ ตัดยอดเงินเข้า &amp; ปิดบิลทันที (฿{parsedBankText.amount || finalNetAmount})
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -2283,6 +2627,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                         });
                       }
                       playSuccessChime();
+                      if (voiceEnabled) {
+                        speakMoneyReceived(c.totalAmount, c.tableName);
+                      }
                       showSuccess(`ปิดบิล ${c.tableName} สำเร็จแล้ว ✅`, `ยอดรับ ฿${c.totalAmount}`);
                       setAmbiguousBankNotify(null);
                       fetchData();

@@ -105,3 +105,72 @@ export function playDeliveryChime() {
   }
 }
 
+let cachedThaiVoice: SpeechSynthesisVoice | null = null;
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  const loadVoices = () => {
+    try {
+      const voices = window.speechSynthesis.getVoices();
+      cachedThaiVoice =
+        voices.find(
+          (v) =>
+            v.lang === 'th-TH' ||
+            v.lang.toLowerCase().replace('_', '-').startsWith('th')
+        ) || null;
+    } catch {}
+  };
+
+  loadVoices();
+  if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+}
+
+/**
+ * Thai Text-to-Speech Voice Synthesizer
+ * อ่านออกเสียงข้อความภาษาไทยด้วย Web Speech API
+ */
+export function speakThaiVoice(text: string) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  try {
+    // ยกเลิกเสียงที่กำลังพูดค้างอยู่ก่อนหน้า
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'th-TH';
+    utterance.rate = 1.0; // ความเร็วมาตรฐานชัดเจน
+    utterance.pitch = 1.0;
+
+    if (cachedThaiVoice) {
+      utterance.voice = cachedThaiVoice;
+    } else {
+      const voices = window.speechSynthesis.getVoices();
+      const thaiVoice = voices.find(
+        (v) =>
+          v.lang === 'th-TH' ||
+          v.lang.toLowerCase().replace('_', '-').startsWith('th')
+      );
+      if (thaiVoice) {
+        cachedThaiVoice = thaiVoice;
+        utterance.voice = thaiVoice;
+      }
+    }
+
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.warn('Speech synthesis error:', err);
+  }
+}
+
+/**
+ * อ่านออกเสียงยอดเงินเข้าภาษาไทย เช่น "ได้รับเงินเข้า 150 บาท โต๊ะ 3 เรียบร้อยค่ะ"
+ * อ่านเฉพาะยอดเงินเข้า ไม่มียอดคงเหลือปะปน
+ */
+export function speakMoneyReceived(amount: number, tableName?: string) {
+  const num = Number(amount);
+  const formattedAmount = isNaN(num) ? amount : num % 1 === 0 ? num : num.toFixed(2);
+  const target = tableName ? ` ${tableName}` : '';
+  speakThaiVoice(`ได้รับเงินเข้า ${formattedAmount} บาท${target} เรียบร้อยค่ะ`);
+}
+
+
