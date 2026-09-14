@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import ReceiptPrintModal from '@/components/ReceiptPrintModal';
+import ReportPdfPreviewModal from '@/components/ReportPdfPreviewModal';
 import {
   BarChart3,
   TrendingUp,
@@ -15,6 +16,7 @@ import {
   Award,
   CheckCircle2,
   Download,
+  Eye,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime } from '@/lib/utils';
 
@@ -27,6 +29,7 @@ export default function ReportsPage() {
   // Re-print modal
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
 
   const fetchReport = async () => {
     try {
@@ -147,6 +150,16 @@ export default function ReportsPage() {
                 className="bg-transparent font-semibold text-slate-700 focus:outline-none"
               />
             </div>
+
+            <button
+              onClick={() => setIsPdfPreviewOpen(true)}
+              disabled={!report || loading}
+              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center space-x-1.5 shadow active:scale-95 transition-all cursor-pointer"
+              title="ดูตัวอย่างรายงาน PDF ก่อนสั่งพิมพ์"
+            >
+              <Eye className="w-4 h-4" />
+              <span>ดูตัวอย่าง PDF</span>
+            </button>
 
             <button
               onClick={handleDownloadCSV}
@@ -357,6 +370,19 @@ export default function ReportsPage() {
         order={receiptOrder}
         store={store}
       />
+
+      {/* PDF REPORT PREVIEW MODAL */}
+      {isPdfPreviewOpen && (
+        <ReportPdfPreviewModal
+          isOpen={isPdfPreviewOpen}
+          onClose={() => setIsPdfPreviewOpen(false)}
+          report={report}
+          store={store}
+          startDate={selectedDate}
+          endDate={selectedDate}
+          onDownloadExcel={handleDownloadCSV}
+        />
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ReceiptPrintModal from '@/components/ReceiptPrintModal';
+import ReportPdfPreviewModal from '@/components/ReportPdfPreviewModal';
 import {
   BarChart3,
   TrendingUp,
@@ -14,6 +15,7 @@ import {
   Award,
   CheckCircle2,
   Download,
+  Eye,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime } from '@/lib/utils';
 
@@ -47,6 +49,7 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
 
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
 
   const applyPreset = (presetId: string, days: number) => {
     setActivePreset(presetId);
@@ -266,7 +269,18 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
               </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsPdfPreviewOpen(true)}
+                disabled={!report || loading}
+                className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                title="ดูตัวอย่างรายงาน PDF ก่อนสั่งพิมพ์"
+              >
+                <Eye className="w-4 h-4" />
+                <span>ดูตัวอย่าง PDF</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleDownloadCSV}
@@ -318,7 +332,7 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
       </div>
 
       {/* Printable Report Container (Bug #10) */}
-      <div id="printable-report" className="space-y-3.5 sm:space-y-6">
+      <div id={isPdfPreviewOpen ? undefined : 'printable-report'} className="space-y-3.5 sm:space-y-6">
         {/* Print-only Header */}
         <div className="hidden print:block pb-4 border-b border-slate-200 mb-4">
           <h2 className="text-xl font-black text-slate-900">{store?.storeName || store?.name || slug}</h2>
@@ -626,6 +640,20 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
           isOpen={isReceiptModalOpen}
           onClose={() => setIsReceiptModalOpen(false)}
           order={receiptOrder}
+        />
+      )}
+
+      {/* PDF Report Preview Modal */}
+      {isPdfPreviewOpen && (
+        <ReportPdfPreviewModal
+          isOpen={isPdfPreviewOpen}
+          onClose={() => setIsPdfPreviewOpen(false)}
+          report={report}
+          store={store}
+          slug={slug}
+          startDate={startDate}
+          endDate={endDate}
+          onDownloadExcel={handleDownloadCSV}
         />
       )}
     </div>
