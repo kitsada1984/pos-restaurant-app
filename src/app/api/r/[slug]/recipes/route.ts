@@ -87,3 +87,34 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    const { store } = await requireStoreAccess(params.slug);
+    const { searchParams } = new URL(request.url);
+    const menuItemId = searchParams.get('menuItemId');
+
+    if (!menuItemId) {
+      return NextResponse.json({ error: 'Missing menuItemId' }, { status: 400 });
+    }
+
+    const item = await prisma.menuItem.findFirst({
+      where: { id: menuItemId, storeId: store.id },
+    });
+
+    if (!item) {
+      return NextResponse.json({ error: 'ไม่พบเมนูอาหาร' }, { status: 404 });
+    }
+
+    await prisma.menuItemRecipe.deleteMany({
+      where: { menuItemId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

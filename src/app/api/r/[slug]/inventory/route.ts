@@ -111,6 +111,67 @@ export async function POST(
   }
 }
 
+export async function PUT(
+  request: Request,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    const { store } = await requireStoreAccess(params.slug);
+    const body = await request.json();
+    const { id, name, unit, costPerUnit, currentStock, minStockAlert } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing ingredient id' }, { status: 400 });
+    }
+
+    const existing = await prisma.ingredient.findFirst({
+      where: { id, storeId: store.id },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'ไม่พบรายการวัตถุดิบ' }, { status: 404 });
+    }
+
+    const newStock = currentStock !== undefined ? Math.max(0, Number(currentStock)) : existing.currentStock;
+    const stockDiff = newStock - existing.currentStock;
+
+    const [updated] = await prisma.$transaction(async (tx) => {
+      const ing = await tx.ingredient.update({
+        where: { id: existing.id },
+        data: {
+          name: name ? name.trim() : existing.name,
+          unit: unit ? unit.trim() : existing.unit,
+          costPerUnit: costPerUnit !== undefined ? Number(costPerUnit) : existing.costPerUnit,
+          minStockAlert: minStockAlert !== undefined ? Number(minStockAlert) : existing.minStockAlert,
+          currentStock: newStock,
+        },
+      });
+
+      if (stockDiff !== 0) {
+        await tx.stockLog.create({
+          data: {
+            storeId: store.id,
+            ingredientId: existing.id,
+            changeQty: stockDiff,
+            reason: 'ADJUST',
+            note: 'ปรับยอดสต็อกโดยผู้ดูแล',
+            cost: stockDiff > 0 ? stockDiff * ing.costPerUnit : null,
+          },
+        });
+      }
+
+      return [ing];
+    });
+
+    return NextResponse.json({ success: true, ingredient: updated });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || 'Error updating ingredient' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: { slug: string } }
@@ -122,8 +183,16 @@ export async function DELETE(
 
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-    await prisma.ingredient.delete({
+    const existing = await prisma.ingredient.findFirst({
       where: { id, storeId: store.id },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'ไม่พบรายการวัตถุดิบ' }, { status: 404 });
+    }
+
+    await prisma.ingredient.delete({
+      where: { id: existing.id },
     });
 
     return NextResponse.json({ success: true });

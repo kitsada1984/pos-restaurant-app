@@ -18,6 +18,9 @@ import {
   Save,
   Loader2,
   X,
+  Edit2,
+  Copy,
+  RotateCcw,
 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 
@@ -44,20 +47,43 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
   const [newIngStock, setNewIngStock] = useState('');
   const [newIngMinAlert, setNewIngMinAlert] = useState('10');
 
+  // Edit Ingredient State
+  const [isEditIngModalOpen, setIsEditIngModalOpen] = useState(false);
+  const [editingIng, setEditingIng] = useState<any>(null);
+  const [editIngName, setEditIngName] = useState('');
+  const [editIngUnit, setEditIngUnit] = useState('กรัม (g)');
+  const [editIngCost, setEditIngCost] = useState('');
+  const [editIngStock, setEditIngStock] = useState('');
+  const [editIngMinAlert, setEditIngMinAlert] = useState('10');
+
+  // Delete Ingredient State
+  const [isDeleteIngModalOpen, setIsDeleteIngModalOpen] = useState(false);
+  const [deletingIng, setDeletingIng] = useState<any>(null);
+  const [isDeletingIng, setIsDeletingIng] = useState(false);
+
   // Recipe Manager State
   const [selectedMenuItem, setSelectedMenuItem] = useState<any>(null);
   const [recipeIngredients, setRecipeIngredients] = useState<{ ingredientId: string; quantity: number }[]>([]);
+  const [allRecipes, setAllRecipes] = useState<any[]>([]);
+  const [recipeMenuSearch, setRecipeMenuSearch] = useState('');
+  const [copySourceMenuId, setCopySourceMenuId] = useState('');
+  const [isClearRecipeConfirmOpen, setIsClearRecipeConfirmOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [ingRes, menuRes] = await Promise.all([
+      const [ingRes, menuRes, recipeRes] = await Promise.all([
         fetch(`/api/r/${slug}/inventory`),
         fetch(`/api/r/${slug}/menu`),
+        fetch(`/api/r/${slug}/recipes`),
       ]);
       const ingData = await ingRes.json();
       const menuData = await menuRes.json();
+      const recipeData = await recipeRes.json().catch(() => ({ recipes: [] }));
+
       if (ingData.ingredients) setIngredients(ingData.ingredients);
+      if (recipeData.recipes) setAllRecipes(recipeData.recipes);
+
       if (Array.isArray(menuData)) {
         // Bug #3: Flatten categories to extract individual menu items for BOM Recipe manager
         const flatItems = menuData.flatMap((c: any) => (Array.isArray(c.items) ? c.items : [c]));
@@ -77,8 +103,21 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
     fetchData();
   }, [slug]);
 
+  // Pre-calculate recipes per menu item
+  const recipesByMenuItemId = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const r of allRecipes) {
+      if (!map.has(r.menuItemId)) {
+        map.set(r.menuItemId, []);
+      }
+      map.get(r.menuItemId)!.push(r);
+    }
+    return map;
+  }, [allRecipes]);
+
   const loadRecipeForItem = async (item: any) => {
     setSelectedMenuItem(item);
+    setCopySourceMenuId('');
     try {
       const res = await fetch(`/api/r/${slug}/recipes?menuItemId=${item.id}`);
       const data = await res.json();
@@ -95,6 +134,130 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
     } catch (e) {
       setRecipeIngredients([]);
     }
+  };
+
+  // Open Edit Ingredient Modal
+  const openEditIngModal = (ing: any) => {
+    setEditingIng(ing);
+    setEditIngName(ing.name || '');
+    setEditIngUnit(ing.unit || 'กรัม (g)');
+    setEditIngCost(String(ing.costPerUnit ?? '0'));
+    setEditIngStock(String(ing.currentStock ?? '0'));
+    setEditIngMinAlert(String(ing.minStockAlert ?? '10'));
+    setIsEditIngModalOpen(true);
+  };
+
+  // Save Edited Ingredient
+  const handleUpdateIngredient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingIng || !editIngName.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/r/${slug}/inventory`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingIng.id,
+          name: editIngName.trim(),
+          unit: editIngUnit.trim(),
+          costPerUnit: parseFloat(editIngCost) || 0,
+          currentStock: parseFloat(editIngStock) || 0,
+          minStockAlert: parseFloat(editIngMinAlert) || 10,
+        }),
+      });
+      if (res.ok) {
+        showSuccess('แก้ไขวัตถุดิบสำเร็จ ✨', `อัปเดตข้อมูล "${editIngName}" เรียบร้อย`);
+        setIsEditIngModalOpen(false);
+        setEditingIng(null);
+        fetchData();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError('ไม่สามารถบันทึกได้', data.error || 'กรุณาตรวจสอบข้อมูล');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showError('เกิดข้อผิดพลาด', err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Open Delete Ingredient Modal
+  const openDeleteIngModal = (ing: any) => {
+    setDeletingIng(ing);
+    setIsDeleteIngModalOpen(true);
+  };
+
+  // Confirm Delete Ingredient
+  const handleConfirmDeleteIngredient = async () => {
+    if (!deletingIng) return;
+    setIsDeletingIng(true);
+    try {
+      const res = await fetch(`/api/r/${slug}/inventory?id=${deletingIng.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        showSuccess('ลบวัตถุดิบเรียบร้อย 🗑️', `ลบ "${deletingIng.name}" ออกจากคลังแล้ว`);
+        setIsDeleteIngModalOpen(false);
+        setDeletingIng(null);
+        fetchData();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError('ไม่สามารถลบวัตถุดิบได้', data.error || 'กรุณาลองใหม่อีกครั้ง');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showError('เกิดข้อผิดพลาด', err.message);
+    } finally {
+      setIsDeletingIng(false);
+    }
+  };
+
+  // Clear all recipe ingredients for current menu item
+  const handleClearRecipe = async () => {
+    if (!selectedMenuItem) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/r/${slug}/recipes?menuItemId=${selectedMenuItem.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        showSuccess('ล้างสูตรอาหารเรียบร้อย 🗑️', `ล้างสูตรของ "${selectedMenuItem.name}" แล้ว`);
+        setRecipeIngredients([]);
+        setIsClearRecipeConfirmOpen(false);
+        fetchData();
+      } else {
+        showError('ไม่สามารถล้างสูตรได้', 'กรุณาลองใหม่อีกครั้ง');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showError('เกิดข้อผิดพลาด', err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Copy recipe from another dish
+  const handleCopyRecipeFromOther = () => {
+    if (!copySourceMenuId) return;
+    const sourceRecipes = recipesByMenuItemId.get(copySourceMenuId);
+    const sourceItem = menuItems.find((m) => m.id === copySourceMenuId);
+    if (!sourceRecipes || sourceRecipes.length === 0) {
+      showWarning('ไม่พบสูตร', 'เมนูต้นทางที่เลือกยังไม่มีการผูกสูตร');
+      return;
+    }
+
+    setRecipeIngredients(
+      sourceRecipes.map((r: any) => ({
+        ingredientId: r.ingredientId,
+        quantity: r.quantity,
+      }))
+    );
+    showSuccess(
+      'คัดลอกสูตรสำเร็จ 📋',
+      `คัดลอก ${sourceRecipes.length} วัตถุดิบ จาก "${sourceItem?.name}" เรียบร้อย (กดบันทึกสูตรเพื่อยืนยัน)`
+    );
+    setCopySourceMenuId('');
   };
 
   const handleStockInSubmit = async (e: React.FormEvent) => {
@@ -208,6 +371,12 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
   const selectedItemMargin = selectedMenuItem && selectedMenuItem.basePrice > 0
     ? Math.round((selectedItemProfit / selectedMenuItem.basePrice) * 100)
     : 0;
+
+  const copyableMenuItems = React.useMemo(() => {
+    return menuItems.filter(
+      (m) => m.id !== selectedMenuItem?.id && (recipesByMenuItemId.get(m.id)?.length || 0) > 0
+    );
+  }, [menuItems, selectedMenuItem, recipesByMenuItemId]);
 
   return (
     <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
@@ -377,16 +546,38 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
                         )}
                       </td>
                       <td className="py-3 sm:py-4 px-4 sm:px-6 text-right">
-                        <button
-                          onClick={() => {
-                            setSelectedIng(ing);
-                            setIsStockInModalOpen(true);
-                          }}
-                          className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200 transition-all inline-flex items-center gap-1 whitespace-nowrap"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          รับเข้าสต็อก
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
+                          {/* 1. Stock In Button */}
+                          <button
+                            onClick={() => {
+                              setSelectedIng(ing);
+                              setIsStockInModalOpen(true);
+                            }}
+                            title="รับเข้าสต็อกวัตถุดิบ"
+                            className="px-2.5 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-black border border-orange-200/80 transition-all inline-flex items-center gap-1 shadow-xs active:scale-95 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>รับเข้า</span>
+                          </button>
+
+                          {/* 2. Edit Button */}
+                          <button
+                            onClick={() => openEditIngModal(ing)}
+                            title="แก้ไขข้อมูลวัตถุดิบ"
+                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 transition-all flex items-center justify-center active:scale-95 cursor-pointer shadow-xs"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* 3. Delete Button */}
+                          <button
+                            onClick={() => openDeleteIngModal(ing)}
+                            title="ลบวัตถุดิบนี้"
+                            className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border border-rose-200 transition-all flex items-center justify-center active:scale-95 cursor-pointer shadow-xs"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -406,29 +597,51 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
               <ChefHat className="w-5 h-5 text-orange-500" />
               เลือกเมนูเพื่อกำหนดสูตรอาหาร
             </h3>
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-              {menuItems.map((item) => {
-                const isSelected = selectedMenuItem?.id === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => loadRecipeForItem(item)}
-                    className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-                      isSelected
-                        ? 'border-orange-500 bg-orange-50/50 shadow-sm'
-                        : 'border-slate-100 hover:border-slate-200 bg-slate-50/50'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-extrabold text-slate-900 text-xs sm:text-sm">{item.name}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">ราคาขาย ฿{item.basePrice}</div>
-                    </div>
-                    <span className="text-xs font-bold text-orange-600 bg-orange-100/70 px-2 py-0.5 rounded-lg">
-                      สูตร BOM
-                    </span>
-                  </button>
-                );
-              })}
+
+            {/* Menu Search Box */}
+            <div className="relative w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="ค้นหาเมนู..."
+                value={recipeMenuSearch}
+                onChange={(e) => setRecipeMenuSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            <div className="space-y-2 max-h-[550px] overflow-y-auto pr-1">
+              {menuItems
+                .filter((item) => item.name.toLowerCase().includes(recipeMenuSearch.toLowerCase()))
+                .map((item) => {
+                  const isSelected = selectedMenuItem?.id === item.id;
+                  const recipeCount = recipesByMenuItemId.get(item.id)?.length || 0;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => loadRecipeForItem(item)}
+                      className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                        isSelected
+                          ? 'border-orange-500 bg-orange-50/50 shadow-sm'
+                          : 'border-slate-100 hover:border-slate-200 bg-slate-50/50'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">{item.name}</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">ราคาขาย ฿{item.basePrice}</div>
+                      </div>
+                      {recipeCount > 0 ? (
+                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-100/90 border border-emerald-200/80 px-2 py-0.5 rounded-lg flex-shrink-0">
+                          ✓ ผูกแล้ว ({recipeCount})
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-lg flex-shrink-0">
+                          ยังไม่มีสูตร
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
             </div>
           </div>
 
@@ -445,11 +658,52 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
                       เมื่อมีออเดอร์สั่งเมนูนี้ ระบบจะตัดสต็อกวัตถุดิบด้านล่างตามปริมาณที่กำหนดแบบ Real-time
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Copy Recipe From Other Dish */}
+                    {copyableMenuItems.length > 0 && (
+                      <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200 shadow-xs">
+                        <select
+                          value={copySourceMenuId}
+                          onChange={(e) => setCopySourceMenuId(e.target.value)}
+                          className="px-2 py-1.5 bg-transparent text-xs font-bold text-slate-700 focus:outline-none max-w-[130px] sm:max-w-[170px] truncate"
+                        >
+                          <option value="">-- คัดลอกสูตร --</option>
+                          {copyableMenuItems.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name} ({recipesByMenuItemId.get(m.id)?.length})
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          disabled={!copySourceMenuId}
+                          onClick={handleCopyRecipeFromOther}
+                          className="px-2.5 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 disabled:opacity-40 text-amber-900 font-extrabold text-xs flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>คัดลอก</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Clear Recipe Button */}
+                    {recipeIngredients.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsClearRecipeConfirmOpen(true)}
+                        title="ล้างสูตรทั้งหมดของเมนูนี้"
+                        className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-extrabold border border-rose-200/80 flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">ล้างสูตร</span>
+                      </button>
+                    )}
+
+                    {/* Save Recipe Button */}
                     <button
                       onClick={handleSaveRecipe}
                       disabled={saving}
-                      className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-1.5 shadow-md shadow-orange-500/20 transition-all"
+                      className="px-4 sm:px-5 py-2 sm:py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-1.5 shadow-md shadow-orange-500/20 transition-all cursor-pointer active:scale-95"
                     >
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                       บันทึกสูตร
@@ -555,10 +809,12 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
                             </div>
 
                             <button
+                              type="button"
                               onClick={() => {
                                 setRecipeIngredients(recipeIngredients.filter((_, i) => i !== idx));
                               }}
-                              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                              title="ลบวัตถุดิบนี้ออกจากสูตร"
+                              className="p-2 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200/80 hover:border-rose-200 transition-all flex items-center justify-center cursor-pointer active:scale-95 shadow-2xs"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -777,6 +1033,228 @@ export default function AdminInventoryView({ slug }: { slug: string }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Edit Ingredient */}
+      {isEditIngModalOpen && editingIng && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-slate-900 text-lg">แก้ไขข้อมูลวัตถุดิบ</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditIngModalOpen(false);
+                  setEditingIng(null);
+                }}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateIngredient} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">ชื่อวัตถุดิบ</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="เช่น กุ้งขาวสด, น้ำปลาแท้, น้ำตาลทราย"
+                  value={editIngName}
+                  onChange={(e) => setEditIngName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">หน่วยนับ</label>
+                  <select
+                    value={editIngUnit}
+                    onChange={(e) => setEditIngUnit(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  >
+                    <option value="กรัม (g)">กรัม (g)</option>
+                    <option value="กิโลกรัม (kg)">กิโลกรัม (kg)</option>
+                    <option value="ฟอง">ฟอง</option>
+                    <option value="มล. (ml)">มล. (ml)</option>
+                    <option value="ลิตร (L)">ลิตร (L)</option>
+                    <option value="ชิ้น">ชิ้น</option>
+                    <option value="กล่อง">กล่อง</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">ต้นทุนต่อหน่วย (บาท)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="เช่น 0.16 หรือ 4.2"
+                    value={editIngCost}
+                    onChange={(e) => setEditIngCost(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">จำนวนคงเหลือในสต็อก</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editIngStock}
+                    onChange={(e) => setEditIngStock(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">เตือนเมื่อเหลือน้อยกว่า</label>
+                  <input
+                    type="number"
+                    step="1"
+                    value={editIngMinAlert}
+                    onChange={(e) => setEditIngMinAlert(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400">
+                💡 หากแก้ไขยอดคงเหลือ ระบบจะบันทึกการปรับยอดลงใน Audit Logs ให้อัตโนมัติ
+              </p>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditIngModalOpen(false);
+                    setEditingIng(null);
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-xs text-slate-600 hover:bg-slate-200 cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md shadow-orange-500/20 cursor-pointer"
+                >
+                  {saving ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Delete Ingredient Confirmation */}
+      {isDeleteIngModalOpen && deletingIng && (() => {
+        const linkedRecipes = allRecipes.filter((r) => r.ingredientId === deletingIng.id);
+        const linkedMenuNames = Array.from(
+          new Set(
+            linkedRecipes
+              .map((r) => r.menuItem?.name || menuItems.find((m) => m.id === r.menuItemId)?.name)
+              .filter(Boolean)
+          )
+        );
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-2">
+                <Trash2 className="w-6 h-6" />
+              </div>
+
+              <div className="text-center">
+                <h3 className="font-black text-slate-900 text-lg">ยืนยันการลบวัตถุดิบ?</h3>
+                <p className="text-sm font-extrabold text-slate-800 mt-1">
+                  &quot;{deletingIng.name}&quot; ({deletingIng.currentStock} {deletingIng.unit})
+                </p>
+              </div>
+
+              {linkedMenuNames.length > 0 ? (
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-1.5 text-amber-900">
+                  <div className="font-extrabold flex items-center gap-1 text-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>แจ้งเตือน: วัตถุดิบนี้ถูกผูกอยู่ในสูตร {linkedMenuNames.length} เมนู:</span>
+                  </div>
+                  <p className="font-semibold text-amber-800/90 pl-5">
+                    {linkedMenuNames.join(', ')}
+                  </p>
+                  <p className="text-[11px] text-amber-700/80 pl-5">
+                    หากลบออก วัตถุดิบนี้จะถูกปลดออกจากสูตรของเมนูดังกล่าว และจะไม่มีการตัดสต็อกวัตถุดิบนี้เมื่อสั่งซื้อ
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 text-center">
+                  วัตถุดิบนี้จะถูกลบออกจากคลังและประวัติสต็อกอย่างถาวร
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDeleteIngModalOpen(false);
+                    setDeletingIng(null);
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-xs text-slate-600 hover:bg-slate-200 cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingIng}
+                  onClick={handleConfirmDeleteIngredient}
+                  className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 cursor-pointer"
+                >
+                  {isDeletingIng ? 'กำลังลบ...' : 'ยืนยันลบวัตถุดิบ'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* MODAL: Clear Recipe Confirmation */}
+      {isClearRecipeConfirmOpen && selectedMenuItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-2">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="font-black text-slate-900 text-base">ยืนยันการล้างสูตรอาหาร?</h3>
+              <p className="text-xs text-slate-600 font-bold mt-1">
+                &quot;{selectedMenuItem.name}&quot;
+              </p>
+              <p className="text-[11px] text-slate-400 mt-2">
+                วัตถุดิบทั้งหมด ({recipeIngredients.length} รายการ) จะถูกนำออกจากสูตรของเมนูนี้ และจะไม่ตัดสต็อกจนกว่าจะมีการผูกสูตรใหม่
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsClearRecipeConfirmOpen(false)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 font-bold text-xs text-slate-600 hover:bg-slate-200 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleClearRecipe}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 cursor-pointer"
+              >
+                {saving ? 'กำลังล้าง...' : 'ล้างสูตรทั้งหมด'}
+              </button>
+            </div>
           </div>
         </div>
       )}
