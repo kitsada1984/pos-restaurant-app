@@ -151,33 +151,38 @@ export default function ReportsPage() {
               />
             </div>
 
-            <button
-              onClick={() => setIsPdfPreviewOpen(true)}
-              disabled={!report || loading}
-              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center space-x-1.5 shadow active:scale-95 transition-all cursor-pointer"
-              title="ดูตัวอย่างรายงาน PDF ก่อนสั่งพิมพ์"
-            >
-              <Eye className="w-4 h-4" />
-              <span>ดูตัวอย่าง PDF</span>
-            </button>
+            <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto sm:flex sm:items-center">
+              <button
+                onClick={() => setIsPdfPreviewOpen(true)}
+                disabled={!report || loading}
+                className="px-2.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center justify-center space-x-1 shadow active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                title="ดูตัวอย่างรายงาน PDF ก่อนสั่งพิมพ์"
+              >
+                <Eye className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="inline sm:hidden">ดู PDF</span>
+                <span className="hidden sm:inline">ดูตัวอย่าง PDF</span>
+              </button>
 
-            <button
-              onClick={handleDownloadCSV}
-              disabled={!report || loading}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center space-x-1.5 shadow active:scale-95 transition-all"
-              title="ดาวน์โหลดรายงานเป็นไฟล์ Excel (CSV)"
-            >
-              <Download className="w-4 h-4" />
-              <span>ดาวน์โหลด</span>
-            </button>
+              <button
+                onClick={handleDownloadCSV}
+                disabled={!report || loading}
+                className="px-2.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center justify-center space-x-1 shadow active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                title="ดาวน์โหลดรายงานเป็นไฟล์ Excel (CSV)"
+              >
+                <Download className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="inline sm:hidden">Excel</span>
+                <span className="hidden sm:inline">ดาวน์โหลด</span>
+              </button>
 
-            <button
-              onClick={handlePrintDailyShift}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs flex items-center space-x-1.5 shadow"
-            >
-              <Printer className="w-4 h-4" />
-              <span>พิมพ์ใบสรุปยอด (ปิดกะ)</span>
-            </button>
+              <button
+                onClick={handlePrintDailyShift}
+                className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs flex items-center justify-center space-x-1 shadow active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Printer className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="inline sm:hidden">พิมพ์</span>
+                <span className="hidden sm:inline">พิมพ์ปิดกะ</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

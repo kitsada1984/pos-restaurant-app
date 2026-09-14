@@ -269,36 +269,39 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+            <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto sm:flex sm:items-center">
               <button
                 type="button"
                 onClick={() => setIsPdfPreviewOpen(true)}
                 disabled={!report || loading}
-                className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                className="px-2.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-extrabold text-xs flex items-center justify-center space-x-1 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
                 title="ดูตัวอย่างรายงาน PDF ก่อนสั่งพิมพ์"
               >
-                <Eye className="w-4 h-4" />
-                <span>ดูตัวอย่าง PDF</span>
+                <Eye className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="inline sm:hidden">ดู PDF</span>
+                <span className="hidden sm:inline">ดูตัวอย่าง PDF</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleDownloadCSV}
                 disabled={!report || loading}
-                className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                className="px-2.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-extrabold text-xs flex items-center justify-center space-x-1 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
                 title="ดาวน์โหลดรายงานยอดขายเป็นไฟล์ Excel (CSV)"
               >
-                <Download className="w-4 h-4" />
-                <span>ดาวน์โหลด</span>
+                <Download className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="inline sm:hidden">Excel</span>
+                <span className="hidden sm:inline">ดาวน์โหลด</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap flex-shrink-0 active:scale-95"
+                className="px-2.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center space-x-1 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
               >
-                <Printer className="w-4 h-4" />
-                <span>พิมพ์รายงาน</span>
+                <Printer className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="inline sm:hidden">พิมพ์</span>
+                <span className="hidden sm:inline">พิมพ์รายงาน</span>
               </button>
             </div>
           </div>
