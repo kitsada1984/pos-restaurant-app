@@ -45,6 +45,7 @@ import {
   Clipboard,
   Mail,
   BellRing,
+  Globe,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime, formatImageUrl } from '@/lib/utils';
 import {
@@ -60,6 +61,7 @@ import {
   speakSlipReceiverMismatch,
   speakSlipNoQr,
   speakSlipSubmitted,
+  speakCustomerNotifyTransfer,
 } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import { scanSlipQrClient } from '@/lib/slip-scanner-client';
@@ -141,6 +143,24 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     }
     return true;
   });
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      setIsAudioUnlocked(true);
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+    window.addEventListener('click', handleFirstInteraction);
+    window.addEventListener('keydown', handleFirstInteraction);
+    window.addEventListener('touchstart', handleFirstInteraction);
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, []);
 
   // Bank Notification Text Reader States
   const [promptPayVerifyMode, setPromptPayVerifyMode] = useState<'SLIP' | 'TEXT'>('SLIP');
@@ -254,6 +274,27 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 speakSlipSubmitted(payload.data?.tableNo, payload.data?.amount);
               }
               showInfo(`📷 โต๊ะ ${payload.data?.tableNo || ''} ส่งสลิปโอนเงินเข้ามา!`, 'กรุณาตรวจสอบสลิปเพื่อยืนยันปิดบิล');
+              fetchData();
+            } else if (payload.type === 'CUSTOMER_PAYMENT_NOTIFIED') {
+              const d = payload.data;
+              playOrderChime();
+              if (voiceEnabled) {
+                speakCustomerNotifyTransfer(d.tableNo, d.amount);
+              }
+              setBankAlertModal({
+                action: 'CUSTOMER_NOTIFY',
+                channel: 'WEB',
+                tableId: d.tableId,
+                tableNo: d.tableNo,
+                tableName: d.tableName || `โต๊ะ ${d.tableNo}`,
+                amount: d.amount,
+                orderIds: d.orderIds || [],
+                timestamp: d.timestamp || Date.now(),
+              });
+              showInfo(
+                `🔔 ${d.tableName || `โต๊ะ ${d.tableNo}`} แจ้งโอนเงิน ฿${d.amount?.toLocaleString()} ผ่านเว็บ`,
+                'กรุณาตรวจสอบยอดเงินและกดยืนยันปิดบิล'
+              );
               fetchData();
             } else if (payload.type === 'PAYMENT_RECEIVED') {
               playSuccessChime();
@@ -1000,6 +1041,37 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
   return (
     <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
+      {/* 🔊 Browser Audio Autoplay Unlock Banner */}
+      {!isAudioUnlocked && voiceEnabled && (
+        <div
+          onClick={() => {
+            setIsAudioUnlocked(true);
+            playSuccessChime();
+            speakThaiVoice('ระบบเสียงแจ้งเตือนเงินเข้าพร้อมทำงานแล้วค่ะ');
+            showSuccess('🔊 เปิดระบบเสียงแจ้งเตือนสำเร็จ', 'พร้อมรับเสียงพูดแจ้งเตือนเงินเข้าภาษาไทยอัตโนมัติ');
+          }}
+          className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between shadow-lg shadow-orange-500/20 cursor-pointer animate-pulse hover:brightness-105 transition-all"
+        >
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl flex-shrink-0">
+              🔊
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black">คลิกตรงนี้ 1 ครั้ง เพื่อเปิดระบบเสียงพูดแจ้งเตือนเงินเข้า</h4>
+              <p className="text-[11px] sm:text-xs text-white/90">
+                เบราว์เซอร์ต้องการให้สัมผัสหน้าจอ 1 ครั้ง เพื่อปลดล็อกให้ระบบส่งเสียงพูดภาษาไทยอัตโนมัติเมื่อมีเงินเข้า
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="px-3.5 py-1.5 rounded-xl bg-white text-orange-700 text-xs font-black shadow-sm flex-shrink-0 ml-2"
+          >
+            เปิดเสียงเลย ⚡
+          </button>
+        </div>
+      )}
+
       {/* Top Header & Table Filters */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
         <div className="flex-shrink-0">
@@ -2684,6 +2756,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               className={`p-5 text-white ${
                 bankAlertModal.action === 'AUTO_PAID'
                   ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700'
+                  : bankAlertModal.action === 'CUSTOMER_NOTIFY'
+                  ? 'bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700'
                   : bankAlertModal.action === 'UNMATCHED'
                   ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700'
                   : 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600'
@@ -2692,7 +2766,12 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
                   <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-white/20 backdrop-blur-md text-white border border-white/30 shadow-sm">
-                    {bankAlertModal.channel === 'EMAIL' ? (
+                    {bankAlertModal.channel === 'WEB' ? (
+                      <>
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>แจ้งเตือนผ่านเว็บตรง (ลูกค้าแจ้งโอน)</span>
+                      </>
+                    ) : bankAlertModal.channel === 'EMAIL' ? (
                       <>
                         <Mail className="w-3.5 h-3.5" />
                         <span>แจ้งเตือนผ่าน Email (Gmail)</span>
@@ -2705,7 +2784,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                     )}
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/20 text-white/90">
-                    {bankAlertModal.bankName || bankAlertModal.bank || 'ธนาคาร'}
+                    {bankAlertModal.channel === 'WEB' ? 'พร้อมเพย์ / โอนตรง' : (bankAlertModal.bankName || bankAlertModal.bank || 'ธนาคาร')}
                   </span>
                 </div>
                 <button
@@ -2720,12 +2799,14 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               <div className="flex items-center justify-between mt-3">
                 <div>
                   <h3 className="text-lg sm:text-xl font-black tracking-tight">
+                    {bankAlertModal.action === 'CUSTOMER_NOTIFY' && 'ลูกค้าแจ้งโอนเงินผ่านเว็บ 🔔'}
                     {bankAlertModal.action === 'AUTO_PAID' && 'ตรวจพบเงินเข้า & ปิดบิลสำเร็จ! 🎉'}
                     {bankAlertModal.action === 'MANUAL_CONFIRM' && 'ตรวจพบเงินเข้า ตรงกับโต๊ะอาหาร 🔔'}
                     {bankAlertModal.action === 'AMBIGUOUS_CHOICE' && 'ตรวจพบเงินเข้า ตรงกับหลายโต๊ะ 🔔'}
                     {bankAlertModal.action === 'UNMATCHED' && 'ตรวจพบเงินเข้าบัญชีเรียบร้อย 💵'}
                   </h3>
                   <p className="text-xs text-white/80 font-medium mt-0.5">
+                    {bankAlertModal.action === 'CUSTOMER_NOTIFY' && 'ลูกค้ากดแจ้งโอนเงินจากที่โต๊ะ กรุณาตรวจสอบยอดและกดยืนยันปิดบิล'}
                     {bankAlertModal.action === 'AUTO_PAID' && 'ระบบตรวจสอบยอดและเคลียร์โต๊ะให้อัตโนมัติแล้ว'}
                     {bankAlertModal.action === 'MANUAL_CONFIRM' && 'กรุณาตรวจสอบและกดยืนยันตัดยอดเพื่อปิดบิล'}
                     {bankAlertModal.action === 'AMBIGUOUS_CHOICE' && 'มียอดตรงกันหลายโต๊ะ กรุณาเลือกโต๊ะที่ต้องการตัดยอด'}
@@ -2733,7 +2814,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl flex-shrink-0 shadow-inner">
-                  {bankAlertModal.action === 'AUTO_PAID' ? '💰' : '🔔'}
+                  {bankAlertModal.action === 'AUTO_PAID' ? '💰' : bankAlertModal.action === 'CUSTOMER_NOTIFY' ? '📱' : '🔔'}
                 </div>
               </div>
             </div>
@@ -2751,7 +2832,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (bankAlertModal.action === 'AUTO_PAID') {
+                    if (bankAlertModal.action === 'CUSTOMER_NOTIFY') {
+                      speakCustomerNotifyTransfer(bankAlertModal.tableNo, bankAlertModal.amount);
+                    } else if (bankAlertModal.action === 'AUTO_PAID') {
                       speakMoneyReceived(bankAlertModal.amount, bankAlertModal.tableName);
                     } else if (bankAlertModal.tableName) {
                       speakThaiVoice(`มีเงินเข้า ${bankAlertModal.amount} บาท ${bankAlertModal.tableName} ค่ะ`);
@@ -2765,6 +2848,78 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   <span>🔊 ฟังเสียง</span>
                 </button>
               </div>
+
+              {/* Case 0: CUSTOMER_NOTIFY (ลูกค้าแจ้งโอนผ่านเว็บตรง) */}
+              {bankAlertModal.action === 'CUSTOMER_NOTIFY' && (
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-600">โต๊ะที่แจ้งโอน:</span>
+                      <span className="font-black text-sm text-emerald-700 bg-white px-2 py-0.5 rounded-lg border border-emerald-200 shadow-sm">
+                        {bankAlertModal.tableName || `โต๊ะ ${bankAlertModal.tableNo}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-600">ยอดที่แจ้งโอน:</span>
+                      <span className="font-black text-emerald-700 text-sm">
+                        ฿{bankAlertModal.amount?.toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 pt-1 border-t border-emerald-100 leading-normal">
+                      💡 เมื่อตรวจสอบยอดเงินในแอปธนาคารหรือมือถือเรียบร้อยแล้ว กดปุ่มยืนยันด้านล่างเพื่อปิดบิลและเคลียร์โต๊ะทันที
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        let orderIds = bankAlertModal.orderIds || [];
+                        if (orderIds.length === 0) {
+                          const tableRes = await fetch(`/api/r/${slug}/tables/${bankAlertModal.tableNo}`);
+                          const tableData = await tableRes.json();
+                          if (tableData?.orders) {
+                            orderIds = tableData.orders.map((o: any) => o.id);
+                          }
+                        }
+
+                        for (const oId of orderIds) {
+                          await fetch(`/api/r/${slug}/orders/${oId}/pay`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              paymentMethod: 'PROMPTPAY',
+                              note: `${bankAlertModal.tableName} (ลูกค้าแจ้งโอนผ่านเว็บ)`,
+                            }),
+                          });
+                        }
+
+                        playSuccessChime();
+                        if (voiceEnabled) {
+                          speakMoneyReceived(bankAlertModal.amount, bankAlertModal.tableName);
+                        }
+                        showSuccess(`ปิดบิล ${bankAlertModal.tableName} สำเร็จแล้ว ✅`, `ยอดรับ ฿${bankAlertModal.amount?.toLocaleString()}`);
+                        setBankAlertModal(null);
+                        fetchData();
+                      } catch (e: any) {
+                        showError('ไม่สามารถปิดบิลได้', e.message);
+                      }
+                    }}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer transition-all active:scale-95"
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>✅ ยืนยันรับเงิน & ปิดบิล (1 คลิก)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBankAlertModal(null)}
+                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all cursor-pointer"
+                  >
+                    ปิดหน้าต่าง / รอตรวจสอบก่อน
+                  </button>
+                </div>
+              )}
 
               {/* Case 1: AUTO_PAID */}
               {bankAlertModal.action === 'AUTO_PAID' && (

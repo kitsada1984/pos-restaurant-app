@@ -853,10 +853,29 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
             </span>
           </div>
           <p className="text-xs text-slate-500">
-            ระบบรองรับการรับแจ้งเตือนเงินโอนเข้าได้ทั้งผ่าน <strong>อีเมลธนาคาร (Gmail Alert Automation - ไม่ต้องใช้มือถือ)</strong> หรือผ่าน <strong>แอปบนมือถือ (MacroDroid)</strong> พร้อมระบบอ่านออกเสียงภาษาไทยและตัดยอดบิล
+            ระบบรองรับการแจ้งเตือนเงินโอนเข้า ทั้งผ่าน <strong>หน้าเว็บโดยตรง (Direct Web - ฟรี ไม่ต้องตั้งค่า)</strong>, <strong>อีเมลธนาคาร (Gmail Automation)</strong> และ <strong>แอปบนมือถือ (MacroDroid)</strong> พร้อมระบบอ่านออกเสียงภาษาไทย
           </p>
 
           <div className="space-y-4">
+            {/* Direct Web Notification Highlight */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border border-emerald-500/30 text-emerald-950 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">✨</span>
+                  <h4 className="text-xs sm:text-sm font-black text-emerald-900">
+                    ระบบแจ้งเตือนเงินเข้าผ่านเว็บโดยตรง (Direct Web Notification) - เปิดใช้งานแล้ว 100% ฟรี!
+                  </h4>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-sm w-fit">
+                  ใช้งานได้ทันที ไม่ต้องตั้งค่า
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800 leading-relaxed">
+                เมื่อลูกค้าอยู่ที่โต๊ะอาหาร สแกน QR โอนเงินแล้วกดปุ่ม <strong>"✅ ฉันโอนเงินเรียบร้อยแล้ว (แจ้งแคชเชียร์)"</strong> หรือแนบรูปสลิป
+                หน้าจอ POS ของแคชเชียร์จะ<strong>ส่งเสียงพูดภาษาไทย</strong> (เช่น <em>"เงินเข้า โต๊ะ 1 50 บาท เรียบร้อยค่ะ"</em>) พร้อมป๊อปอัพขึ้นเตือนทันที 
+                <strong>คุณไม่จำเป็นต้องติดตั้ง MacroDroid หรือตั้งค่าอีเมลใดๆ</strong>
+              </p>
+            </div>
             {/* Auto Checkout on Bank Notify */}
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>

@@ -92,12 +92,46 @@ export default function CustomerOrderingView({
   const [payMethod, setPayMethod] = useState<'PROMPTPAY' | 'CASH'>('PROMPTPAY');
   const [isCashCalled, setIsCashCalled] = useState(false);
 
-  // Slip Upload State for Customer
+  // Slip Upload & Direct Web Transfer Notification State for Customer
   const [customerSlipPreview, setCustomerSlipPreview] = useState<string | null>(null);
   const [isCustomerUploadingSlip, setIsCustomerUploadingSlip] = useState(false);
+  const [isCustomerNotifyingTransfer, setIsCustomerNotifyingTransfer] = useState(false);
   const [customerSlipSubmitted, setCustomerSlipSubmitted] = useState(false);
   const [customerSlipMessage, setCustomerSlipMessage] = useState<string | null>(null);
   const [customerSlipError, setCustomerSlipError] = useState<string | null>(null);
+
+  const handleCustomerNotifyTransfer = async () => {
+    setIsCustomerNotifyingTransfer(true);
+    setCustomerSlipError(null);
+    try {
+      const res = await fetch(`/api/r/${slug}/orders/notify-transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableId,
+          tableNo: tableId,
+          amount: totalAmountToPay,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        playSuccessChime();
+        speakThaiVoice('แจ้งโอนเงินเรียบร้อยแล้วค่ะ รอพนักงานตรวจสอบค่ะ');
+        setCustomerSlipSubmitted(true);
+        setCustomerSlipMessage('แจ้งโอนเงินเรียบร้อยแล้ว แคชเชียร์กำลังตรวจสอบยอดเงินครับ 🔔');
+        showSuccess('แจ้งโอนเงินสำเร็จ 🔔', 'ระบบส่งสัญญาณแจ้งเตือนไปยังเคาน์เตอร์แคชเชียร์แล้ว');
+      } else {
+        setCustomerSlipError(data.error || 'เกิดข้อผิดพลาดในการแจ้งเตือน');
+        showError('แจ้งเตือนไม่สำเร็จ', data.error);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setCustomerSlipError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setIsCustomerNotifyingTransfer(false);
+    }
+  };
 
   const handleCustomerSlipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1258,11 +1292,40 @@ export default function CustomerOrderingView({
                         <span>{customerSlipMessage || 'แนบสลิปเรียบร้อยแล้ว'}</span>
                       </div>
                     ) : (
-                      <div className="w-full space-y-2 pt-1">
+                      <div className="w-full space-y-2.5 pt-1">
+                        {/* Option 1: Direct Web Notification Button */}
+                        <button
+                          type="button"
+                          disabled={isCustomerNotifyingTransfer || isCustomerUploadingSlip}
+                          onClick={handleCustomerNotifyTransfer}
+                          className={`w-full py-3 px-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all active:scale-95 ${
+                            isCustomerNotifyingTransfer ? 'opacity-50 pointer-events-none' : ''
+                          }`}
+                        >
+                          {isCustomerNotifyingTransfer ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                              <span>กำลังส่งสัญญาณแจ้งเตือน...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-4 h-4 text-white" />
+                              <span>✅ ฉันโอนเงินเรียบร้อยแล้ว (แจ้งแคชเชียร์)</span>
+                            </>
+                          )}
+                        </button>
+
+                        <div className="flex items-center my-1">
+                          <div className="flex-1 border-t border-slate-800"></div>
+                          <span className="px-2 text-[10px] text-slate-500 font-semibold">หรือมีสลิปแนบรูปได้</span>
+                          <div className="flex-1 border-t border-slate-800"></div>
+                        </div>
+
+                        {/* Option 2: Upload Slip */}
                         <label
                           htmlFor="customer-slip-upload-input"
                           className={`w-full py-2.5 px-3 rounded-xl border border-dashed border-orange-400/60 bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 font-extrabold text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all ${
-                            isCustomerUploadingSlip ? 'opacity-50 pointer-events-none' : ''
+                            isCustomerUploadingSlip || isCustomerNotifyingTransfer ? 'opacity-50 pointer-events-none' : ''
                           }`}
                         >
                           {isCustomerUploadingSlip ? (
@@ -1273,7 +1336,7 @@ export default function CustomerOrderingView({
                           ) : (
                             <>
                               <Camera className="w-4 h-4 text-orange-400" />
-                              <span>📷 แนบสลิปโอนเงิน (คลิกเพื่ออัปโหลด)</span>
+                              <span>📷 แนบรูปสลิปโอนเงิน (ตรวจอัตโนมัติ)</span>
                             </>
                           )}
                         </label>
@@ -1286,7 +1349,7 @@ export default function CustomerOrderingView({
                         )}
 
                         <p className="text-[10px] text-slate-400">
-                          สแกนจ่ายแล้วแนบรูปสลิป ระบบจะตรวจสอบและแจ้งแคชเชียร์อัตโนมัติ
+                          เมื่อโอนเงินแล้ว กดปุ่มแจ้งแคชเชียร์ได้ทันที ระบบจะส่งเสียงเตือนที่หน้าเคาน์เตอร์
                         </p>
                       </div>
                     )}

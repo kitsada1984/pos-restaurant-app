@@ -194,13 +194,16 @@ export function speakThaiVoice(text: string) {
 }
 
 /**
- * อ่านออกเสียงยอดเงินเข้าภาษาไทย เช่น "ได้รับเงินเข้า 150 บาท โต๊ะ 3 เรียบร้อยค่ะ"
+ * อ่านออกเสียงยอดเงินเข้าภาษาไทย เช่น "เงินเข้า โต๊ะ 1 50 บาท เรียบร้อยค่ะ"
  * อ่านเฉพาะยอดเงินเข้า ไม่มียอดคงเหลือปะปน
  */
 export function speakMoneyReceived(amount: number, tableName?: string) {
   const formattedAmount = formatThaiCurrencyForSpeech(amount);
-  const target = tableName ? ` ${tableName}` : '';
-  speakThaiVoice(`ได้รับเงินเข้า ${formattedAmount}${target} เรียบร้อยค่ะ`);
+  let target = '';
+  if (tableName) {
+    target = String(tableName).startsWith('โต๊ะ') ? ` ${tableName}` : ` โต๊ะ ${tableName}`;
+  }
+  speakThaiVoice(`เงินเข้า${target} ${formattedAmount} เรียบร้อยค่ะ`.replace(/\s+/g, ' ').trim());
 }
 
 /**
@@ -208,8 +211,21 @@ export function speakMoneyReceived(amount: number, tableName?: string) {
  */
 export function speakSlipVerified(amount: number, tableName?: string) {
   const formattedAmount = formatThaiCurrencyForSpeech(amount);
-  const target = tableName ? ` ${tableName}` : '';
-  speakThaiVoice(`สลิปถูกต้อง ได้รับเงินเข้า ${formattedAmount}${target} เรียบร้อยค่ะ`);
+  let target = '';
+  if (tableName) {
+    target = String(tableName).startsWith('โต๊ะ') ? ` ${tableName}` : ` โต๊ะ ${tableName}`;
+  }
+  speakThaiVoice(`เงินเข้า${target} ${formattedAmount} เรียบร้อยค่ะ`.replace(/\s+/g, ' ').trim());
+}
+
+/**
+ * อ่านออกเสียงเมื่อลูกค้ากดแจ้งโอนเงินผ่านหน้าเว็บ (รอแคชเชียร์ตรวจเช็ค)
+ * เช่น "โต๊ะ 1 แจ้งโอนเงิน 50 บาท กรุณาตรวจสอบค่ะ"
+ */
+export function speakCustomerNotifyTransfer(tableNo: number | string, amount: number) {
+  const tablePart = String(tableNo).startsWith('โต๊ะ') ? String(tableNo) : `โต๊ะ ${tableNo}`;
+  const amountPart = formatThaiCurrencyForSpeech(amount);
+  speakThaiVoice(`${tablePart} แจ้งโอนเงิน ${amountPart} กรุณาตรวจสอบค่ะ`);
 }
 
 /**
