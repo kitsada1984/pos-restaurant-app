@@ -47,6 +47,7 @@ export async function POST(
       note,
       discountAmount = 0,
       memberPhone,
+      customerName,
       pointsRedeemed = 0,
       promoCode,
     } = body;
@@ -269,6 +270,7 @@ export async function POST(
             discountAmount: newDiscount,
             netAmount: newNetAmount,
             memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : o.memberPhone,
+            customerName: customerName?.trim() || o.customerName || undefined,
             pointsRedeemed: isPrimary && Number(pointsRedeemed) ? Number(pointsRedeemed) : o.pointsRedeemed,
             promoCode: isPrimary && promoCode ? String(promoCode).toUpperCase().trim() : o.promoCode,
             slipUrl: uploadedSlipUrl || o.slipUrl,
@@ -317,11 +319,12 @@ export async function POST(
             points: { increment: netPointsChange },
             totalSpent: { increment: totalPaidNet },
             visitCount: { increment: 1 },
+            ...(customerName?.trim() ? { name: customerName.trim() } : {}),
           },
           create: {
             storeId: store.id,
             phone: targetPhone,
-            name: primaryUpdatedOrder.customerName || 'สมาชิก',
+            name: customerName?.trim() || primaryUpdatedOrder.customerName || 'สมาชิก',
             points: Math.max(0, netPointsChange),
             totalSpent: totalPaidNet,
             visitCount: 1,
@@ -380,6 +383,8 @@ export async function POST(
           data: {
             paymentMethod: 'PROMPTPAY',
             paymentStatus: 'PENDING_CONFIRMATION',
+            memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : o.memberPhone,
+            customerName: customerName?.trim() || o.customerName || undefined,
             slipUrl: uploadedSlipUrl || o.slipUrl,
             slipRef: effectiveSlipRef,
             slipAmount: parsed?.amount || null,

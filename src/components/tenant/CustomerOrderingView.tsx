@@ -111,6 +111,8 @@ export default function CustomerOrderingView({
           tableId,
           tableNo: tableId,
           amount: totalAmountToPay,
+          memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : undefined,
+          customerName: customerName.trim() || undefined,
         }),
       });
 
@@ -152,6 +154,8 @@ export default function CustomerOrderingView({
           qrPayload: scan.qrText,
           slipImage: scan.compressedBase64,
           manualConfirm: false,
+          memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : undefined,
+          customerName: customerName.trim() || undefined,
         }),
       });
 
@@ -224,6 +228,17 @@ export default function CustomerOrderingView({
       setCategories(Array.isArray(m) ? m : []);
       setTableData(t?.error ? null : t);
       setStore(s?.error ? null : s);
+
+      if (t?.orders && Array.isArray(t.orders) && t.orders.length > 0) {
+        const orderWithPhone = t.orders.find((o: any) => o.memberPhone);
+        if (orderWithPhone?.memberPhone && !memberPhone) {
+          handleMemberLookup(orderWithPhone.memberPhone);
+        }
+        const orderWithName = t.orders.find((o: any) => o.customerName);
+        if (orderWithName?.customerName && !customerName) {
+          setCustomerName(orderWithName.customerName);
+        }
+      }
     } catch (err) {
       console.error('Error fetching table order data:', err);
     } finally {
@@ -434,7 +449,7 @@ export default function CustomerOrderingView({
         const data = await res.json();
         if (data.member) {
           setMemberData(data.member);
-          if (data.member.name && !customerName) {
+          if (data.member.name) {
             setCustomerName(data.member.name);
           }
           showSuccess(`สวัสดีคุณ ${data.member.name || phone} ⭐`, `แต้มสะสม: ${data.member.points} แต้ม`);
@@ -1235,6 +1250,65 @@ export default function CustomerOrderingView({
               <div className="p-3.5 bg-orange-500/10 rounded-2xl border border-orange-500/20">
                 <span className="text-xs font-bold text-orange-300 block">ยอดสุทธิที่ต้องชำระ:</span>
                 <span className="text-3xl font-black text-orange-400">฿{totalAmountToPay.toLocaleString()}</span>
+              </div>
+
+              {/* Member Phone & Customer Name for Points Accumulation */}
+              <div className="p-3 bg-slate-950/90 rounded-2xl border border-slate-800 space-y-2 text-left">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-orange-400" />
+                        เบอร์สะสมแต้ม
+                      </span>
+                      {isMemberLoading && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="เช่น 0899998888"
+                      value={memberPhone}
+                      onChange={(e) => handleMemberLookup(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                      <User className="w-3 h-3 text-orange-400" />
+                      ชื่อลูกค้า
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="เช่น คุณสมศรี"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Member Status Card */}
+                {memberData ? (
+                  <div className="p-2 rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/15 border border-orange-500/30 text-xs flex items-center justify-between">
+                    <div>
+                      <div className="font-black text-white flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+                        <span>สมาชิก: <span className="text-orange-400">{memberData.name || 'คุณลูกค้า'}</span></span>
+                      </div>
+                      <div className="text-[10px] text-slate-300">
+                        ได้รับแต้มเพิ่ม <strong className="text-emerald-400 font-black">+{Math.floor(totalAmountToPay / (store?.pointsRate || 25))} แต้ม</strong>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-lg border border-amber-500/30">
+                      ⭐ {memberData.points} แต้ม
+                    </span>
+                  </div>
+                ) : memberPhone.replace(/\D/g, '').length >= 9 ? (
+                  <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs flex items-center justify-between text-emerald-300 font-bold">
+                    <span>✨ ลูกค้าใหม่: จะบันทึกชื่อ &amp; สะสมแต้ม</span>
+                    <span className="text-emerald-400 font-black">+{Math.floor(totalAmountToPay / (store?.pointsRate || 25))} แต้ม</span>
+                  </div>
+                ) : null}
               </div>
 
               {/* Payment Method Selector */}

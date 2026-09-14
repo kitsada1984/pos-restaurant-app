@@ -28,6 +28,7 @@ export async function POST(
       changeAmount,
       slipUrl,
       memberPhone,
+      customerName,
       pointsRedeemed,
       promoCode,
       discountAmount,
@@ -50,6 +51,7 @@ export async function POST(
     }
 
     const effectiveMemberPhone = memberPhone ? memberPhone.replace(/\D/g, '') : order.memberPhone;
+    const effectiveCustomerName = customerName?.trim() || order.customerName || undefined;
     const effectivePointsRedeemed = Number(pointsRedeemed) || order.pointsRedeemed || 0;
     const effectivePromoCode = promoCode || order.promoCode;
     const requestedDiscount = discountAmount !== undefined ? Number(discountAmount) : (order.discountAmount || 0);
@@ -84,6 +86,7 @@ export async function POST(
         cashReceived: cashReceived ? parseFloat(cashReceived) : null,
         changeAmount: changeAmount ? parseFloat(changeAmount) : null,
         memberPhone: effectiveMemberPhone,
+        customerName: effectiveCustomerName,
         pointsEarned,
         pointsRedeemed: effectivePointsRedeemed,
         promoCode: effectivePromoCode,
@@ -111,11 +114,12 @@ export async function POST(
           points: { increment: netPointsChange },
           totalSpent: { increment: effectiveNetAmount },
           ...(skipVisitIncrement ? {} : { visitCount: { increment: 1 } }),
+          ...(customerName?.trim() ? { name: customerName.trim() } : {}),
         },
         create: {
           storeId: store.id,
           phone: effectiveMemberPhone,
-          name: order.customerName || 'สมาชิก',
+          name: customerName?.trim() || order.customerName || 'สมาชิก',
           points: Math.max(0, netPointsChange),
           totalSpent: effectiveNetAmount,
           visitCount: 1,

@@ -17,7 +17,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { tableId, tableNo, amount, orderIds } = body;
+    const { tableId, tableNo, amount, orderIds, memberPhone, customerName } = body;
 
     const parsedTableNo = tableNo !== undefined && tableNo !== null && !isNaN(parseInt(String(tableNo), 10))
       ? parseInt(String(tableNo), 10)
@@ -64,11 +64,18 @@ export async function POST(
       });
     }
 
+    const cleanPhone = memberPhone ? String(memberPhone).replace(/\D/g, '') : undefined;
+    const cleanName = customerName && typeof customerName === 'string' && customerName.trim() ? customerName.trim() : undefined;
+
     // Update orders paymentStatus to PENDING_CONFIRMATION so staff knows they are in review
     if (orders.length > 0) {
       await prisma.order.updateMany({
         where: { id: { in: orders.map((o) => o.id) } },
-        data: { paymentStatus: 'PENDING_CONFIRMATION' },
+        data: {
+          paymentStatus: 'PENDING_CONFIRMATION',
+          ...(cleanPhone ? { memberPhone: cleanPhone } : {}),
+          ...(cleanName ? { customerName: cleanName } : {}),
+        },
       });
     }
 
@@ -85,6 +92,8 @@ export async function POST(
         tableName,
         amount: finalAmount,
         orderIds: activeOrderIds,
+        memberPhone: cleanPhone,
+        customerName: cleanName,
         timestamp: Date.now(),
       },
       store.id

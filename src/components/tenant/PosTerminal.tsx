@@ -113,6 +113,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const [customDiscountValue, setCustomDiscountValue] = useState<string>('');
   const [availablePromotions, setAvailablePromotions] = useState<any[]>([]);
   const [memberPhone, setMemberPhone] = useState('');
+  const [customerNameInput, setCustomerNameInput] = useState<string>('');
   const [memberData, setMemberData] = useState<any>(null);
   const [memberRewards, setMemberRewards] = useState<any[]>([]);
   const [selectedReward, setSelectedReward] = useState<any>(null);
@@ -289,6 +290,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 tableName: d.tableName || `โต๊ะ ${d.tableNo}`,
                 amount: d.amount,
                 orderIds: d.orderIds || [],
+                memberPhone: d.memberPhone,
+                customerName: d.customerName,
                 timestamp: d.timestamp || Date.now(),
               });
               showInfo(
@@ -592,6 +595,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         if (data.member) {
           setMemberData(data.member);
           setMemberRewards(data.rewards || []);
+          if (data.member.name) {
+            setCustomerNameInput(data.member.name);
+          }
           showInfo(`พบข้อมูลสมาชิก ⭐`, `คุณ ${data.member.name || phone} (แต้มคงเหลือ: ${data.member.points} แต้ม)`);
         } else {
           setMemberData(null);
@@ -678,6 +684,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             cashReceived: paymentMethod === 'CASH' && isFirst ? parseFloat(cashReceived) : null,
             changeAmount: paymentMethod === 'CASH' && isFirst ? Math.max(0, change) : 0,
             memberPhone: memberPhone || null,
+            customerName: customerNameInput.trim() || undefined,
             pointsRedeemed: isFirst && discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
             promoCode: isFirst && discountTab === 'PROMO' ? appliedPromo?.code || null : null,
             discountAmount: orderDiscount,
@@ -716,6 +723,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       setCashReceived('');
       setDiscountAmount(0);
       setMemberPhone('');
+      setCustomerNameInput('');
       setMemberData(null);
       setPointsToRedeem(0);
       setPromoCodeInput('');
@@ -763,6 +771,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           manualConfirm: autoCheckoutEnabled, // ถ้าเปิดโหมดบันทึกอัตโนมัติ ให้ปิดบิลทันทีเมื่อสลิปผ่าน
           discountAmount: totalCombinedDiscount,
           memberPhone: memberPhone || null,
+          customerName: customerNameInput.trim() || undefined,
           pointsRedeemed: discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
           promoCode: discountTab === 'PROMO' ? appliedPromo?.code || null : null,
         }),
@@ -804,6 +813,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         setCashReceived('');
         setDiscountAmount(0);
         setMemberPhone('');
+        setCustomerNameInput('');
         setMemberData(null);
         setPointsToRedeem(0);
         setPromoCodeInput('');
@@ -859,6 +869,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           manualConfirm: true,
           discountAmount: totalCombinedDiscount,
           memberPhone: memberPhone || null,
+          customerName: customerNameInput.trim() || undefined,
           pointsRedeemed: discountTab === 'LOYALTY' ? pointsToRedeem || 0 : 0,
           promoCode: discountTab === 'PROMO' ? appliedPromo?.code || null : null,
         }),
@@ -899,6 +910,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         setCashReceived('');
         setDiscountAmount(0);
         setMemberPhone('');
+        setCustomerNameInput('');
         setMemberData(null);
         setPointsToRedeem(0);
         setPromoCodeInput('');
@@ -1427,6 +1439,21 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                         }
                         setPaymentMethod('PROMPTPAY');
                       }
+                      // Pre-fill existing member phone & customer name if any active order on table has it
+                      const existingPhone = selectedTable.activeOrders?.find((o: any) => o.memberPhone)?.memberPhone;
+                      const existingName = selectedTable.activeOrders?.find((o: any) => o.customerName)?.customerName;
+                      if (existingPhone) {
+                        handleLookupMember(existingPhone);
+                      } else {
+                        setMemberPhone('');
+                        setMemberData(null);
+                        setMemberRewards([]);
+                      }
+                      if (existingName) {
+                        setCustomerNameInput(existingName);
+                      } else if (!existingPhone) {
+                        setCustomerNameInput('');
+                      }
                       setIsPayModalOpen(true);
                     }}
                     className={`px-5 py-2.5 rounded-xl font-black text-xs shadow-lg flex items-center space-x-1.5 transition-all ${
@@ -1814,37 +1841,75 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 <h3 className="font-black text-lg text-slate-900">เช็คบิล {selectedTable?.name}</h3>
                 <p className="text-xs text-slate-400">เลือกวิธีชำระเงินและพิมพ์ใบเสร็จ</p>
               </div>
-              <button onClick={() => setIsPayModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button
+                onClick={() => {
+                  setIsPayModalOpen(false);
+                  setMemberPhone('');
+                  setCustomerNameInput('');
+                  setMemberData(null);
+                  setMemberRewards([]);
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
                 ✕
               </button>
             </div>
 
-            {/* Member Phone for Points Accumulation */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-orange-500" />
-                  เบอร์โทรลูกค้า (สะสมแต้ม)
-                </span>
-                {memberData && (
-                  <span className="text-[11px] font-bold text-orange-600 bg-orange-100/70 px-2 py-0.5 rounded-md">
-                    ⭐ {memberData.points} แต้ม
-                  </span>
-                )}
-              </div>
-              <input
-                type="tel"
-                placeholder="เช่น 0899998888 (กรอกเพื่อรับแต้มสะสม)"
-                value={memberPhone}
-                onChange={(e) => handleLookupMember(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              {memberData && (
-                <div className="text-[11px] text-slate-500">
-                  ลูกค้า: <strong>{memberData.name || 'สมาชิก'}</strong> • จะได้รับแต้มเพิ่ม{' '}
-                  <strong className="text-emerald-600">+{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม</strong>
+            {/* Member Phone & Customer Name for Points Accumulation */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-orange-500" />
+                    <span>เบอร์โทรสะสมแต้ม</span>
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="เช่น 0899998888"
+                    value={memberPhone}
+                    onChange={(e) => handleLookupMember(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
                 </div>
-              )}
+                <div>
+                  <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-orange-500" />
+                    <span>ชื่อลูกค้า / สมาชิก</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="ชื่อลูกค้า (เช่น คุณสมศรี)"
+                    value={customerNameInput}
+                    onChange={(e) => setCustomerNameInput(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+
+              {/* Member Status Card */}
+              {memberData ? (
+                <div className="p-2.5 rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200/80 text-xs flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="font-black text-slate-900 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>สมาชิก: <span className="text-orange-600 font-extrabold">{memberData.name || 'คุณลูกค้า'}</span></span>
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      บิลนี้ได้รับเพิ่ม <strong className="text-emerald-600 font-black">+{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม</strong>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-black text-orange-600 bg-white border border-orange-200 px-2.5 py-1 rounded-lg shadow-sm block">
+                      ⭐ {memberData.points} แต้ม
+                    </span>
+                  </div>
+                </div>
+              ) : memberPhone.replace(/\D/g, '').length >= 9 ? (
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs flex items-center justify-between text-emerald-800 font-bold">
+                  <span>✨ ลูกค้าใหม่: จะบันทึกชื่อ &amp; สะสมแต้มทันที</span>
+                  <span className="text-emerald-600 font-black">+{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม</span>
+                </div>
+              ) : null}
             </div>
 
             {/* Segmented Discount / Promo / Loyalty Tabs */}
