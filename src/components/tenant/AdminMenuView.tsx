@@ -566,78 +566,95 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                 {items.map((item: any) => (
                   <div
                     key={item.id}
-                    className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border flex items-center justify-between gap-3 transition-all w-full ${
+                    className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all w-full shadow-xs hover:shadow-md ${
                       item.isAvailable
-                        ? 'bg-white border-slate-200 hover:border-orange-300'
-                        : 'bg-rose-50/50 border-rose-200'
+                        ? 'bg-white border-slate-200/90 hover:border-orange-300'
+                        : 'bg-rose-50/60 border-rose-200'
                     }`}
                   >
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      {item.imageUrl && (
+                    {/* Top Section: Food Image + Info (Name, Desc, Price) */}
+                    <div className="flex items-center space-x-3 w-full min-w-0">
+                      {item.imageUrl ? (
                         <img
                           src={formatImageUrl(item.imageUrl)}
                           alt={item.name}
-                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-slate-200 flex-shrink-0 bg-slate-100"
+                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200/80 flex-shrink-0 bg-slate-100 shadow-xs"
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                           }}
                         />
+                      ) : (
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-orange-50 border border-orange-200/60 flex items-center justify-center flex-shrink-0 text-orange-500 font-black text-xl shadow-xs">
+                          🍳
+                        </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-extrabold text-sm text-slate-900 truncate">{item.name}</h4>
-                          {item.options?.length > 0 && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200/60 flex-shrink-0">
-                              {item.options.length} ตัวเลือก
+                        <h4 className="font-extrabold text-sm sm:text-base text-slate-900 truncate tracking-tight">
+                          {item.name}
+                        </h4>
+                        {item.description && (
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5 font-medium">
+                            {item.description}
+                          </p>
+                        )}
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-base font-black text-orange-600">
+                            ฿{item.basePrice}
+                          </span>
+                          {!item.isAvailable && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-rose-100 text-rose-700 border border-rose-200/80">
+                              ของหมดชั่วคราว
                             </span>
                           )}
                         </div>
-                        <span className="text-sm font-black text-orange-600 block mt-0.5">
-                          ฿{item.basePrice}
-                        </span>
                       </div>
                     </div>
 
-                    {/* Actions: Options + Toggle Stock + Edit + Delete */}
-                    <div className="flex items-center space-x-1 sm:space-x-1.5 flex-shrink-0">
-                      {/* Options Button */}
+                    {/* Bottom Action Bar: [⚙️ ตัวเลือก (X)] + [✓ มีของ / ✕ ของหมด] + [✏️] + [🗑️] */}
+                    <div className="pt-2.5 border-t border-slate-100 flex items-center gap-1.5 w-full">
+                      {/* Options Button (Primary 1) */}
                       <button
                         onClick={() => openOptionsModal(item)}
                         title="จัดการตัวเลือก & ท็อปปิ้ง"
-                        className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[11px] sm:text-xs font-black flex items-center space-x-1 transition-all shadow-sm active:scale-95 cursor-pointer"
+                        className={`flex-1 py-2 px-2.5 rounded-xl border text-xs font-black flex items-center justify-center space-x-1.5 transition-all shadow-xs cursor-pointer active:scale-98 ${
+                          item.options?.length > 0
+                            ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300/80'
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                        }`}
                       >
-                        <Settings2 className="w-3.5 h-3.5 text-amber-600" />
-                        <span className="hidden sm:inline">ตัวเลือก</span>
-                        <span>{item.options?.length > 0 ? `(${item.options.length})` : ''}</span>
+                        <Settings2 className={`w-3.5 h-3.5 flex-shrink-0 ${item.options?.length > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
+                        <span className="truncate">
+                          ตัวเลือก {item.options?.length > 0 ? `(${item.options.length})` : '(0)'}
+                        </span>
                       </button>
 
-                      {/* 1-Click Out-of-Stock Toggle */}
+                      {/* 1-Click Out-of-Stock Toggle (Primary 2) */}
                       <button
                         onClick={() => handleToggleStock(item.id, item.isAvailable)}
                         title={item.isAvailable ? 'กดเพื่อปิด (ของหมด)' : 'กดเพื่อเปิด (มีของ)'}
-                        className={`px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-extrabold border transition-all flex items-center space-x-1 ${
+                        className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-extrabold border transition-all flex items-center justify-center space-x-1 shadow-xs cursor-pointer active:scale-98 ${
                           item.isAvailable
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
-                            : 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                            ? 'bg-emerald-50 hover:bg-rose-50 text-emerald-700 hover:text-rose-700 border-emerald-200 hover:border-rose-200'
+                            : 'bg-rose-600 hover:bg-emerald-600 text-white border-rose-600 shadow-sm'
                         }`}
                       >
-                        <span>{item.isAvailable ? '✓ มีของ' : '✕ ของหมด'}</span>
+                        <span className="truncate">{item.isAvailable ? '✓ มีของ' : '✕ ของหมด'}</span>
                       </button>
 
-                      {/* Edit Button */}
+                      {/* Edit Button (Icon) */}
                       <button
                         onClick={() => openEditModal(item)}
-                        title="แก้ไขเมนู"
-                        className="p-1.5 sm:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all"
+                        title="แก้ไขข้อมูลเมนู"
+                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center cursor-pointer flex-shrink-0"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
 
-                      {/* Delete Button */}
+                      {/* Delete Button (Icon) */}
                       <button
                         onClick={() => openDeleteModal(item)}
-                        title="ลบเมนู"
-                        className="p-1.5 sm:p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all"
+                        title="ลบเมนูนี้"
+                        className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 transition-all flex items-center justify-center cursor-pointer flex-shrink-0"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
