@@ -18,7 +18,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { categoryId, name, description, basePrice, imageUrl, isAvailable } = body;
+    const { categoryId, name, description, basePrice, imageUrl, isAvailable, options } = body;
 
     const existing = await prisma.menuItem.findFirst({
       where: { id: params.id, storeId: store.id },
@@ -26,6 +26,35 @@ export async function PUT(
 
     if (!existing) {
       return NextResponse.json({ error: 'ไม่พบเมนูอาหาร' }, { status: 404 });
+    }
+
+    // Update options if provided
+    if (options !== undefined && Array.isArray(options)) {
+      await prisma.menuOptionGroup.deleteMany({
+        where: { menuItemId: params.id },
+      });
+
+      for (const group of options) {
+        if (!group.title || !group.title.trim()) continue;
+        const validChoices = (group.choices || [])
+          .filter((c: any) => c.name && c.name.trim())
+          .map((choice: any) => ({
+            name: choice.name.trim(),
+            extraPrice: parseFloat(choice.extraPrice) || 0,
+          }));
+
+        await prisma.menuOptionGroup.create({
+          data: {
+            menuItemId: params.id,
+            title: group.title.trim(),
+            isRequired: Boolean(group.isRequired),
+            isMulti: Boolean(group.isMulti),
+            choices: {
+              create: validChoices,
+            },
+          },
+        });
+      }
     }
 
     const updatedItem = await prisma.menuItem.update({
