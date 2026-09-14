@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Award,
   CheckCircle2,
+  Download,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime } from '@/lib/utils';
 
@@ -91,6 +92,135 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
 
   const isSingleDay = startDate === endDate;
 
+  const handleDownloadCSV = () => {
+    if (!report) return;
+
+    const escapeCSV = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows: string[][] = [];
+
+    // Header info
+    const storeTitle = store?.storeName || store?.name || slug;
+    rows.push(['รายงานสรุปยอดขาย', storeTitle]);
+    rows.push(['ช่วงวันที่', startDate, 'ถึงวันที่', endDate]);
+    rows.push(['วันที่พิมพ์/ส่งออกข้อมูล', new Date().toLocaleString('th-TH')]);
+    rows.push([]);
+
+    // Overview KPIs
+    rows.push(['=== สรุปภาพรวม (Overview KPIs) ===']);
+    rows.push(['ยอดขายรวมสุทธิ (บาท)', String(report.totalSales || 0)]);
+    rows.push(['จำนวนบิลสำเร็จ (บิล)', String(report.totalBills || 0)]);
+    const avgBill = report.totalBills > 0 ? (report.totalSales / report.totalBills).toFixed(2) : '0.00';
+    rows.push(['ยอดขายเฉลี่ยต่อบิล (บาท)', avgBill]);
+    rows.push(['ต้นทุนวัตถุดิบ COGS (บาท)', (report.totalCost || 0).toFixed(2)]);
+    rows.push(['กำไรสุทธิ (บาท)', (report.grossProfit || 0).toFixed(2)]);
+    rows.push(['อัตรากำไร (%)', `${report.profitMargin || 0}%`]);
+    rows.push(['ยอดชำระพร้อมเพย์ (บาท)', String(report.promptPaySales || 0)]);
+    rows.push(['ยอดชำระเงินสด (บาท)', String(report.cashSales || 0)]);
+    if (report.totalGpDeducted > 0) {
+      rows.push(['หัก GP เดลิเวอรีรวม (บาท)', String(report.totalGpDeducted || 0)]);
+    }
+    rows.push([]);
+
+    // Sales by Channel
+    if (report.channelBreakdown) {
+      rows.push(['=== สรุปยอดขายแยกตามช่องทาง (Sales by Channel) ===']);
+      rows.push(['ช่องทาง', 'จำนวนออเดอร์', 'ยอดขายรวม (บาท)', 'ค่า GP ที่หัก (บาท)', 'ยอดสุทธิ (บาท)']);
+      const channelLabels: Record<string, string> = {
+        DINE_IN: 'ทานที่ร้าน (Dine-in)',
+        TAKEAWAY: 'สั่งกลับบ้าน (Takeaway)',
+        LINEMAN: 'LINE MAN',
+        GRAB: 'GrabFood',
+        SHOPEE_FOOD: 'ShopeeFood',
+        ROBINHOOD: 'Robinhood',
+      };
+      for (const [key, ch] of Object.entries(report.channelBreakdown as Record<string, any>)) {
+        if (ch.count > 0 || ['DINE_IN', 'TAKEAWAY', 'LINEMAN', 'GRAB', 'SHOPEE_FOOD'].includes(key)) {
+          rows.push([
+            channelLabels[key] || key,
+            String(ch.count || 0),
+            String(ch.gross || 0),
+            String(ch.gp || 0),
+            String(ch.net || 0),
+          ]);
+        }
+      }
+      rows.push([]);
+    }
+
+    // Daily Breakdown
+    if (report.dailyBreakdown && report.dailyBreakdown.length > 0) {
+      rows.push(['=== สรุปยอดขายแยกรายวัน (Daily Breakdown) ===']);
+      rows.push(['วันที่', 'จำนวนบิล', 'ยอดขายรวมสุทธิ (บาท)', 'ต้นทุนวัตถุดิบ (บาท)', 'กำไรสุทธิ (บาท)', 'พร้อมเพย์ (บาท)', 'เงินสด (บาท)']);
+      for (const day of report.dailyBreakdown) {
+        rows.push([
+          day.date,
+          String(day.bills || 0),
+          String(day.sales || 0),
+          (day.cost || 0).toFixed(2),
+          (day.profit || 0).toFixed(2),
+          String(day.promptPay || 0),
+          String(day.cash || 0),
+        ]);
+      }
+      rows.push([]);
+    }
+
+    // Top Selling Items
+    if (report.topSellingItems && report.topSellingItems.length > 0) {
+      rows.push(['=== เมนูขายดี (Top Sellers) ===']);
+      rows.push(['อันดับ', 'ชื่อเมนู', 'จำนวนจานที่ขายได้', 'ยอดขายรวม (บาท)']);
+      report.topSellingItems.forEach((item: any, idx: number) => {
+        rows.push([String(idx + 1), item.name, String(item.quantity), String(item.revenue || 0)]);
+      });
+      rows.push([]);
+    }
+
+    // Orders details
+    if (report.orders && report.orders.length > 0) {
+      rows.push(['=== รายการบิลทั้งหมด (All Orders) ===']);
+      rows.push(['ลำดับ', 'รหัสบิล', 'เวลาที่ชำระ', 'โต๊ะ/ช่องทาง', 'วิธีชำระ', 'ยอดขายสุทธิ (บาท)', 'ต้นทุน (บาท)', 'กำไร (บาท)', 'รายการสินค้า']);
+      report.orders.forEach((ord: any, idx: number) => {
+        const itemsSummary = (ord.items || [])
+          .map((it: any) => `${it.name || it.menuItem?.name || 'เมนู'} x${it.quantity}`)
+          .join(', ');
+        const timeStr = ord.paidAt || ord.createdAt ? new Date(ord.paidAt || ord.createdAt).toLocaleString('th-TH') : '-';
+        const tableName = ord.table?.name || (ord.tableId ? `โต๊ะ ${ord.tableId}` : (ord.orderChannel || ord.orderType || 'ทานที่ร้าน'));
+        const profit = (ord.netAmount - (ord.gpAmount || 0)) - (ord.costAmount || 0);
+
+        rows.push([
+          String(idx + 1),
+          ord.id.slice(-8).toUpperCase(),
+          timeStr,
+          tableName,
+          ord.paymentMethod === 'PROMPTPAY' ? 'PromptPay' : 'เงินสด',
+          String(ord.netAmount ?? ord.totalAmount ?? 0),
+          (ord.costAmount || 0).toFixed(2),
+          profit.toFixed(2),
+          itemsSummary,
+        ]);
+      });
+    }
+
+    // Prepend UTF-8 BOM so Excel opens Thai correctly
+    const csvContent = '\uFEFF' + rows.map((r) => r.map(escapeCSV).join(',')).join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeName = (storeTitle || 'report').replace(/[^a-zA-Z0-9ก-๙_-]/g, '_');
+    const filename = `รายงานยอดขาย_${safeName}_${startDate}${startDate !== endDate ? `_ถึง_${endDate}` : ''}.csv`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header */}
@@ -136,13 +266,27 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
               </div>
             </div>
 
-            <button
-              onClick={() => window.print()}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
-            >
-              <Printer className="w-4 h-4" />
-              <span>พิมพ์รายงาน</span>
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={handleDownloadCSV}
+                disabled={!report || loading}
+                className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                title="ดาวน์โหลดรายงานยอดขายเป็นไฟล์ Excel (CSV)"
+              >
+                <Download className="w-4 h-4" />
+                <span>ดาวน์โหลด</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap flex-shrink-0 active:scale-95"
+              >
+                <Printer className="w-4 h-4" />
+                <span>พิมพ์รายงาน</span>
+              </button>
+            </div>
           </div>
 
           {/* Compact Quick Preset Buttons Below */}

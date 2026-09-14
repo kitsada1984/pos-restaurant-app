@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Award,
   CheckCircle2,
+  Download,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime } from '@/lib/utils';
 
@@ -54,6 +55,70 @@ export default function ReportsPage() {
     window.print();
   };
 
+  const handleDownloadCSV = () => {
+    if (!report) return;
+
+    const escapeCSV = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows: string[][] = [];
+    const storeTitle = store?.storeName || store?.name || 'ร้านอาหารตามสั่ง';
+    rows.push(['รายงานยอดขาย & สรุปปิดกะประจำวัน', storeTitle]);
+    rows.push(['วันที่รายงาน', selectedDate]);
+    rows.push(['วันที่ส่งออกข้อมูล', new Date().toLocaleString('th-TH')]);
+    rows.push([]);
+
+    rows.push(['=== สรุปภาพรวม (Overview KPIs) ===']);
+    rows.push(['ยอดขายรวมสุทธิ (บาท)', String(report.totalSales || 0)]);
+    rows.push(['จำนวนบิลสำเร็จ (บิล)', String(report.orderCount || 0)]);
+    rows.push(['เฉลี่ยต่อบิล (บาท)', String(report.avgPerBill || 0)]);
+    rows.push(['ยอดเงินโอน PromptPay (บาท)', String(report.promptPaySales || 0)]);
+    rows.push(['จำนวนรายการ PromptPay', String(report.promptPayCount || 0)]);
+    rows.push(['ยอดเงินสดในลิ้นชัก (บาท)', String(report.cashSales || 0)]);
+    rows.push(['จำนวนรายการเงินสด', String(report.cashCount || 0)]);
+    rows.push([]);
+
+    if (report.topSellingItems && report.topSellingItems.length > 0) {
+      rows.push(['=== เมนูขายดีประจำวัน (Top Sellers) ===']);
+      rows.push(['อันดับ', 'ชื่อเมนู', 'จำนวนจานที่ขายได้']);
+      report.topSellingItems.forEach((item: any, idx: number) => {
+        rows.push([String(idx + 1), item.name, String(item.quantity)]);
+      });
+      rows.push([]);
+    }
+
+    if (report.recentBills && report.recentBills.length > 0) {
+      rows.push(['=== ประวัติบิลที่ชำระแล้ว (Recent Bills) ===']);
+      rows.push(['รหัสบิล', 'เวลา', 'โต๊ะ', 'ช่องทางชำระ', 'ยอดสุทธิ (บาท)']);
+      report.recentBills.forEach((bill: any) => {
+        const timeStr = bill.paidAt || bill.createdAt ? new Date(bill.paidAt || bill.createdAt).toLocaleString('th-TH') : '-';
+        const tableName = bill.table?.name || `โต๊ะ ${bill.tableId}`;
+        rows.push([
+          bill.id.slice(-8).toUpperCase(),
+          timeStr,
+          tableName,
+          bill.paymentMethod === 'PROMPTPAY' ? 'PromptPay' : 'เงินสด',
+          String(bill.netAmount || 0),
+        ]);
+      });
+    }
+
+    const csvContent = '\uFEFF' + rows.map((r) => r.map(escapeCSV).join(',')).join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const filename = `รายงานปิดกะ_${selectedDate}.csv`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       <Navbar />
@@ -82,6 +147,16 @@ export default function ReportsPage() {
                 className="bg-transparent font-semibold text-slate-700 focus:outline-none"
               />
             </div>
+
+            <button
+              onClick={handleDownloadCSV}
+              disabled={!report || loading}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center space-x-1.5 shadow active:scale-95 transition-all"
+              title="ดาวน์โหลดรายงานเป็นไฟล์ Excel (CSV)"
+            >
+              <Download className="w-4 h-4" />
+              <span>ดาวน์โหลด</span>
+            </button>
 
             <button
               onClick={handlePrintDailyShift}
