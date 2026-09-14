@@ -128,6 +128,17 @@ export async function POST(
 
     const incomingAmount = parsed.amount;
 
+    // ตรวจสอบช่องทางการแจ้งเตือน (Email ผ่าน Gmail/Google Cloud หรือ App Notification ผ่าน MacroDroid)
+    const isEmail =
+      sender.includes('@') ||
+      sender.toLowerCase().includes('mail') ||
+      title.toLowerCase().includes('mail') ||
+      title.toLowerCase().includes('alert') ||
+      title.toLowerCase().includes('แจ้งเตือน') ||
+      rawText.toLowerCase().includes('from:') ||
+      rawText.toLowerCase().includes('subject:');
+    const channel: 'EMAIL' | 'NOTIFICATION' = isEmail ? 'EMAIL' : 'NOTIFICATION';
+
     // 3.1 ป้องกันการส่ง Webhook ซ้ำซ้อน (Replay / Duplicate Webhook Protection ภายใน 30 วินาที)
     const recentDuplicate = await prisma.bankNotificationLog.findFirst({
       where: {
@@ -308,6 +319,9 @@ export async function POST(
           orderCount: updatedOrders.length,
           orders: updatedOrders,
           logId: logRecord.id,
+          channel,
+          sender: sender || title || 'Email ธนาคาร',
+          title: title || 'แจ้งเตือนเงินเข้า',
         },
         store.id
       );
@@ -355,6 +369,9 @@ export async function POST(
             },
           ],
           logId: logRecord.id,
+          channel,
+          sender: sender || title || 'Email ธนาคาร',
+          title: title || 'แจ้งเตือนเงินเข้า',
         },
         store.id
       );
@@ -396,6 +413,9 @@ export async function POST(
             orderIds: c.orders.map((o) => o.id),
           })),
           logId: logRecord.id,
+          channel,
+          sender: sender || title || 'Email ธนาคาร',
+          title: title || 'แจ้งเตือนเงินเข้า',
         },
         store.id
       );
@@ -435,6 +455,9 @@ export async function POST(
           bankName: parsed.bankName,
           rawText: parsed.rawText,
           logId: logRecord.id,
+          channel,
+          sender: sender || title || 'Email ธนาคาร',
+          title: title || 'แจ้งเตือนเงินเข้า',
         },
         store.id
       );
