@@ -16,20 +16,60 @@ import {
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime } from '@/lib/utils';
 
+const getBangkokToday = () => {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+};
+
+const getPastDateStr = (daysAgo: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d);
+};
+
+const PRESETS = [
+  { id: '1d', label: '1 วัน', days: 0 },
+  { id: '7d', label: '7 วัน', days: 6 },
+  { id: '30d', label: '30 วัน', days: 29 },
+  { id: '3m', label: '3 เดือน', days: 89 },
+  { id: '6m', label: '6 เดือน', days: 179 },
+];
+
 export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }) {
   const [report, setReport] = useState<any>(null);
   const [store, setStore] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Date Range State (Bangkok Timezone UTC+7)
+  const [startDate, setStartDate] = useState(getBangkokToday());
+  const [endDate, setEndDate] = useState(getBangkokToday());
+  const [activePreset, setActivePreset] = useState<string>('1d');
 
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+
+  const applyPreset = (presetId: string, days: number) => {
+    setActivePreset(presetId);
+    const today = getBangkokToday();
+    const past = getPastDateStr(days);
+    setStartDate(past);
+    setEndDate(today);
+  };
+
+  const handleStartDateChange = (val: string) => {
+    setStartDate(val);
+    setActivePreset('custom');
+  };
+
+  const handleEndDateChange = (val: string) => {
+    setEndDate(val);
+    setActivePreset('custom');
+  };
 
   const fetchReport = async () => {
     try {
       setLoading(true);
       const [repRes, settingsRes] = await Promise.all([
-        fetch(`/api/r/${slug}/reports/daily?date=${selectedDate}`),
+        fetch(`/api/r/${slug}/reports/daily?startDate=${startDate}&endDate=${endDate}`),
         fetch(`/api/r/${slug}/settings`),
       ]);
       const [repData, sData] = await Promise.all([
@@ -47,43 +87,106 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
 
   useEffect(() => {
     fetchReport();
-  }, [slug, selectedDate]);
+  }, [slug, startDate, endDate]);
+
+  const isSingleDay = startDate === endDate;
 
   return (
     <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm no-print w-full">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm no-print w-full">
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              รายงานยอดขาย &amp; ปิดกะประจำวัน
+              {isSingleDay
+                ? 'รายงานยอดขาย & ปิดกะประจำวัน'
+                : 'รายงานสรุปยอดขาย (ช่วงเวลา)'}
             </h1>
           </div>
           <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
-            ร้าน: <span className="font-bold text-slate-800">{store?.storeName || store?.name || slug}</span> • สรุปยอดขายประจำวัน สัดส่วนเงินสด vs พร้อมเพย์ และประวัติบิล
+            ร้าน: <span className="font-bold text-slate-800">{store?.storeName || store?.name || slug}</span> •{' '}
+            {isSingleDay
+              ? `วันที่ ${new Date(startDate + 'T00:00:00').toLocaleDateString('th-TH', { dateStyle: 'long' })}`
+              : `ช่วงวันที่ ${new Date(startDate + 'T00:00:00').toLocaleDateString('th-TH', { dateStyle: 'short' })} ถึง ${new Date(endDate + 'T00:00:00').toLocaleDateString('th-TH', { dateStyle: 'short' })}`}
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="p-2 sm:p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-slate-50 w-full sm:w-auto"
-          />
+        <div className="flex flex-col gap-2 w-full lg:w-auto">
+          {/* Main Row: [จาก: วันที่] ➔ [ถึง: วันที่] + ปุ่มพิมพ์รายงาน */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+            <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-300 w-full sm:w-auto shadow-2xs">
+              <div className="flex items-center gap-1 min-w-0 flex-1 sm:flex-none">
+                <span className="text-[10px] sm:text-xs text-slate-400 font-bold pl-1 whitespace-nowrap">จาก</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  className="p-1 rounded-lg border-none text-xs font-bold text-slate-700 bg-transparent focus:ring-0 focus:outline-none w-full sm:w-auto"
+                />
+              </div>
+              <span className="text-slate-400 font-bold text-xs flex-shrink-0">➔</span>
+              <div className="flex items-center gap-1 min-w-0 flex-1 sm:flex-none">
+                <span className="text-[10px] sm:text-xs text-slate-400 font-bold whitespace-nowrap">ถึง</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => handleEndDateChange(e.target.value)}
+                  className="p-1 rounded-lg border-none text-xs font-bold text-slate-700 bg-transparent focus:ring-0 focus:outline-none w-full sm:w-auto"
+                />
+              </div>
+            </div>
 
-          <button
-            onClick={() => window.print()}
-            className="w-full sm:w-auto px-4 py-2 sm:py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all"
-          >
-            <Printer className="w-4 h-4" />
-            <span>พิมพ์รายงานปิดกะ</span>
-          </button>
+            <button
+              onClick={() => window.print()}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap flex-shrink-0"
+            >
+              <Printer className="w-4 h-4" />
+              <span>พิมพ์รายงาน</span>
+            </button>
+          </div>
+
+          {/* Compact Quick Preset Buttons Below */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 max-w-full">
+            {PRESETS.map((preset) => {
+              const isActive = activePreset === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyPreset(preset.id, preset.days)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer shadow-xs active:scale-95 flex-shrink-0 ${
+                    isActive
+                      ? 'bg-orange-600 text-white shadow-orange-600/20'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+            {activePreset === 'custom' && (
+              <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap flex-shrink-0">
+                กำหนดเอง
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Printable Report Container (Bug #10) */}
       <div id="printable-report" className="space-y-3.5 sm:space-y-6">
+        {/* Print-only Header */}
+        <div className="hidden print:block pb-4 border-b border-slate-200 mb-4">
+          <h2 className="text-xl font-black text-slate-900">{store?.storeName || store?.name || slug}</h2>
+          <p className="text-xs text-slate-600 font-bold mt-1">
+            {isSingleDay
+              ? `รายงานยอดขาย & ปิดกะประจำวัน: ${new Date(startDate + 'T00:00:00').toLocaleDateString('th-TH', { dateStyle: 'long' })}`
+              : `รายงานสรุปยอดขาย: ${new Date(startDate + 'T00:00:00').toLocaleDateString('th-TH', { dateStyle: 'long' })} ถึง ${new Date(endDate + 'T00:00:00').toLocaleDateString('th-TH', { dateStyle: 'long' })}`}
+          </p>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            พิมพ์เมื่อ: {new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+          </p>
+        </div>
         {/* Enterprise KPI Cards (Equal Height Grid) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 auto-rows-fr w-full">
         <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-1.5 sm:space-y-2 flex flex-col justify-between h-full">
@@ -176,13 +279,79 @@ export default function AdminReportsView({ slug = 'lung-pa' }: { slug?: string }
         </div>
       )}
 
+      {/* Daily Breakdown Table (Shown when date range has multiple days) */}
+      {report?.dailyBreakdown && report.dailyBreakdown.length > 0 && !isSingleDay && (
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm space-y-3 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
+            <h3 className="font-extrabold text-sm text-slate-900 flex items-center space-x-2">
+              <BarChart3 className="w-4 h-4 text-orange-500" />
+              <span>📊 สรุปยอดขายแยกรายวัน (Daily Breakdown • {report.dailyBreakdown.length} วันที่มีการขาย)</span>
+            </h3>
+            <span className="text-[11px] text-slate-400 font-bold">
+              เฉลี่ย ฿{report.dailyBreakdown.length > 0 ? Math.round(report.totalSales / report.dailyBreakdown.length).toLocaleString() : 0} / วัน
+            </span>
+          </div>
+
+          <div className="overflow-x-auto w-full max-w-full">
+            <table className="w-full text-left text-xs min-w-[620px]">
+              <thead className="text-slate-400 font-bold border-b border-slate-100 bg-slate-50/50">
+                <tr className="whitespace-nowrap">
+                  <th className="py-2.5 px-3">วันที่</th>
+                  <th className="py-2.5 px-3 text-center">จำนวนบิล</th>
+                  <th className="py-2.5 px-3 text-right">ยอดขายรวมสุทธิ</th>
+                  <th className="py-2.5 px-3 text-right">ต้นทุนวัตถุดิบ</th>
+                  <th className="py-2.5 px-3 text-right">กำไรสุทธิ</th>
+                  <th className="py-2.5 px-3 text-right">สัดส่วนชำระเงิน</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                {report.dailyBreakdown.map((day: any) => {
+                  const dateFormatted = new Date(day.date + 'T00:00:00').toLocaleDateString('th-TH', {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  });
+
+                  return (
+                    <tr key={day.date} className="hover:bg-slate-50/80 whitespace-nowrap transition-colors">
+                      <td className="py-2.5 px-3 font-bold text-slate-900">
+                        {dateFormatted}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold text-slate-600">
+                        {day.bills} บิล
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-black text-slate-900">
+                        ฿{day.sales.toLocaleString()}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-amber-600 font-bold">
+                        ฿{day.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-black text-emerald-600">
+                        ฿{day.profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-[11px]">
+                        <span className="text-orange-600 font-bold">พร้อมเพย์: ฿{day.promptPay.toLocaleString()}</span>
+                        {day.cash > 0 && (
+                          <span className="text-emerald-600 font-bold ml-2">เงินสด: ฿{day.cash.toLocaleString()}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Top Sellers & Recent Bills */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
         {/* Top 10 Best Sellers */}
         <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm space-y-3 sm:space-y-4 w-full">
           <h3 className="font-extrabold text-sm text-slate-900 flex items-center space-x-2">
             <Award className="w-4 h-4 text-orange-500" />
-            <span>เมนูขายดีประจำวัน (Top Sellers)</span>
+            <span>เมนูขายดี (Top Sellers)</span>
           </h3>
 
           <div className="divide-y divide-slate-100 space-y-2">

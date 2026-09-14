@@ -15,20 +15,24 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
+    const startDateParam = searchParams.get('startDate') || dateParam;
+    const endDateParam = searchParams.get('endDate') || startDateParam;
 
-    // Bug #14: Calculate day boundaries in Thailand timezone (UTC+7 / Asia/Bangkok)
+    // Calculate day boundaries in Thailand timezone (UTC+7 / Asia/Bangkok)
     const bangkokDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
-    const cleanDateStr = dateParam ? dateParam.slice(0, 10) : bangkokDateStr;
-    const startOfDay = new Date(`${cleanDateStr}T00:00:00+07:00`);
-    const endOfDay = new Date(`${cleanDateStr}T23:59:59.999+07:00`);
+    const cleanStartDate = startDateParam ? startDateParam.slice(0, 10) : bangkokDateStr;
+    const cleanEndDate = endDateParam ? endDateParam.slice(0, 10) : cleanStartDate;
+
+    const startOfPeriod = new Date(`${cleanStartDate}T00:00:00+07:00`);
+    const endOfPeriod = new Date(`${cleanEndDate}T23:59:59.999+07:00`);
 
     const paidOrders = await prisma.order.findMany({
       where: {
         storeId: store.id,
         paymentStatus: 'PAID',
         paidAt: {
-          gte: startOfDay,
-          lte: endOfDay,
+          gte: startOfPeriod,
+          lte: endOfPeriod,
         },
       },
       include: {
@@ -68,6 +72,19 @@ export async function GET(
 
     const itemCounts: { [name: string]: { quantity: number; revenue: number } } = {};
 
+    // Grouping for Daily Breakdown
+    const dailyMap: {
+      [dateKey: string]: {
+        date: string;
+        sales: number;
+        bills: number;
+        cost: number;
+        profit: number;
+        cash: number;
+        promptPay: number;
+      };
+    } = {};
+
     paidOrders.forEach((order) => {
       const ch = (order.orderChannel || (order.orderType === 'TAKEAWAY' ? 'TAKEAWAY' : 'DINE_IN')) as keyof typeof channels;
       if (channels[ch]) {
@@ -90,7 +107,40 @@ export async function GET(
         itemCounts[item.name].quantity += item.quantity;
         itemCounts[item.name].revenue += item.price * item.quantity;
       });
+
+      // Daily Breakdown
+      const orderDateStr = order.paidAt
+        ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date(order.paidAt))
+        : cleanStartDate;
+
+      if (!dailyMap[orderDateStr]) {
+        dailyMap[orderDateStr] = {
+          date: orderDateStr,
+          sales: 0,
+          bills: 0,
+          cost: 0,
+          profit: 0,
+          cash: 0,
+          promptPay: 0,
+        };
+      }
+
+      const day = dailyMap[orderDateStr];
+      day.sales += order.netAmount;
+      day.bills += 1;
+      day.cost += order.costAmount || 0;
+      day.profit += (order.netAmount - (order.gpAmount || 0)) - (order.costAmount || 0);
+
+      if (order.paymentMethod === 'CASH') {
+        day.cash += order.netAmount;
+      } else {
+        day.promptPay += order.netAmount;
+      }
     });
+
+    const dailyBreakdown = Object.values(dailyMap).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
 
     const topSellingItems = Object.entries(itemCounts)
       .map(([name, data]) => ({
@@ -102,7 +152,10 @@ export async function GET(
       .slice(0, 10);
 
     return NextResponse.json({
-      date: startOfDay.toISOString().split('T')[0],
+      startDate: cleanStartDate,
+      endDate: cleanEndDate,
+      date: cleanStartDate === cleanEndDate ? cleanStartDate : `${cleanStartDate} - ${cleanEndDate}`,
+      isDateRange: cleanStartDate !== cleanEndDate,
       totalSales,
       totalBills,
       totalCost,
@@ -116,6 +169,7 @@ export async function GET(
       cashSales,
       promptPaySales,
       channelBreakdown: channels,
+      dailyBreakdown,
       topSellingItems,
       orders: paidOrders,
     });
