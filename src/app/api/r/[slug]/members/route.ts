@@ -70,7 +70,7 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
-    const { phone, name, action, pointsDelta, pointsRate, pointValue } = body;
+    const { phone, name, action, pointsDelta, points, pointsRate, pointValue } = body;
 
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
@@ -99,6 +99,39 @@ export async function POST(
     if (!phone) return NextResponse.json({ error: 'กรุณาระบุเบอร์โทรศัพท์' }, { status: 400 });
 
     const cleanPhone = phone.replace(/\D/g, '');
+
+    // Create new member manually from Admin
+    if (action === 'CREATE_MEMBER') {
+      try {
+        await requireStoreAccess(params.slug);
+      } catch {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      const existing = await prisma.customerMember.findUnique({
+        where: {
+          storeId_phone: {
+            storeId: store.id,
+            phone: cleanPhone,
+          },
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json({ error: 'เบอร์โทรศัพท์นี้มีในระบบแล้ว' }, { status: 400 });
+      }
+
+      const member = await prisma.customerMember.create({
+        data: {
+          storeId: store.id,
+          phone: cleanPhone,
+          name: name ? name.trim() : 'ลูกค้าทั่วไป',
+          points: parseInt(points) || 0,
+        },
+      });
+
+      return NextResponse.json({ success: true, member });
+    }
 
     // Adjust points manually
     if (action === 'ADJUST_POINTS' && pointsDelta !== undefined) {
@@ -153,5 +186,108 @@ export async function POST(
     return NextResponse.json({ success: true, member });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  request: Request,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    try {
+      await requireStoreAccess(params.slug);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { slug: params.slug },
+      select: { id: true },
+    });
+
+    if (!store) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+
+    const body = await request.json();
+    const { id, phone, name, points } = body;
+
+    if (!id && !phone) {
+      return NextResponse.json({ error: 'Missing member id or phone' }, { status: 400 });
+    }
+
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : undefined;
+
+    // If changing phone, verify it doesn't conflict with another member in the same store
+    if (id && cleanPhone) {
+      const conflict = await prisma.customerMember.findFirst({
+        where: {
+          storeId: store.id,
+          phone: cleanPhone,
+          id: { not: id },
+        },
+      });
+      if (conflict) {
+        return NextResponse.json({ error: 'เบอร์โทรศัพท์นี้ถูกใช้งานโดยสมาชิกท่านอื่นแล้ว' }, { status: 400 });
+      }
+    }
+
+    const member = await prisma.customerMember.update({
+      where: id ? { id } : { storeId_phone: { storeId: store.id, phone: cleanPhone! } },
+      data: {
+        ...(name !== undefined && { name: name.trim() || 'ลูกค้าทั่วไป' }),
+        ...(cleanPhone !== undefined && { phone: cleanPhone }),
+        ...(points !== undefined && { points: Math.max(0, parseInt(points) || 0) }),
+      },
+    });
+
+    return NextResponse.json({ success: true, member });
+  } catch (error: any) {
+    console.error('Error updating member:', error);
+    return NextResponse.json({ error: error.message || 'Failed to update member' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    try {
+      await requireStoreAccess(params.slug);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { slug: params.slug },
+      select: { id: true },
+    });
+
+    if (!store) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const phone = searchParams.get('phone');
+
+    if (!id && !phone) {
+      return NextResponse.json({ error: 'Missing member id or phone' }, { status: 400 });
+    }
+
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : undefined;
+
+    const deleteResult = await prisma.customerMember.deleteMany({
+      where: {
+        storeId: store.id,
+        ...(id ? { id } : { phone: cleanPhone }),
+      },
+    });
+
+    if (deleteResult.count === 0) {
+      return NextResponse.json({ error: 'ไม่พบสมาชิกที่ต้องการลบ' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting member:', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete member' }, { status: 500 });
   }
 }

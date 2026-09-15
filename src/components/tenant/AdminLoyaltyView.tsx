@@ -51,6 +51,14 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
   const [rewardDescription, setRewardDescription] = useState('');
   const [savingReward, setSavingReward] = useState(false);
 
+  // Modal State: Member Create / Edit
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [memberPhoneInput, setMemberPhoneInput] = useState('');
+  const [memberNameInput, setMemberNameInput] = useState('');
+  const [memberPointsInput, setMemberPointsInput] = useState('0');
+  const [savingMember, setSavingMember] = useState(false);
+
   // Modal State: Adjust Points
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
@@ -60,6 +68,7 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
 
   // Modal State: Promo Code
   const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+  const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [promoTitle, setPromoTitle] = useState('');
   const [promoDiscountType, setPromoDiscountType] = useState<'FIXED' | 'PERCENT'>('FIXED');
@@ -183,9 +192,28 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
     }
   };
 
+  // Toggle Reward Active
+  const handleToggleRewardActive = async (id: string, currentActive: boolean) => {
+    try {
+      const res = await fetch(`/api/r/${slug}/rewards`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isActive: !currentActive }),
+      });
+      if (res.ok) {
+        showSuccess(currentActive ? 'ปิดให้แลกของรางวัลชั่วคราวแล้ว' : 'เปิดให้แลกของรางวัลแล้ว 🎉');
+        fetchData();
+      } else {
+        showError('ไม่สามารถเปลี่ยนสถานะของรางวัลได้');
+      }
+    } catch (e) {
+      showError('เกิดข้อผิดพลาด');
+    }
+  };
+
   // Delete Reward
-  const handleDeleteReward = async (id: string) => {
-    if (!confirm('ยืนยันลบของรางวัลแลกแต้มนี้?')) return;
+  const handleDeleteReward = async (id: string, title?: string) => {
+    if (!confirm(`ยืนยันลบของรางวัลแลกแต้ม "${title || 'นี้'}"?`)) return;
     try {
       const res = await fetch(`/api/r/${slug}/rewards?id=${id}`, {
         method: 'DELETE',
@@ -198,6 +226,96 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
       }
     } catch (e) {
       showError('เกิดข้อผิดพลาด');
+    }
+  };
+
+  // Open Create / Edit Member Modal
+  const openMemberModal = (member?: any) => {
+    if (member) {
+      setEditingMemberId(member.id);
+      setMemberPhoneInput(member.phone);
+      setMemberNameInput(member.name || '');
+      setMemberPointsInput((member.points || 0).toString());
+    } else {
+      setEditingMemberId(null);
+      setMemberPhoneInput('');
+      setMemberNameInput('');
+      setMemberPointsInput('0');
+    }
+    setIsMemberModalOpen(true);
+  };
+
+  // Save (Create or Update) Member
+  const handleSaveMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanPhone = memberPhoneInput.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 9) {
+      showWarning('กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง (9-10 หลัก)');
+      return;
+    }
+    setSavingMember(true);
+    try {
+      if (editingMemberId) {
+        const res = await fetch(`/api/r/${slug}/members`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingMemberId,
+            phone: cleanPhone,
+            name: memberNameInput.trim() || 'ลูกค้าทั่วไป',
+            points: parseInt(memberPointsInput) || 0,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showSuccess('แก้ไขข้อมูลสมาชิกสำเร็จ 🎉', `คุณ ${memberNameInput || cleanPhone}`);
+          setIsMemberModalOpen(false);
+          fetchData();
+        } else {
+          showError(data.error || 'ไม่สามารถแก้ไขข้อมูลสมาชิกได้');
+        }
+      } else {
+        const res = await fetch(`/api/r/${slug}/members`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'CREATE_MEMBER',
+            phone: cleanPhone,
+            name: memberNameInput.trim() || 'ลูกค้าทั่วไป',
+            points: parseInt(memberPointsInput) || 0,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showSuccess('เพิ่มสมาชิกใหม่สำเร็จ 🎉', `คุณ ${memberNameInput || cleanPhone} (${memberPointsInput} แต้ม)`);
+          setIsMemberModalOpen(false);
+          fetchData();
+        } else {
+          showError(data.error || 'ไม่สามารถเพิ่มสมาชิกได้');
+        }
+      }
+    } catch (e) {
+      showError('เกิดข้อผิดพลาดในการบันทึกข้อมูลสมาชิก');
+    } finally {
+      setSavingMember(false);
+    }
+  };
+
+  // Delete Member
+  const handleDeleteMember = async (member: any) => {
+    if (!confirm(`ยืนยันลบสมาชิก "${member.name || member.phone}" ออกจากระบบ?`)) return;
+    try {
+      const res = await fetch(`/api/r/${slug}/members?id=${member.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        showSuccess('ลบสมาชิกเรียบร้อย 🗑️', member.name || member.phone);
+        fetchData();
+      } else {
+        showError('ไม่สามารถลบสมาชิกได้');
+      }
+    } catch (e) {
+      showError('เกิดข้อผิดพลาดในการลบสมาชิก');
     }
   };
 
@@ -232,33 +350,60 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
     }
   };
 
-  // Create Promo Code
-  const handleCreatePromo = async (e: React.FormEvent) => {
+  // Open Promo Modal (Create or Edit)
+  const openPromoModal = (promo?: any) => {
+    if (promo) {
+      setEditingPromoId(promo.id);
+      setPromoCode(promo.code);
+      setPromoTitle(promo.title);
+      setPromoDiscountType(promo.discountType || 'FIXED');
+      setPromoDiscountValue((promo.discountValue || 0).toString());
+      setPromoMinSpend((promo.minSpend || 0).toString());
+    } else {
+      setEditingPromoId(null);
+      setPromoCode('');
+      setPromoTitle('');
+      setPromoDiscountType('FIXED');
+      setPromoDiscountValue('');
+      setPromoMinSpend('0');
+    }
+    setIsPromoModalOpen(true);
+  };
+
+  // Create / Update Promo Code
+  const handleSavePromo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!promoCode || !promoTitle || !promoDiscountValue) return;
     setSavingPromo(true);
     try {
+      const cleanCode = promoCode.toUpperCase().trim();
+      const method = editingPromoId ? 'PUT' : 'POST';
+      const bodyPayload: any = {
+        code: cleanCode,
+        title: promoTitle.trim(),
+        discountType: promoDiscountType,
+        discountValue: parseFloat(promoDiscountValue) || 0,
+        minSpend: parseFloat(promoMinSpend) || 0,
+      };
+      if (editingPromoId) {
+        bodyPayload.id = editingPromoId;
+      }
+
       const res = await fetch(`/api/r/${slug}/promotions`, {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: promoCode,
-          title: promoTitle,
-          discountType: promoDiscountType,
-          discountValue: parseFloat(promoDiscountValue),
-          minSpend: parseFloat(promoMinSpend) || 0,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
+      const data = await res.json();
       if (res.ok) {
-        showSuccess('สร้างคูปองส่วนลดสำเร็จ 🎉', `โค้ด "${promoCode}" พร้อมใช้งานแล้ว`);
+        showSuccess(
+          editingPromoId ? 'แก้ไขคูปองส่วนลดสำเร็จ 🎉' : 'สร้างคูปองส่วนลดสำเร็จ 🎉',
+          `โค้ด "${cleanCode}" พร้อมใช้งานแล้ว`
+        );
         setIsPromoModalOpen(false);
-        setPromoCode('');
-        setPromoTitle('');
-        setPromoDiscountValue('');
-        setPromoMinSpend('0');
         fetchData();
       } else {
-        showError('ไม่สามารถสร้างคูปองได้', 'โค้ดส่วนลดนี้อาจมีอยู่แล้ว');
+        showError('ไม่สามารถบันทึกคูปองได้', data.error || 'โค้ดส่วนลดนี้อาจมีอยู่แล้ว');
       }
     } catch (e) {
       showError('เกิดข้อผิดพลาด');
@@ -267,9 +412,28 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
     }
   };
 
+  // Toggle Promo Active Status
+  const handleTogglePromoActive = async (id: string, currentActive: boolean) => {
+    try {
+      const res = await fetch(`/api/r/${slug}/promotions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isActive: !currentActive }),
+      });
+      if (res.ok) {
+        showSuccess(currentActive ? 'ปิดใช้งานคูปองชั่วคราวแล้ว' : 'เปิดใช้งานคูปองแล้ว 🎉');
+        fetchData();
+      } else {
+        showError('ไม่สามารถเปลี่ยนสถานะคูปองได้');
+      }
+    } catch (e) {
+      showError('เกิดข้อผิดพลาด');
+    }
+  };
+
   // Delete Promo
-  const handleDeletePromo = async (id: string) => {
-    if (!confirm('ยืนยันลบคูปองส่วนลดนี้?')) return;
+  const handleDeletePromo = async (id: string, code?: string) => {
+    if (!confirm(`ยืนยันลบคูปองส่วนลด "${code || 'นี้'}"?`)) return;
     try {
       const res = await fetch(`/api/r/${slug}/promotions?id=${id}`, {
         method: 'DELETE',
@@ -309,17 +473,27 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
           {activeTab === 'rewards' && (
             <button
               onClick={() => openRewardModal()}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 transition-all active:scale-95"
             >
               <Plus className="w-4 h-4" />
               + เพิ่มของรางวัลแลกแต้ม
             </button>
           )}
 
+          {activeTab === 'members' && (
+            <button
+              onClick={() => openMemberModal()}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 transition-all active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              + เพิ่มสมาชิกใหม่
+            </button>
+          )}
+
           {activeTab === 'promotions' && (
             <button
-              onClick={() => setIsPromoModalOpen(true)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 transition-all"
+              onClick={() => openPromoModal()}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 transition-all active:scale-95"
             >
               <Plus className="w-4 h-4" />
               + สร้างคูปองส่วนลดใหม่
@@ -486,9 +660,19 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
                           <Award className="w-3.5 h-3.5 text-orange-600" />
                           {r.pointsRequired} แต้ม
                         </span>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${r.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                          {r.isActive ? 'เปิดให้แลก' : 'ปิดชั่วคราว'}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRewardActive(r.id, r.isActive)}
+                          title="คลิกเพื่อเปิด/ปิดการแลกรางวัล"
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                            r.isActive
+                              ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-300'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-300'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${r.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                          <span>{r.isActive ? 'เปิดให้แลก' : 'ปิดชั่วคราว'}</span>
+                        </button>
                       </div>
 
                       <div>
@@ -527,21 +711,23 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
                       </div>
                     </div>
 
-                    <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
+                    <div className="pt-3.5 mt-3.5 border-t border-slate-100 grid grid-cols-2 gap-2">
                       <button
+                        type="button"
                         onClick={() => openRewardModal(r)}
-                        className="text-slate-600 hover:text-orange-600 text-xs font-bold flex items-center gap-1 transition-colors"
+                        className="py-2 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-xs"
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        แก้ไข
+                        <Edit2 className="w-3.5 h-3.5 text-orange-600" />
+                        <span>แก้ไข</span>
                       </button>
 
                       <button
-                        onClick={() => handleDeleteReward(r.id)}
-                        className="text-slate-400 hover:text-red-500 text-xs font-bold flex items-center gap-1 transition-colors"
+                        type="button"
+                        onClick={() => handleDeleteReward(r.id, r.title)}
+                        className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-xs"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        ลบ
+                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                        <span>ลบ</span>
                       </button>
                     </div>
                   </div>
@@ -566,8 +752,18 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
                 className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
-            <div className="text-xs text-slate-500 font-medium">
-              แสดงสมาชิกทั้งหมด <strong>{filteredMembers.length}</strong> คน
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="text-xs text-slate-500 font-medium">
+                แสดงสมาชิกทั้งหมด <strong>{filteredMembers.length}</strong> คน
+              </div>
+              <button
+                type="button"
+                onClick={() => openMemberModal()}
+                className="px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition-all active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ เพิ่มสมาชิกใหม่</span>
+              </button>
             </div>
           </div>
 
@@ -581,7 +777,7 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
                   <th className="py-3 sm:py-4 px-4 sm:px-6">ยอดซื้อสะสม</th>
                   <th className="py-3 sm:py-4 px-4 sm:px-6">จำนวนครั้ง</th>
                   <th className="py-3 sm:py-4 px-4 sm:px-6">วันที่สมัคร</th>
-                  <th className="py-3 sm:py-4 px-4 sm:px-6 text-center">จัดการแต้ม</th>
+                  <th className="py-3 sm:py-4 px-4 sm:px-6 text-center">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
@@ -607,17 +803,41 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
                       {new Date(m.createdAt).toLocaleDateString('th-TH')}
                     </td>
                     <td className="py-3 sm:py-4 px-4 sm:px-6 text-center">
-                      <button
-                        onClick={() => {
-                          setSelectedMember(m);
-                          setAdjustPointsDelta('10');
-                          setAdjustReason('');
-                          setIsAdjustModalOpen(true);
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs transition-colors"
-                      >
-                        +/- ปรับแต้ม
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedMember(m);
+                            setAdjustPointsDelta('10');
+                            setAdjustReason('');
+                            setIsAdjustModalOpen(true);
+                          }}
+                          title="ปรับแต้มสะสม (+/-)"
+                          className="px-2.5 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 font-bold text-xs transition-colors flex items-center gap-1 shadow-xs"
+                        >
+                          <Sliders className="w-3 h-3 text-orange-600" />
+                          <span>+/- แต้ม</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openMemberModal(m)}
+                          title="แก้ไขข้อมูลสมาชิก"
+                          className="px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-bold text-xs transition-colors flex items-center gap-1 shadow-xs"
+                        >
+                          <Edit2 className="w-3 h-3 text-sky-600" />
+                          <span>แก้ไข</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMember(m)}
+                          title="ลบสมาชิก"
+                          className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors shadow-xs"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -629,49 +849,91 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
 
       {/* TAB 3: Promotions */}
       {activeTab === 'promotions' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {promotions.map((p) => (
-            <div
-              key={p.id}
-              className="p-5 bg-white rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-xl text-xs font-black bg-orange-100 text-orange-700 tracking-wider">
-                    {p.code}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700">
-                    เปิดใช้งาน
-                  </span>
-                </div>
-
-                <h3 className="font-extrabold text-slate-900 text-base">{p.title}</h3>
-
-                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-medium">มูลค่าส่วนลด</span>
-                  <span className="text-lg font-black text-orange-600">
-                    {p.discountType === 'PERCENT' ? `${p.discountValue}%` : `฿${p.discountValue}`}
-                  </span>
-                </div>
-
-                <div className="text-xs text-slate-500 space-y-1">
-                  <div>ยอดซื้อขั้นต่ำ: <strong>฿{p.minSpend}</strong></div>
-                  <div>ใช้ไปแล้ว: <strong>{p.usageCount} ครั้ง</strong></div>
-                </div>
+        <>
+          {promotions.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-dashed border-slate-300 space-y-3">
+              <div className="w-14 h-14 mx-auto rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
+                <Tag className="w-7 h-7" />
               </div>
-
-              <div className="pt-4 mt-4 border-t border-slate-100 flex justify-end">
-                <button
-                  onClick={() => handleDeletePromo(p.id)}
-                  className="text-slate-400 hover:text-red-500 text-xs font-bold flex items-center gap-1 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  ลบโค้ด
-                </button>
-              </div>
+              <h3 className="font-extrabold text-slate-800 text-base">ยังไม่มีคูปองส่วนลดหรือโค้ดโปรโมชั่น</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                สร้างคูปองส่วนลดเพื่อใช้กระตุ้นยอดขาย เช่น ส่วนลดเปิดร้านใหม่ หรือส่วนลดพิเศษช่วงเทศกาล
+              </p>
+              <button
+                type="button"
+                onClick={() => openPromoModal()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-xl text-xs font-extrabold shadow-md hover:bg-orange-700 transition-all active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                สร้างคูปองแรก
+              </button>
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {promotions.map((p) => (
+                <div
+                  key={p.id}
+                  className="p-5 bg-white rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-3 py-1 rounded-xl text-xs font-black bg-orange-100 text-orange-700 tracking-wider">
+                        {p.code}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePromoActive(p.id, p.isActive)}
+                        title="คลิกเพื่อเปิด/ปิดการใช้งานโค้ด"
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                          p.isActive
+                            ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-300'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-300'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${p.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                        <span>{p.isActive ? 'เปิดใช้งาน' : 'ปิดชั่วคราว'}</span>
+                      </button>
+                    </div>
+
+                    <h3 className="font-extrabold text-slate-900 text-base">{p.title}</h3>
+
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                      <span className="text-xs text-slate-500 font-medium">มูลค่าส่วนลด</span>
+                      <span className="text-lg font-black text-orange-600">
+                        {p.discountType === 'PERCENT' ? `${p.discountValue}%` : `฿${p.discountValue}`}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-500 space-y-1">
+                      <div>ยอดซื้อขั้นต่ำ: <strong>฿{p.minSpend}</strong></div>
+                      <div>ใช้ไปแล้ว: <strong>{p.usageCount} ครั้ง</strong></div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3.5 mt-3.5 border-t border-slate-100 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openPromoModal(p)}
+                      className="py-2 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-xs"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-orange-600" />
+                      <span>แก้ไข</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePromo(p.id, p.code)}
+                      className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-xs"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                      <span>ลบโค้ด</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* MODAL: Create / Edit Reward Milestone */}
@@ -856,18 +1118,122 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
         </div>
       )}
 
-      {/* MODAL: New Promo */}
-      {isPromoModalOpen && (
+      {/* MODAL: Create / Edit Member */}
+      {isMemberModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-900 text-lg">สร้างคูปองส่วนลดใหม่</h3>
-              <button onClick={() => setIsPromoModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600">
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                <Users className="w-5 h-5 text-orange-500" />
+                {editingMemberId ? 'แก้ไขข้อมูลสมาชิก' : 'เพิ่มสมาชิกใหม่'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsMemberModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreatePromo} className="space-y-4">
+            <form onSubmit={handleSaveMember} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  เบอร์โทรศัพท์ลูกค้า <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="tel"
+                    required
+                    maxLength={12}
+                    placeholder="เช่น 0812345678"
+                    value={memberPhoneInput}
+                    onChange={(e) => setMemberPhoneInput(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold tracking-wider focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">ใช้สำหรับค้นหาและสะสมแต้มเวลาคิดเงิน</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">ชื่อลูกค้า / สมาชิก</label>
+                <input
+                  type="text"
+                  placeholder="เช่น คุณสมชาย, เจ๊พร (เว้นว่างได้)"
+                  value={memberNameInput}
+                  onChange={(e) => setMemberNameInput(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  {editingMemberId ? 'แต้มสะสมปัจจุบัน' : 'แต้มสะสมเริ่มต้น'}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  placeholder="0"
+                  value={memberPointsInput}
+                  onChange={(e) => setMemberPointsInput(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-extrabold focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {editingMemberId
+                    ? 'สามารถแก้ไขแต้มคงเหลือของสมาชิกได้โดยตรง'
+                    : 'กำหนดแต้มสะสมเริ่มต้นสำหรับสมาชิกใหม่ (เช่น 0 แต้ม หรือให้เป็นแต้มต้อนรับ)'}
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsMemberModalOpen(false)}
+                  className="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-xs text-slate-600 hover:bg-slate-200 transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingMember}
+                  className="flex-1 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  {savingMember ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <span>{editingMemberId ? 'บันทึกการแก้ไข' : 'เพิ่มสมาชิกใหม่'}</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create / Edit Promo */}
+      {isPromoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                <Tag className="w-5 h-5 text-orange-500" />
+                {editingPromoId ? 'แก้ไขคูปองส่วนลด' : 'สร้างคูปองส่วนลดใหม่'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsPromoModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePromo} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">รหัสโค้ด (Coupon Code)</label>
                 <input
@@ -935,16 +1301,23 @@ export default function AdminLoyaltyView({ slug }: { slug: string }) {
                 <button
                   type="button"
                   onClick={() => setIsPromoModalOpen(false)}
-                  className="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-xs text-slate-600 hover:bg-slate-200"
+                  className="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-xs text-slate-600 hover:bg-slate-200 transition-colors"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={savingPromo}
-                  className="flex-1 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md shadow-orange-500/20"
+                  className="flex-1 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2"
                 >
-                  {savingPromo ? 'กำลังบันทึก...' : 'สร้างคูปอง'}
+                  {savingPromo ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <span>{editingPromoId ? 'บันทึกการแก้ไข' : 'สร้างคูปอง'}</span>
+                  )}
                 </button>
               </div>
             </form>

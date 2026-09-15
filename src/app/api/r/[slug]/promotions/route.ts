@@ -121,6 +121,60 @@ export async function POST(
   }
 }
 
+export async function PUT(
+  request: Request,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    const { store } = await requireStoreAccess(params.slug);
+    const body = await request.json();
+    const { id, code, title, discountType, discountValue, minSpend, expiryDate, isActive } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing promotion id' }, { status: 400 });
+    }
+
+    const existing = await prisma.promotion.findFirst({
+      where: { id, storeId: store.id },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Promotion not found' }, { status: 404 });
+    }
+
+    // If updating code, ensure it's not duplicate with another promotion
+    if (code && code.toUpperCase().trim() !== existing.code) {
+      const duplicate = await prisma.promotion.findFirst({
+        where: {
+          storeId: store.id,
+          code: code.toUpperCase().trim(),
+          id: { not: id },
+        },
+      });
+      if (duplicate) {
+        return NextResponse.json({ error: 'รหัสคูปองนี้มีอยู่แล้วในระบบ' }, { status: 400 });
+      }
+    }
+
+    const updated = await prisma.promotion.update({
+      where: { id },
+      data: {
+        ...(code !== undefined && { code: code.toUpperCase().trim() }),
+        ...(title !== undefined && { title: title.trim() }),
+        ...(discountType !== undefined && { discountType }),
+        ...(discountValue !== undefined && { discountValue: Number(discountValue) }),
+        ...(minSpend !== undefined && { minSpend: Number(minSpend) || 0 }),
+        ...(expiryDate !== undefined && { expiryDate: expiryDate ? new Date(expiryDate) : null }),
+        ...(isActive !== undefined && { isActive }),
+      },
+    });
+
+    return NextResponse.json({ success: true, promotion: updated });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: { slug: string } }
