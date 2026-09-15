@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { requireStoreAccess } from '@/lib/auth';
 
 export async function POST(
   request: Request,
   { params }: { params: { slug: string } }
 ) {
   try {
+    try {
+      await requireStoreAccess(params.slug);
+    } catch (authErr) {
+      return NextResponse.json({ error: 'Unauthorized: Staff access required' }, { status: 401 });
+    }
+
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
       select: { id: true },

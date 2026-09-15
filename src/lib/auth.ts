@@ -3,9 +3,11 @@ import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'super-secret-saas-restaurant-pos-jwt-key-2026-secure'
-);
+const jwtSecretRaw = process.env.JWT_SECRET;
+if (!jwtSecretRaw || jwtSecretRaw.length < 32) {
+  throw new Error('FATAL: JWT_SECRET environment variable is missing or less than 32 characters.');
+}
+const JWT_SECRET = new TextEncoder().encode(jwtSecretRaw);
 
 export const COOKIE_NAME = 'pos_auth_token';
 

@@ -252,7 +252,7 @@ export default function CustomerOrderingView({
       const [menuRes, tableRes, settingsRes] = await Promise.all([
         fetch(`/api/r/${slug}/menu`),
         fetch(`/api/r/${slug}/tables/${tableId}`),
-        fetch(`/api/r/${slug}/settings`),
+        fetch(`/api/r/${slug}/settings/public`),
       ]);
 
       const [m, t, s] = await Promise.all([

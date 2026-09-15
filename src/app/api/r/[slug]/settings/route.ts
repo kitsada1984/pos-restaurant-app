@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { requireStoreAccess } from '@/lib/auth';
 
 import { testGoogleDriveWebhook } from '@/lib/google-drive-storage';
 
@@ -18,6 +19,12 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
+    try {
+      await requireStoreAccess(params.slug);
+    } catch (authErr) {
+      return NextResponse.json({ error: 'Unauthorized: Staff access required' }, { status: 401 });
+    }
+
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
       include: {
@@ -78,6 +85,12 @@ export async function PUT(
   { params }: { params: { slug: string } }
 ) {
   try {
+    try {
+      await requireStoreAccess(params.slug);
+    } catch (authErr) {
+      return NextResponse.json({ error: 'Unauthorized: Staff access required' }, { status: 401 });
+    }
+
     const body = await request.json();
     const {
       storeName,

@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'super-secret-saas-restaurant-pos-jwt-key-2026-secure'
-);
+const jwtSecretRaw = process.env.JWT_SECRET;
+if (!jwtSecretRaw || jwtSecretRaw.length < 32) {
+  throw new Error('FATAL: JWT_SECRET environment variable is missing or less than 32 characters.');
+}
+const JWT_SECRET = new TextEncoder().encode(jwtSecretRaw);
 
 const COOKIE_NAME = 'pos_auth_token';
 
@@ -122,6 +124,59 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // 5. Tenant API Protection (/api/r/[slug]/*)
+  const apiMatch = pathname.match(/^\/api\/r\/([^/]+)\/(.+)$/);
+  if (apiMatch) {
+    if (request.method === 'OPTIONS') {
+      return NextResponse.next();
+    }
+
+    const slug = apiMatch[1];
+    const subPath = apiMatch[2];
+    const method = request.method;
+
+    // Whitelist public endpoints for customer tables, SSE stream, and webhooks
+    const isPublic =
+      subPath === 'settings/public' ||
+      (subPath === 'menu' && method === 'GET') ||
+      (subPath.startsWith('menu/') && method === 'GET') ||
+      (subPath.startsWith('tables/') && method === 'GET') ||
+      (subPath === 'orders' && (method === 'GET' || method === 'POST')) ||
+      (subPath === 'orders/verify-slip' && method === 'POST') ||
+      (subPath === 'orders/notify-transfer' && method === 'POST') ||
+      (subPath === 'service-call' && method === 'POST') ||
+      (subPath === 'stream' && method === 'GET') ||
+      (subPath === 'promotions' && method === 'GET') ||
+      subPath.startsWith('webhooks/');
+
+    if (!isPublic) {
+      // Require authenticated staff token for all modifying/administrative API routes
+      const token = request.cookies.get(COOKIE_NAME)?.value;
+      if (!token) {
+        return NextResponse.json(
+          { error: 'Unauthorized: Staff session required' },
+          { status: 401 }
+        );
+      }
+
+      try {
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const user = payload as unknown as SessionPayload;
+        if (user.role !== 'SUPER_ADMIN' && user.storeSlug !== slug) {
+          return NextResponse.json(
+            { error: 'Forbidden: You do not have access to this store' },
+            { status: 403 }
+          );
+        }
+      } catch (err) {
+        return NextResponse.json(
+          { error: 'Unauthorized: Invalid session token' },
+          { status: 401 }
+        );
+      }
+    }
+  }
+
   return NextResponse.next();
 }
 
@@ -135,5 +190,6 @@ export const config = {
     '/admin/:path*',
     '/pos',
     '/kitchen',
+    '/api/r/:slug/:path*',
   ],
 };

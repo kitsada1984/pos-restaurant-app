@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
 import { saveSlipImage } from '@/lib/google-drive-storage';
+import { requireStoreAccess } from '@/lib/auth';
 
 export async function POST(
   request: Request,
   { params }: { params: { slug: string; id: string } }
 ) {
   try {
+    try {
+      await requireStoreAccess(params.slug);
+    } catch (authErr) {
+      return NextResponse.json({ error: 'Unauthorized: Staff access required to settle payments' }, { status: 401 });
+    }
+
     const store = await prisma.store.findUnique({
       where: { slug: params.slug },
       select: {
