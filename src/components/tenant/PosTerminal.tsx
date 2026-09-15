@@ -677,6 +677,38 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     }
   };
 
+  // Handle direct checkout modal opening for a table
+  const handleOpenCheckoutForTable = (table: any) => {
+    setSelectedTable(table);
+    if (table.hasPendingSlip && table.latestSlipUrl) {
+      setSlipPreview(table.latestSlipUrl);
+      const slipOrder = table.activeOrders?.find((o: any) => o.slipUrl);
+      if (slipOrder?.slipRawData) {
+        try {
+          const parsed = JSON.parse(slipOrder.slipRawData);
+          setSlipResult({ parsed, success: true });
+        } catch (e) {}
+      }
+      setPaymentMethod('PROMPTPAY');
+    }
+    // Pre-fill existing member phone & customer name if any active order on table has it
+    const existingPhone = table.activeOrders?.find((o: any) => o.memberPhone)?.memberPhone;
+    const existingName = table.activeOrders?.find((o: any) => o.customerName)?.customerName;
+    if (existingPhone) {
+      handleLookupMember(existingPhone);
+    } else {
+      setMemberPhone('');
+      setMemberData(null);
+      setMemberRewards([]);
+    }
+    if (existingName) {
+      setCustomerNameInput(existingName);
+    } else if (!existingPhone) {
+      setCustomerNameInput('');
+    }
+    setIsPayModalOpen(true);
+  };
+
   // Handle Promo Code Apply (supports quick chips and input)
   const handleApplyPromo = async (codeOverride?: string) => {
     const code = codeOverride || promoCodeInput;
@@ -1400,7 +1432,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   : 'bg-white border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300'
               }`}
             >
-              {/* Card Content (Responsive for 1 col on mobile & grid on desktop) */}
+              {/* Card Header / Top Content */}
               <div className="flex items-center justify-between gap-3 w-full">
                 <div className="flex items-center space-x-3 min-w-0">
                   <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center font-black text-base sm:text-lg flex-shrink-0 ${
@@ -1427,17 +1459,86 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   </div>
                 </div>
 
-                <div className="text-right flex flex-col items-end flex-shrink-0">
+                {/* Mobile Right Action */}
+                <div className="sm:hidden flex-shrink-0">
                   {isOccupied ? (
-                    <div className="text-base sm:text-lg font-black text-slate-900">
-                      ฿{(table.totalAmount || 0).toLocaleString()}
-                    </div>
-                  ) : null}
-                  <span className="text-[11px] sm:text-xs font-bold text-orange-600 group-hover:underline flex items-center gap-1 mt-0.5">
-                    <span>{table.hasPendingSlip ? 'ตรวจสลิป 📷' : isOccupied ? 'เปิดดู / คิดเงิน' : 'สั่งอาหาร'}</span>
-                    <span>→</span>
-                  </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenCheckoutForTable(table);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl font-black text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1 ${
+                        table.hasPendingSlip
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-amber-500/25 ring-2 ring-amber-400/50 animate-pulse'
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-500/20'
+                      }`}
+                    >
+                      {table.hasPendingSlip ? (
+                        <>
+                          <Camera className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>ตรวจสลิป ฿{(table.totalAmount || 0).toLocaleString()} 📷</span>
+                        </>
+                      ) : (
+                        <>
+                          <Banknote className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>เช็คบิล ฿{(table.totalAmount || 0).toLocaleString()}</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <span className="text-[11px] font-bold text-orange-600 flex items-center gap-1">
+                      <span>สั่งอาหาร</span>
+                      <span>→</span>
+                    </span>
+                  )}
                 </div>
+              </div>
+
+              {/* Desktop Bottom Action Area */}
+              <div className="hidden sm:flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-100 w-full">
+                {isOccupied ? (
+                  <>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ยอดรอชำระ</span>
+                      <span className="text-base lg:text-lg font-black text-slate-900 leading-tight">
+                        ฿{(table.totalAmount || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenCheckoutForTable(table);
+                      }}
+                      className={`px-3.5 py-2 rounded-xl font-black text-xs shadow-md transition-all hover:scale-[1.03] active:scale-95 flex items-center space-x-1.5 flex-shrink-0 ${
+                        table.hasPendingSlip
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-500/25 ring-2 ring-amber-400/50 animate-pulse'
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-emerald-500/20'
+                      }`}
+                    >
+                      {table.hasPendingSlip ? (
+                        <>
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>ตรวจสลิป ฿{(table.totalAmount || 0).toLocaleString()} 📷</span>
+                        </>
+                      ) : (
+                        <>
+                          <Banknote className="w-3.5 h-3.5" />
+                          <span>เช็คบิล ฿{(table.totalAmount || 0).toLocaleString()}</span>
+                        </>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  <div className="w-full flex items-center justify-between text-slate-400 text-xs font-bold">
+                    <span>พร้อมให้บริการ</span>
+                    <span className="text-orange-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                      <span>สั่งอาหาร</span>
+                      <span>→</span>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1489,35 +1590,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   </button>
 
                   <button
-                    onClick={() => {
-                      if (selectedTable.hasPendingSlip && selectedTable.latestSlipUrl) {
-                        setSlipPreview(selectedTable.latestSlipUrl);
-                        const slipOrder = selectedTable.activeOrders?.find((o: any) => o.slipUrl);
-                        if (slipOrder?.slipRawData) {
-                          try {
-                            const parsed = JSON.parse(slipOrder.slipRawData);
-                            setSlipResult({ parsed, success: true });
-                          } catch (e) {}
-                        }
-                        setPaymentMethod('PROMPTPAY');
-                      }
-                      // Pre-fill existing member phone & customer name if any active order on table has it
-                      const existingPhone = selectedTable.activeOrders?.find((o: any) => o.memberPhone)?.memberPhone;
-                      const existingName = selectedTable.activeOrders?.find((o: any) => o.customerName)?.customerName;
-                      if (existingPhone) {
-                        handleLookupMember(existingPhone);
-                      } else {
-                        setMemberPhone('');
-                        setMemberData(null);
-                        setMemberRewards([]);
-                      }
-                      if (existingName) {
-                        setCustomerNameInput(existingName);
-                      } else if (!existingPhone) {
-                        setCustomerNameInput('');
-                      }
-                      setIsPayModalOpen(true);
-                    }}
+                    onClick={() => handleOpenCheckoutForTable(selectedTable)}
                     className={`px-5 py-2.5 rounded-xl font-black text-xs shadow-lg flex items-center space-x-1.5 transition-all ${
                       selectedTable.hasPendingSlip
                         ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-500/30 ring-2 ring-amber-400/50 animate-pulse'
