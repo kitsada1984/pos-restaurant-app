@@ -604,16 +604,16 @@ export default function CustomerOrderingView({
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex justify-center pb-24 text-slate-100 selection:bg-orange-500 selection:text-white">
-      <div className="w-full max-w-md bg-slate-950 min-h-screen shadow-2xl flex flex-col relative border-x border-slate-800 overflow-x-hidden">
+    <div className="min-h-screen w-full min-w-full bg-slate-950 flex flex-col items-center pb-24 text-slate-100 selection:bg-orange-500 selection:text-white overflow-x-hidden">
+      <div className="w-full max-w-md bg-slate-950 min-h-screen shadow-2xl flex flex-col relative sm:border-x border-slate-800/80 overflow-x-hidden box-border">
         
         {/* Customer Header - Isolated Branding with NO Admin links */}
-        <header className="bg-slate-950/95 backdrop-blur-xl text-white px-3.5 py-3 sm:px-4 sm:py-3.5 sticky top-0 z-30 border-b border-slate-800 shadow-lg w-full overflow-hidden">
+        <header className="bg-slate-950/95 backdrop-blur-xl text-white px-3 py-2.5 sm:px-4 sm:py-3 sticky top-0 z-30 border-b border-slate-800 shadow-lg w-full max-w-full box-border overflow-hidden">
           
           {/* Row 1: Table & Store Branding + Call Staff Button */}
-          <div className="flex items-center justify-between gap-2.5">
-            <div className="flex items-center space-x-2.5 min-w-0 flex-1">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-500 flex items-center justify-center text-white font-black text-base shadow-md shadow-orange-500/25 flex-shrink-0">
+          <div className="flex items-center justify-between gap-2 w-full min-w-0">
+            <div className="flex items-center space-x-2 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-500 flex items-center justify-center text-white font-black text-sm sm:text-base shadow-md shadow-orange-500/25 flex-shrink-0">
                 {tableId}
               </div>
               <div className="min-w-0 flex-1">
@@ -630,7 +630,7 @@ export default function CustomerOrderingView({
             {/* Quick Call Staff Button */}
             <button
               onClick={() => setIsServiceModalOpen(true)}
-              className="px-3 py-1.5 rounded-xl font-extrabold text-xs text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 border border-amber-500/30 flex items-center space-x-1.5 transition-all flex-shrink-0 shadow-sm"
+              className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl font-bold text-xs text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 border border-amber-500/30 flex items-center space-x-1 sm:space-x-1.5 transition-all flex-shrink-0 shadow-sm"
               title="เรียกพนักงาน"
             >
               <BellRing className="w-3.5 h-3.5 animate-pulse text-amber-400" />
@@ -639,7 +639,7 @@ export default function CustomerOrderingView({
           </div>
 
           {/* Row 2: Full-width Segmented Control Tabs */}
-          <div className="grid grid-cols-2 p-1 bg-slate-900 rounded-xl border border-slate-800 text-xs font-bold mt-2.5 gap-1 shadow-inner">
+          <div className="grid grid-cols-2 p-1 bg-slate-900 rounded-xl border border-slate-800 text-xs font-bold mt-2 gap-1 shadow-inner w-full box-border">
             <button
               onClick={() => setActiveTab('menu')}
               className={`py-2 px-2 rounded-lg font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
@@ -670,7 +670,7 @@ export default function CustomerOrderingView({
 
           {/* Row 3: Search bar (when activeTab === 'menu') */}
           {activeTab === 'menu' && (
-            <div className="mt-2.5 relative">
+            <div className="mt-2 relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -685,7 +685,7 @@ export default function CustomerOrderingView({
 
         {/* Category Filter Pills */}
         {activeTab === 'menu' && (
-          <div className="p-2.5 sm:p-3 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 flex items-center space-x-2 overflow-x-auto scrollbar-none sticky top-[138px] z-20">
+          <div className="p-2 sm:p-2.5 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 flex items-center space-x-2 overflow-x-auto scrollbar-none sticky top-[125px] sm:top-[132px] z-20 w-full max-w-full box-border touch-pan-x">
             <button
               onClick={() => setSelectedCategory('ALL')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
@@ -713,7 +713,7 @@ export default function CustomerOrderingView({
         )}
 
         {/* Content Body */}
-        <main className="flex-1 p-4 space-y-4">
+        <main className="flex-1 p-3 sm:p-4 space-y-4 w-full max-w-full box-border overflow-x-hidden">
           {activeTab === 'menu' ? (
             /* Menu Items View */
             filteredMenuItems.length === 0 ? (
@@ -1018,10 +1018,10 @@ export default function CustomerOrderingView({
 
         {/* Floating Cart Button */}
         {cart.length > 0 && activeTab === 'menu' && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-30">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-30 box-border pointer-events-none">
             <button
               onClick={() => setIsCartOpen(true)}
-              className="w-full p-4 rounded-3xl bg-gradient-to-r from-orange-500 to-amber-500 hover:scale-105 text-white font-black text-sm shadow-2xl shadow-orange-500/40 flex items-center justify-between transition-all"
+              className="w-full p-4 rounded-3xl bg-gradient-to-r from-orange-500 to-amber-500 hover:scale-[1.02] active:scale-95 text-white font-black text-sm shadow-2xl shadow-orange-500/40 flex items-center justify-between transition-all pointer-events-auto"
             >
               <div className="flex items-center space-x-2.5">
                 <div className="w-8 h-8 rounded-full bg-white text-orange-600 flex items-center justify-center font-black text-xs shadow-md">

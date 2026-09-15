@@ -11,6 +11,9 @@
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    width: 100%;
   }
 
   body {
@@ -19,6 +22,11 @@
     font-family: 'Plus Jakarta Sans', 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-tap-highlight-color: transparent;
     letter-spacing: -0.01em;
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
+    width: 100%;
+    touch-action: pan-y;
   }
 }
 

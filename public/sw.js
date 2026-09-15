@@ -1,5 +1,5 @@
-// ORDEO POS Service Worker v1.0.0
-const CACHE_NAME = 'ordeo-pos-cache-v1';
+// ORDEO POS Service Worker v1.0.2
+const CACHE_NAME = 'ordeo-pos-cache-v1.0.2';
 
 const STATIC_ASSETS = [
   '/',
