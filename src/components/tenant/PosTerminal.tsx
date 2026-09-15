@@ -270,11 +270,25 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 );
               }
             } else if (payload.type === 'SLIP_SUBMITTED') {
+              const d = payload.data;
               playOrderChime();
               if (voiceEnabled) {
-                speakSlipSubmitted(payload.data?.tableNo, payload.data?.amount);
+                speakSlipSubmitted(d?.tableNo, d?.amount);
               }
-              showInfo(`📷 โต๊ะ ${payload.data?.tableNo || ''} ส่งสลิปโอนเงินเข้ามา!`, 'กรุณาตรวจสอบสลิปเพื่อยืนยันปิดบิล');
+              setBankAlertModal({
+                action: 'CUSTOMER_NOTIFY',
+                channel: 'SLIP',
+                tableId: d?.tableId || d?.tableNo,
+                tableNo: d?.tableNo,
+                tableName: d?.tableName || `โต๊ะ ${d?.tableNo}`,
+                amount: d?.amount,
+                orderIds: d?.orderIds || (d?.orderId ? [d?.orderId] : []),
+                memberPhone: d?.memberPhone,
+                customerName: d?.customerName,
+                slipUrl: d?.slipUrl,
+                timestamp: Date.now(),
+              });
+              showInfo(`📷 โต๊ะ ${d?.tableNo || ''} ส่งสลิปโอนเงินเข้ามา!`, 'กรุณาตรวจสอบสลิปและกดยืนยันปิดบิล');
               fetchData();
             } else if (payload.type === 'CUSTOMER_PAYMENT_NOTIFIED') {
               const d = payload.data;
@@ -2831,7 +2845,12 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
                   <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-white/20 backdrop-blur-md text-white border border-white/30 shadow-sm">
-                    {bankAlertModal.channel === 'WEB' ? (
+                    {bankAlertModal.channel === 'SLIP' ? (
+                      <>
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>ลูกค้าส่งสลิปโอนเงิน (แนบสลิป)</span>
+                      </>
+                    ) : bankAlertModal.channel === 'WEB' ? (
                       <>
                         <Globe className="w-3.5 h-3.5" />
                         <span>แจ้งเตือนผ่านเว็บตรง (ลูกค้าแจ้งโอน)</span>
@@ -2849,7 +2868,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                     )}
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/20 text-white/90">
-                    {bankAlertModal.channel === 'WEB' ? 'พร้อมเพย์ / โอนตรง' : (bankAlertModal.bankName || bankAlertModal.bank || 'ธนาคาร')}
+                    {bankAlertModal.channel === 'SLIP' ? 'สลิปโอนเงิน' : bankAlertModal.channel === 'WEB' ? 'พร้อมเพย์ / โอนตรง' : (bankAlertModal.bankName || bankAlertModal.bank || 'ธนาคาร')}
                   </span>
                 </div>
                 <button
@@ -2864,14 +2883,14 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               <div className="flex items-center justify-between mt-3">
                 <div>
                   <h3 className="text-lg sm:text-xl font-black tracking-tight">
-                    {bankAlertModal.action === 'CUSTOMER_NOTIFY' && 'ลูกค้าแจ้งโอนเงินผ่านเว็บ 🔔'}
+                    {bankAlertModal.action === 'CUSTOMER_NOTIFY' && (bankAlertModal.channel === 'SLIP' ? 'ลูกค้าส่งสลิปโอนเงิน 📷' : 'ลูกค้าแจ้งโอนเงินผ่านเว็บ 🔔')}
                     {bankAlertModal.action === 'AUTO_PAID' && 'ตรวจพบเงินเข้า & ปิดบิลสำเร็จ! 🎉'}
                     {bankAlertModal.action === 'MANUAL_CONFIRM' && 'ตรวจพบเงินเข้า ตรงกับโต๊ะอาหาร 🔔'}
                     {bankAlertModal.action === 'AMBIGUOUS_CHOICE' && 'ตรวจพบเงินเข้า ตรงกับหลายโต๊ะ 🔔'}
                     {bankAlertModal.action === 'UNMATCHED' && 'ตรวจพบเงินเข้าบัญชีเรียบร้อย 💵'}
                   </h3>
                   <p className="text-xs text-white/80 font-medium mt-0.5">
-                    {bankAlertModal.action === 'CUSTOMER_NOTIFY' && 'ลูกค้ากดแจ้งโอนเงินจากที่โต๊ะ กรุณาตรวจสอบยอดและกดยืนยันปิดบิล'}
+                    {bankAlertModal.action === 'CUSTOMER_NOTIFY' && (bankAlertModal.channel === 'SLIP' ? 'ลูกค้าแนบสลิปโอนเงินจากที่โต๊ะ กรุณาตรวจสอบยอดและกดยืนยันปิดบิล' : 'ลูกค้ากดแจ้งโอนเงินจากที่โต๊ะ กรุณาตรวจสอบยอดและกดยืนยันปิดบิล')}
                     {bankAlertModal.action === 'AUTO_PAID' && 'ระบบตรวจสอบยอดและเคลียร์โต๊ะให้อัตโนมัติแล้ว'}
                     {bankAlertModal.action === 'MANUAL_CONFIRM' && 'กรุณาตรวจสอบและกดยืนยันตัดยอดเพื่อปิดบิล'}
                     {bankAlertModal.action === 'AMBIGUOUS_CHOICE' && 'มียอดตรงกันหลายโต๊ะ กรุณาเลือกโต๊ะที่ต้องการตัดยอด'}
@@ -2879,7 +2898,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl flex-shrink-0 shadow-inner">
-                  {bankAlertModal.action === 'AUTO_PAID' ? '💰' : bankAlertModal.action === 'CUSTOMER_NOTIFY' ? '📱' : '🔔'}
+                  {bankAlertModal.action === 'AUTO_PAID' ? '💰' : bankAlertModal.channel === 'SLIP' ? '📷' : bankAlertModal.action === 'CUSTOMER_NOTIFY' ? '📱' : '🔔'}
                 </div>
               </div>
             </div>
@@ -2914,24 +2933,68 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 </button>
               </div>
 
-              {/* Case 0: CUSTOMER_NOTIFY (ลูกค้าแจ้งโอนผ่านเว็บตรง) */}
+              {/* Case 0: CUSTOMER_NOTIFY (ลูกค้าแจ้งโอนผ่านเว็บตรง หรือ แนบสลิป) */}
               {bankAlertModal.action === 'CUSTOMER_NOTIFY' && (
                 <div className="space-y-3">
                   <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-600">โต๊ะที่แจ้งโอน:</span>
-                      <span className="font-black text-sm text-emerald-700 bg-white px-2 py-0.5 rounded-lg border border-emerald-200 shadow-sm">
+                      <span className="font-black text-sm text-emerald-700 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-200 shadow-sm">
                         {bankAlertModal.tableName || `โต๊ะ ${bankAlertModal.tableNo}`}
                       </span>
                     </div>
+
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-600">ยอดที่แจ้งโอน:</span>
-                      <span className="font-black text-emerald-700 text-sm">
+                      <span className="font-black text-emerald-700 text-base">
                         ฿{bankAlertModal.amount?.toLocaleString()}
                       </span>
                     </div>
+
+                    {(bankAlertModal.customerName || bankAlertModal.memberPhone) && (
+                      <div className="flex items-center justify-between pt-1 border-t border-emerald-100">
+                        <span className="font-bold text-slate-600">ลูกค้า / สมาชิก:</span>
+                        <span className="font-bold text-slate-800 text-right">
+                          {bankAlertModal.customerName || 'ลูกค้าทั่วไป'}
+                          {bankAlertModal.memberPhone && (
+                            <span className="text-slate-500 font-mono text-[11px] ml-1.5">
+                              ({bankAlertModal.memberPhone})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+
+                    {bankAlertModal.slipUrl && (
+                      <div className="pt-2 border-t border-emerald-100 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-700 flex items-center gap-1">
+                            <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>สลิปโอนเงินที่แนบมา:</span>
+                          </span>
+                          <a
+                            href={bankAlertModal.slipUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline flex items-center gap-1"
+                          >
+                            <span>เปิดดูรูปใหญ่</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <div className="rounded-xl overflow-hidden border border-emerald-200 bg-black/5 max-h-48 flex items-center justify-center">
+                          <img
+                            src={bankAlertModal.slipUrl}
+                            alt="สลิปโอนเงิน"
+                            className="max-h-48 w-auto object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(bankAlertModal.slipUrl, '_blank')}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <p className="text-[11px] text-emerald-800 pt-1 border-t border-emerald-100 leading-normal">
-                      💡 เมื่อตรวจสอบยอดเงินในแอปธนาคารหรือมือถือเรียบร้อยแล้ว กดปุ่มยืนยันด้านล่างเพื่อปิดบิลและเคลียร์โต๊ะทันที
+                      💡 เมื่อตรวจสอบยอดเงินในแอปธนาคารหรือสลิปเรียบร้อยแล้ว กดปุ่มยืนยันด้านล่างเพื่อปิดบิลและเคลียร์โต๊ะทันที
                     </p>
                   </div>
 
@@ -2954,7 +3017,10 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               paymentMethod: 'PROMPTPAY',
-                              note: `${bankAlertModal.tableName} (ลูกค้าแจ้งโอนผ่านเว็บ)`,
+                              slipUrl: bankAlertModal.slipUrl || undefined,
+                              memberPhone: bankAlertModal.memberPhone || undefined,
+                              customerName: bankAlertModal.customerName || undefined,
+                              note: `${bankAlertModal.tableName} (${bankAlertModal.channel === 'SLIP' ? 'ลูกค้าส่งสลิป' : 'ลูกค้าแจ้งโอนผ่านเว็บ'})`,
                             }),
                           });
                         }

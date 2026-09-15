@@ -405,9 +405,14 @@ export async function POST(
         'SLIP_SUBMITTED',
         {
           orderId: primaryPending.id,
+          orderIds: pendingOrders.map((o) => o.id),
+          tableId: primaryPending.tableId,
           tableNo: primaryPending.tableNo,
+          tableName: primaryPending.table?.name || `โต๊ะ ${primaryPending.tableNo}`,
           slipUrl: uploadedSlipUrl || primaryPending.slipUrl,
           amount: parsed?.amount || (isTableSettlement ? totalTableAmount : primaryPending.netAmount),
+          memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : primaryPending.memberPhone,
+          customerName: customerName?.trim() || primaryPending.customerName,
           parsed,
         },
         store.id

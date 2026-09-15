@@ -220,12 +220,12 @@ export function speakSlipVerified(amount: number, tableName?: string) {
 
 /**
  * อ่านออกเสียงเมื่อลูกค้ากดแจ้งโอนเงินผ่านหน้าเว็บ (รอแคชเชียร์ตรวจเช็ค)
- * เช่น "โต๊ะ 1 แจ้งโอนเงิน 50 บาท กรุณาตรวจสอบค่ะ"
+ * เช่น "ตรวจสอบเงินเข้าโต๊ะ 1 จำนวน 50 บาทค่ะ"
  */
 export function speakCustomerNotifyTransfer(tableNo: number | string, amount: number) {
-  const tablePart = String(tableNo).startsWith('โต๊ะ') ? String(tableNo) : `โต๊ะ ${tableNo}`;
+  const cleanTable = String(tableNo || '').replace(/^โต๊ะ\s*/, '').trim();
   const amountPart = formatThaiCurrencyForSpeech(amount);
-  speakThaiVoice(`${tablePart} แจ้งโอนเงิน ${amountPart} กรุณาตรวจสอบค่ะ`);
+  speakThaiVoice(`ตรวจสอบเงินเข้าโต๊ะ ${cleanTable} จำนวน ${amountPart} ค่ะ`.replace(/\s+/g, ' ').trim());
 }
 
 /**
@@ -275,9 +275,13 @@ export function speakSlipNoQr() {
  * แจ้งเตือนเมื่อโต๊ะส่งสลิปเข้ามาผ่านหน้าเว็บ
  */
 export function speakSlipSubmitted(tableNo?: number | string, amount?: number) {
-  const tablePart = tableNo ? `โต๊ะ ${tableNo} ` : '';
-  const amountPart = amount ? `ยอด ${formatThaiCurrencyForSpeech(amount)} ` : '';
-  speakThaiVoice(`${tablePart}ส่งสลิปโอนเงิน ${amountPart}เข้ามาค่ะ กรุณาตรวจสอบค่ะ`);
+  const cleanTable = tableNo ? String(tableNo).replace(/^โต๊ะ\s*/, '').trim() : '';
+  if (amount) {
+    const amountPart = formatThaiCurrencyForSpeech(amount);
+    speakThaiVoice(`ตรวจสอบเงินเข้าโต๊ะ ${cleanTable} จำนวน ${amountPart} ค่ะ`.replace(/\s+/g, ' ').trim());
+  } else {
+    speakThaiVoice(`ตรวจสอบเงินเข้าโต๊ะ ${cleanTable} ค่ะ`.replace(/\s+/g, ' ').trim());
+  }
 }
 
 
