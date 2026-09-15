@@ -338,7 +338,18 @@ export async function POST(
         const totalPaidNet = updatedOrders.reduce((sum, o) => sum + (o.netAmount || 0), 0);
         const totalRedeemed = updatedOrders.reduce((sum, o) => sum + (o.pointsRedeemed || 0), 0);
         const pointsEarned = Math.floor(totalPaidNet / store.pointsRate);
-        const netPointsChange = pointsEarned - totalRedeemed;
+
+        const currentMember = await prisma.customerMember.findUnique({
+          where: {
+            storeId_phone: {
+              storeId: store.id,
+              phone: targetPhone,
+            },
+          },
+        });
+
+        const currentPoints = currentMember?.points || 0;
+        const newPoints = Math.max(0, currentPoints + pointsEarned - totalRedeemed);
 
         await prisma.customerMember.upsert({
           where: {
@@ -348,7 +359,7 @@ export async function POST(
             },
           },
           update: {
-            points: { increment: netPointsChange },
+            points: newPoints,
             totalSpent: { increment: totalPaidNet },
             visitCount: { increment: 1 },
             ...(customerName?.trim() ? { name: customerName.trim() } : {}),
@@ -357,7 +368,7 @@ export async function POST(
             storeId: store.id,
             phone: targetPhone,
             name: customerName?.trim() || primaryUpdatedOrder.customerName || 'สมาชิก',
-            points: Math.max(0, netPointsChange),
+            points: newPoints,
             totalSpent: totalPaidNet,
             visitCount: 1,
           },

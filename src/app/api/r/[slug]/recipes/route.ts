@@ -58,21 +58,37 @@ export async function POST(
       return NextResponse.json({ error: 'ไม่พบเมนูอาหาร' }, { status: 404 });
     }
 
+    const requestedIngredientIds = ingredients
+      .map((ing: any) => ing.ingredientId)
+      .filter(Boolean);
+
+    // Verify all ingredients belong to this store
+    const storeIngredients = await prisma.ingredient.findMany({
+      where: {
+        id: { in: requestedIngredientIds },
+        storeId: store.id,
+      },
+      select: { id: true },
+    });
+    const validIngredientSet = new Set(storeIngredients.map((i) => i.id));
+
     // Replace existing recipes for this item
     await prisma.$transaction(async (tx) => {
       await tx.menuItemRecipe.deleteMany({
         where: { menuItemId },
       });
 
-      if (ingredients.length > 0) {
+      const validItemsToInsert = ingredients
+        .filter((ing: any) => ing.ingredientId && validIngredientSet.has(ing.ingredientId) && Number(ing.quantity) > 0)
+        .map((ing: any) => ({
+          menuItemId,
+          ingredientId: ing.ingredientId,
+          quantity: Number(ing.quantity),
+        }));
+
+      if (validItemsToInsert.length > 0) {
         await tx.menuItemRecipe.createMany({
-          data: ingredients
-            .filter((ing: any) => ing.ingredientId && Number(ing.quantity) > 0)
-            .map((ing: any) => ({
-              menuItemId,
-              ingredientId: ing.ingredientId,
-              quantity: Number(ing.quantity),
-            })),
+          data: validItemsToInsert,
         });
       }
     });
@@ -110,7 +126,7 @@ export async function DELETE(
     }
 
     await prisma.menuItemRecipe.deleteMany({
-      where: { menuItemId },
+      where: { menuItemId, menuItem: { storeId: store.id } },
     });
 
     return NextResponse.json({ success: true });

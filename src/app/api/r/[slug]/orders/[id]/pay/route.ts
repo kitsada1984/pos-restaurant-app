@@ -67,6 +67,30 @@ export async function POST(
     const effectiveDiscount = Math.min(order.totalAmount, Math.max(0, requestedDiscount));
     const effectiveNetAmount = Math.max(0, order.totalAmount - effectiveDiscount);
 
+    // Check points balance if pointsRedeemed > 0
+    let currentMember: any = null;
+    if (effectiveMemberPhone) {
+      currentMember = await prisma.customerMember.findUnique({
+        where: {
+          storeId_phone: {
+            storeId: store.id,
+            phone: effectiveMemberPhone,
+          },
+        },
+      });
+
+      if (effectivePointsRedeemed > 0) {
+        if (!currentMember || currentMember.points < effectivePointsRedeemed) {
+          return NextResponse.json(
+            {
+              error: `แต้มสะสมไม่เพียงพอ (มีแต้มคงเหลือ ${currentMember?.points || 0} แต้ม แต่ขอใช้ ${effectivePointsRedeemed} แต้ม)`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Calculate Points Earned (e.g. netAmount / pointsRate)
     let pointsEarned = 0;
     if (effectiveMemberPhone && store.pointsRate > 0) {
@@ -111,7 +135,9 @@ export async function POST(
 
     // Update Customer Member Record (Add Earned Points, Deduct Redeemed Points, Increase Total Spent)
     if (effectiveMemberPhone) {
-      const netPointsChange = pointsEarned - effectivePointsRedeemed;
+      const currentPoints = currentMember?.points || 0;
+      const newPoints = Math.max(0, currentPoints + pointsEarned - effectivePointsRedeemed);
+
       await prisma.customerMember.upsert({
         where: {
           storeId_phone: {
@@ -120,7 +146,7 @@ export async function POST(
           },
         },
         update: {
-          points: { increment: netPointsChange },
+          points: newPoints,
           totalSpent: { increment: effectiveNetAmount },
           ...(skipVisitIncrement ? {} : { visitCount: { increment: 1 } }),
           ...(customerName?.trim() ? { name: customerName.trim() } : {}),
@@ -129,7 +155,7 @@ export async function POST(
           storeId: store.id,
           phone: effectiveMemberPhone,
           name: customerName?.trim() || order.customerName || 'สมาชิก',
-          points: Math.max(0, netPointsChange),
+          points: newPoints,
           totalSpent: effectiveNetAmount,
           visitCount: 1,
         },

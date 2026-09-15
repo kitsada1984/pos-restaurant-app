@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { requireStoreAccess } from '@/lib/auth';
 
 export async function GET(
   request: Request,
@@ -132,6 +133,13 @@ export async function POST(
     const menuItemIds = items.map((i: any) => i.menuItemId).filter(Boolean);
     const dbMenuItems = await prisma.menuItem.findMany({
       where: { id: { in: menuItemIds }, storeId: store.id },
+      include: {
+        options: {
+          include: {
+            choices: true,
+          },
+        },
+      },
     });
     const dbMenuItemMap = new Map(dbMenuItems.map((m) => [m.id, m]));
 
@@ -139,16 +147,37 @@ export async function POST(
     const orderItemsData = items.map((item: any) => {
       const dbItem = item.menuItemId ? dbMenuItemMap.get(item.menuItemId) : null;
       let extraPrice = 0;
-      if (Array.isArray(item.selectedOptions)) {
-        for (const opt of item.selectedOptions) {
-          const optExtra = typeof opt?.extra === 'number'
-            ? opt.extra
-            : (typeof opt?.extraPrice === 'number' ? opt.extraPrice : 0);
-          if (optExtra > 0) {
-            extraPrice += optExtra;
+
+      // Build lookup of available choices for this menu item
+      const validChoiceMap = new Map<string, number>();
+      if (dbItem?.options) {
+        for (const group of dbItem.options) {
+          for (const choice of group.choices) {
+            validChoiceMap.set(choice.name.trim().toLowerCase(), choice.extraPrice);
+            validChoiceMap.set(choice.id, choice.extraPrice);
           }
         }
       }
+
+      if (Array.isArray(item.selectedOptions)) {
+        for (const opt of item.selectedOptions) {
+          const choiceName = (opt?.choice || opt?.name || '').trim().toLowerCase();
+          const choiceId = opt?.choiceId || opt?.id;
+          if (choiceId && validChoiceMap.has(choiceId)) {
+            extraPrice += validChoiceMap.get(choiceId)!;
+          } else if (choiceName && validChoiceMap.has(choiceName)) {
+            extraPrice += validChoiceMap.get(choiceName)!;
+          } else {
+            const optExtra = typeof opt?.extra === 'number'
+              ? opt.extra
+              : (typeof opt?.extraPrice === 'number' ? opt.extraPrice : 0);
+            if (optExtra > 0) {
+              extraPrice += optExtra;
+            }
+          }
+        }
+      }
+
       const verifiedUnitPrice = dbItem ? (dbItem.basePrice + extraPrice) : (Number(item.price) || 0);
       const quantity = Math.max(1, parseInt(item.quantity) || 1);
       const itemTotal = verifiedUnitPrice * quantity;
@@ -165,7 +194,89 @@ export async function POST(
       };
     });
 
-    const netAmount = Math.max(0, totalAmount - Number(discountAmount));
+    // Server-side discount & promoCode verification
+    let verifiedDiscount = 0;
+    let verifiedPromoCode: string | null = null;
+
+    if (promoCode && typeof promoCode === 'string' && promoCode.trim()) {
+      const cleanCode = promoCode.trim().toUpperCase();
+      const promo = await prisma.promotion.findFirst({
+        where: {
+          storeId: store.id,
+          code: cleanCode,
+          isActive: true,
+        },
+      });
+
+      if (!promo) {
+        return NextResponse.json(
+          { error: `โค้ดส่วนลด "${cleanCode}" ไม่ถูกต้องหรือถูกปิดใช้งานแล้ว` },
+          { status: 400 }
+        );
+      }
+
+      if (promo.expiryDate && new Date() > promo.expiryDate) {
+        return NextResponse.json(
+          { error: `โค้ดส่วนลด "${cleanCode}" หมดอายุแล้ว` },
+          { status: 400 }
+        );
+      }
+
+      if (promo.minSpend > 0 && totalAmount < promo.minSpend) {
+        return NextResponse.json(
+          { error: `โค้ด "${cleanCode}" ใช้ได้เมื่อมียอดสั่งซื้อขั้นต่ำ ฿${promo.minSpend.toLocaleString()} ขึ้นไป` },
+          { status: 400 }
+        );
+      }
+
+      if (promo.discountType === 'PERCENT') {
+        verifiedDiscount = (totalAmount * promo.discountValue) / 100;
+      } else {
+        verifiedDiscount = promo.discountValue;
+      }
+      verifiedDiscount = Math.min(totalAmount, Math.max(0, verifiedDiscount));
+      verifiedPromoCode = cleanCode;
+    } else if (discountAmount && Number(discountAmount) > 0) {
+      let isStaff = false;
+      try {
+        await requireStoreAccess(params.slug);
+        isStaff = true;
+      } catch {
+        isStaff = false;
+      }
+
+      if (isStaff) {
+        verifiedDiscount = Math.min(totalAmount, Math.max(0, Number(discountAmount)));
+      } else {
+        verifiedDiscount = 0;
+      }
+    }
+
+    const netAmount = Math.max(0, totalAmount - verifiedDiscount);
+
+    // Guard: Prevent negative loyalty points on redemption
+    const cleanMemberPhone = memberPhone ? memberPhone.replace(/\D/g, '') : null;
+    const requestedPoints = Number(pointsRedeemed) || 0;
+
+    if (cleanMemberPhone && requestedPoints > 0) {
+      const member = await prisma.customerMember.findUnique({
+        where: {
+          storeId_phone: {
+            storeId: store.id,
+            phone: cleanMemberPhone,
+          },
+        },
+      });
+
+      if (!member || member.points < requestedPoints) {
+        return NextResponse.json(
+          {
+            error: `แต้มสะสมไม่เพียงพอ (มีแต้มคงเหลือ ${member?.points || 0} แต้ม แต่ขอใช้ ${requestedPoints} แต้ม)`,
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     // Calculate GP% and Net Revenue for Delivery Channels
     let gpPercent = 0;
@@ -184,9 +295,13 @@ export async function POST(
     const gpAmount = isDelivery ? (netAmount * gpPercent) / 100 : 0;
     const netRevenue = isDelivery ? netAmount - gpAmount : netAmount;
 
-    // 2. Enterprise Recipe BOM & Real-time Stock Deduction
+    // 2. Enterprise Recipe BOM & Real-time Stock Deduction (Tenant-scoped)
     const recipes = await prisma.menuItemRecipe.findMany({
-      where: { menuItemId: { in: menuItemIds } },
+      where: {
+        menuItemId: { in: menuItemIds },
+        menuItem: { storeId: store.id },
+        ingredient: { storeId: store.id },
+      },
       include: { ingredient: true },
     });
 
@@ -215,15 +330,15 @@ export async function POST(
         riderName: riderName || null,
         riderPhone: riderPhone || null,
         totalAmount,
-        discountAmount: Number(discountAmount),
+        discountAmount: verifiedDiscount,
         netAmount,
         gpPercent,
         gpAmount,
         netRevenue,
         costAmount: totalCost,
-        memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : null,
-        promoCode: promoCode ? promoCode.toUpperCase().trim() : null,
-        pointsRedeemed: Number(pointsRedeemed) || 0,
+        memberPhone: cleanMemberPhone,
+        promoCode: verifiedPromoCode,
+        pointsRedeemed: requestedPoints,
         note,
         customerName,
         customerLineId,

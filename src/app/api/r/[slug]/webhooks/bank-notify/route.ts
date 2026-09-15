@@ -87,20 +87,25 @@ export async function POST(
       rawText = await request.text();
     }
 
-    // 2. ตรวจสอบ Security Webhook Key
+    // 2. ตรวจสอบ Security Webhook Key (Fail-Closed)
     const providedKey =
       queryKey ||
       bodyKey ||
       request.headers.get('x-bank-webhook-key') ||
       request.headers.get('authorization')?.replace('Bearer ', '');
 
-    if (store.bankWebhookKey && store.bankWebhookKey.trim() !== '') {
-      if (!providedKey || providedKey.trim() !== store.bankWebhookKey.trim()) {
-        return NextResponse.json(
-          { error: 'Unauthorized: Webhook Key ไม่ถูกต้อง' },
-          { status: 401 }
-        );
-      }
+    if (!store.bankWebhookKey || store.bankWebhookKey.trim() === '') {
+      return NextResponse.json(
+        { error: 'Unauthorized: ร้านค้ายังไม่ได้กำหนด bankWebhookKey กรุณาตั้งค่าในระบบก่อนเปิดใช้งาน Webhook' },
+        { status: 401 }
+      );
+    }
+
+    if (!providedKey || providedKey.trim() !== store.bankWebhookKey.trim()) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Webhook Key ไม่ถูกต้อง' },
+        { status: 401 }
+      );
     }
 
     // 3. ทำการวิเคราะห์ข้อความแจ้งเตือนด้วย Bank Message Parser

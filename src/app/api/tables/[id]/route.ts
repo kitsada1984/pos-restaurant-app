@@ -98,8 +98,10 @@ export async function DELETE(
       include: {
         orders: {
           where: {
-            status: { in: ['PENDING', 'COOKING', 'READY', 'SERVED'] },
-            paymentStatus: { in: ['UNPAID', 'PENDING_CONFIRMATION'] },
+            OR: [
+              { status: { in: ['PENDING', 'COOKING', 'READY', 'SERVED'] } },
+              { paymentStatus: { in: ['UNPAID', 'PENDING_CONFIRMATION'] } },
+            ],
           },
         },
       },
@@ -109,10 +111,16 @@ export async function DELETE(
 
     if (table.orders.length > 0) {
       return NextResponse.json(
-        { error: `ไม่สามารถลบ ${table.name} ได้เนื่องจากมีออเดอร์ค้างอยู่` },
+        { error: `ไม่สามารถลบ ${table.name} ได้เนื่องจากมีออเดอร์ค้างอยู่ กรุณาเช็คบิลหรือเคลียร์ออเดอร์ก่อนลบ` },
         { status: 400 }
       );
     }
+
+    // ปลดความสัมพันธ์ tableId จากออเดอร์ในอดีตที่ปิดบิลแล้ว เพื่อป้องกัน Foreign Key Constraint Error
+    await prisma.order.updateMany({
+      where: { tableId: table.id },
+      data: { tableId: null },
+    });
 
     await prisma.table.delete({ where: { id: table.id } });
     broadcastEvent('TABLE_UPDATED', { action: 'delete', tableNo: table.tableNo }, store.id);
