@@ -884,7 +884,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           orderId: activeOrder.id,
           qrPayload: scan.qrText,
           slipImage: scan.compressedBase64,
-          manualConfirm: autoCheckoutEnabled, // ถ้าเปิดโหมดบันทึกอัตโนมัติ ให้ปิดบิลทันทีเมื่อสลิปผ่าน
+          manualConfirm: false,
+          autoCheckout: autoCheckoutEnabled, // ถ้าเปิดโหมดบันทึกอัตโนมัติ ให้ปิดบิลทันทีเมื่อสลิปตรวจผ่านยอดตรง
           discountAmount: totalCombinedDiscount,
           memberPhone: memberPhone || null,
           customerName: customerNameInput.trim() || undefined,

@@ -149,13 +149,13 @@ export function parseBankSlipQr(rawPayload: string): ParsedSlipData {
   else if (trimmed.includes('ttbbank')) detectedBankName = 'ธนาคารทหารไทยธนชาต (TTB)';
 
   return {
-    isValid: true,
+    isValid: false,
     rawPayload: trimmed,
     slipRef: `URL_${hashRef}`,
     bankName: detectedBankName,
     provider: 'INTERNAL',
-    verificationStatus: 'VALID',
-    message: `ตรวจพบข้อมูลสลิป ${detectedBankName}`,
+    verificationStatus: 'INVALID_QR',
+    message: `ตรวจพบสลิป ${detectedBankName} แต่ไม่มีข้อมูล Mini-QR สำหรับอ่านยอดเงินอัตโนมัติ (รอแคชเชียร์ตรวจสอบ)`,
   };
 }
 

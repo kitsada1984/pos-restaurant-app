@@ -8,6 +8,7 @@ import {
   ParsedSlipData,
 } from '@/lib/slip-verifier';
 import { saveSlipImage } from '@/lib/google-drive-storage';
+import { requireStoreAccess } from '@/lib/auth';
 
 export async function POST(
   request: Request,
@@ -44,6 +45,7 @@ export async function POST(
       qrPayload,
       slipImage,
       manualConfirm = false,
+      autoCheckout = false,
       note,
       discountAmount = 0,
       memberPhone,
@@ -51,6 +53,22 @@ export async function POST(
       pointsRedeemed = 0,
       promoCode,
     } = body;
+
+    let isStaffAuthorized = false;
+    if (manualConfirm || autoCheckout) {
+      try {
+        await requireStoreAccess(params.slug);
+        isStaffAuthorized = true;
+      } catch (authErr) {
+        if (manualConfirm) {
+          return NextResponse.json(
+            { error: 'Unauthorized: Staff access required for manual slip confirmation' },
+            { status: 401 }
+          );
+        }
+        isStaffAuthorized = false;
+      }
+    }
 
     // ค้นหาออเดอร์
     let order: any = null;
@@ -159,11 +177,12 @@ export async function POST(
     }
 
     // 3. ตรวจสอบบัญชีผู้รับเงิน (ป้องกันสลิปโอนไปบัญชีอื่น/คนอื่น)
+    let isReceiverMatch = true;
     if (parsed?.receiverAccount && store.promptPayId) {
       const cleanStorePay = store.promptPayId.replace(/\D/g, '');
       const cleanSlipReceiver = parsed.receiverAccount.replace(/\D/g, '');
       if (cleanStorePay.length >= 4 && cleanSlipReceiver.length >= 4) {
-        const isReceiverMatch =
+        isReceiverMatch =
           cleanStorePay.endsWith(cleanSlipReceiver) ||
           cleanSlipReceiver.endsWith(cleanStorePay) ||
           cleanStorePay.includes(cleanSlipReceiver) ||
@@ -223,9 +242,22 @@ export async function POST(
     }
 
     // 5. ตัดสินใจว่าจะปิดบิลอัตโนมัติ หรือ บันทึกรอแคชเชียร์ยืนยัน
-    const shouldAutoClose =
-      manualConfirm ||
-      (store.slipAutoCheckout && parsed?.isValid && !isAmountMismatch);
+    const hasValidAmount = Boolean(
+      parsed &&
+      typeof parsed.amount === 'number' &&
+      !isNaN(parsed.amount) &&
+      parsed.amount > 0
+    );
+
+    const isAutoCheckoutEligible = Boolean(
+      (store.slipAutoCheckout || (isStaffAuthorized && autoCheckout)) &&
+      parsed?.isValid &&
+      hasValidAmount &&
+      !isAmountMismatch &&
+      isReceiverMatch
+    );
+
+    const shouldAutoClose = Boolean(isStaffAuthorized && manualConfirm) || isAutoCheckoutEligible;
 
     const effectiveSlipRef =
       parsed?.slipRef || (manualConfirm ? `MANUAL_${Date.now()}_${order.id.slice(-4)}` : null);
