@@ -137,6 +137,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const [bankAlertQueue, setBankAlertQueue] = useState<any[]>([]);
   const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState<boolean>(false);
+  const [activeServiceCalls, setActiveServiceCalls] = useState<{ [tableKey: string]: { requestType: string; timestamp: number } }>({});
 
   // Derive currently active alert from queue
   const bankAlertModal = useMemo(() => {
@@ -372,6 +373,20 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 }
               }
               fetchData();
+            } else if (payload.type === 'SERVICE_CALLED') {
+              const d = payload.data;
+              playOrderChime();
+              if (voiceEnabled) {
+                speakThaiVoice(`โต๊ะ ${d.tableNo || ''} เรียกพนักงานค่ะ ${d.requestType || ''}`);
+              }
+              showInfo(`🔔 ${d.tableName || `โต๊ะ ${d.tableNo}`} เรียกพนักงาน!`, `${d.requestType} ${d.note ? `(${d.note})` : ''}`);
+              const key = String(d.tableNo || d.tableId || '');
+              if (key) {
+                setActiveServiceCalls((prev) => ({
+                  ...prev,
+                  [key]: { requestType: d.requestType || 'เรียกพนักงาน', timestamp: Date.now() },
+                }));
+              }
             } else if (
               payload.type === 'ORDER_CREATED' ||
               payload.type === 'ORDER_UPDATED' ||
@@ -1501,6 +1516,32 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   )}
                 </div>
               </div>
+
+              {/* Active Service Call Indicator on Table Card */}
+              {activeServiceCalls[String(table.tableNo || table.id)] && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const key = String(table.tableNo || table.id);
+                    setActiveServiceCalls((prev) => {
+                      const next = { ...prev };
+                      delete next[key];
+                      return next;
+                    });
+                    showSuccess('รับทราบคำขอแล้ว 👍', `โต๊ะ ${table.tableNo || table.id}`);
+                  }}
+                  className="mt-2.5 p-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-950 text-xs font-bold flex items-center justify-between gap-1 animate-pulse hover:bg-amber-500/25 transition-all w-full cursor-pointer shadow-xs"
+                  title="คลิกเพื่อกดรับทราบและปิดการแจ้งเตือน"
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <BellRing className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 animate-bounce" />
+                    <span className="truncate">เรียก: {activeServiceCalls[String(table.tableNo || table.id)].requestType}</span>
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500 text-white font-black flex-shrink-0 hover:bg-amber-600 shadow-xs">
+                    รับทราบ ✓
+                  </span>
+                </div>
+              )}
 
               {/* Desktop Bottom Action Area */}
               <div className="hidden sm:flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-100 w-full">

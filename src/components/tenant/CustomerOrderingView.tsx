@@ -100,6 +100,42 @@ export default function CustomerOrderingView({
   const [customerSlipMessage, setCustomerSlipMessage] = useState<string | null>(null);
   const [customerSlipError, setCustomerSlipError] = useState<string | null>(null);
 
+  // Service Call Bell State
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+  const [isCallingService, setIsCallingService] = useState(false);
+  const [serviceCallSuccess, setServiceCallSuccess] = useState<string | null>(null);
+
+  const handleSendServiceCall = async (requestType: string, note?: string) => {
+    setIsCallingService(true);
+    try {
+      const res = await fetch(`/api/r/${slug}/service-call`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableNo: tableId,
+          tableName: tableData?.name || `โต๊ะ ${tableId}`,
+          requestType,
+          note: note || '',
+        }),
+      });
+      if (res.ok) {
+        playSuccessChime();
+        showSuccess('เรียกพนักงานสำเร็จ 🔔', `${requestType} • พนักงานกำลังมาให้บริการครับ`);
+        setServiceCallSuccess(requestType);
+        setTimeout(() => {
+          setIsServiceModalOpen(false);
+          setServiceCallSuccess(null);
+        }, 1500);
+      } else {
+        showError('ไม่สามารถเรียกพนักงานได้', 'กรุณาลองใหม่อีกครั้ง');
+      }
+    } catch (e) {
+      showError('เกิดข้อผิดพลาด', 'กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setIsCallingService(false);
+    }
+  };
+
   const handleCustomerNotifyTransfer = async () => {
     setIsCustomerNotifyingTransfer(true);
     setCustomerSlipError(null);
@@ -589,11 +625,11 @@ export default function CustomerOrderingView({
               </div>
             </div>
 
-            {/* Tab switch */}
+            {/* Tab switch & Call Staff */}
             <div className="flex items-center space-x-1 p-1 bg-slate-900 rounded-2xl border border-slate-800 text-xs">
               <button
                 onClick={() => setActiveTab('menu')}
-                className={`px-3.5 py-1.5 rounded-xl font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
                   activeTab === 'menu'
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
                     : 'text-slate-400 hover:text-slate-200'
@@ -603,7 +639,7 @@ export default function CustomerOrderingView({
               </button>
               <button
                 onClick={() => setActiveTab('status')}
-                className={`px-3.5 py-1.5 rounded-xl font-bold transition-all relative ${
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all relative ${
                   activeTab === 'status'
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
                     : 'text-slate-400 hover:text-slate-200'
@@ -613,6 +649,14 @@ export default function CustomerOrderingView({
                 {activeOrders.length > 0 && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-400 animate-ping" />
                 )}
+              </button>
+              <button
+                onClick={() => setIsServiceModalOpen(true)}
+                className="px-2.5 py-1.5 rounded-xl font-extrabold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 border border-amber-500/30 flex items-center space-x-1 transition-all"
+                title="เรียกพนักงาน"
+              >
+                <BellRing className="w-3.5 h-3.5 animate-pulse" />
+                <span>เรียก</span>
               </button>
             </div>
           </div>
@@ -1493,6 +1537,61 @@ export default function CustomerOrderingView({
                       <span>แจ้งพนักงานแล้ว พนักงานกำลังเดินไปที่โต๊ะครับ</span>
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Service Call Bell Modal */}
+        {isServiceModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+            <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-sm">
+                    <BellRing className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base text-white">เรียกพนักงาน (โต๊ะ {tableId})</h3>
+                    <p className="text-[11px] text-slate-400">เลือกบริการที่ต้องการ พนักงานจะได้รับแจ้งเตือนทันที</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsServiceModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {serviceCallSuccess ? (
+                <div className="p-6 text-center space-y-2 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl animate-in zoom-in-95 duration-200">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto animate-bounce" />
+                  <h4 className="font-black text-sm text-emerald-300">แจ้งพนักงานเรียบร้อยแล้ว</h4>
+                  <p className="text-xs text-slate-300">{serviceCallSuccess} • กำลังมาให้บริการครับ</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { icon: '🌶️', label: 'ขอน้ำปลาพริก / พริกน้ำส้ม / เครื่องปรุง' },
+                    { icon: '🧊', label: 'ขอเติมน้ำแข็ง / น้ำดื่ม' },
+                    { icon: '🥢', label: 'ขอช้อนส้อม / ตะเกียบ / จานแบ่ง' },
+                    { icon: '🧻', label: 'ขอกระดาษทิชชู่' },
+                    { icon: '💵', label: 'เรียกเช็คบิล (ชำระด้วยเงินสด)' },
+                    { icon: '❓', label: 'สอบถามพนักงาน / ความช่วยเหลืออื่นๆ' },
+                  ].map((srv, idx) => (
+                    <button
+                      key={idx}
+                      disabled={isCallingService}
+                      onClick={() => handleSendServiceCall(srv.label)}
+                      className="w-full p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-[0.98] border border-slate-700/60 text-left flex items-center space-x-3 transition-all text-xs font-bold text-slate-200 group"
+                    >
+                      <span className="text-lg flex-shrink-0 group-hover:scale-110 transition-transform">{srv.icon}</span>
+                      <span className="flex-1">{srv.label}</span>
+                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors" />
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

@@ -24,6 +24,7 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('ACTIVE'); // 'ACTIVE' | 'PENDING' | 'COOKING' | 'READY' | 'DELIVERY'
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showBatchBar, setShowBatchBar] = useState(true);
 
   const fetchOrders = async () => {
     try {
@@ -181,11 +182,38 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   const cookingCount = orders.filter((o) => o.status === 'COOKING').length;
   const readyCount = orders.filter((o) => o.status === 'READY').length;
 
+  // Batch Cooking Aggregator: Summarize identical dishes pending or cooking
+  const batchCookingSummary = useMemo(() => {
+    const pendingAndCookingOrders = orders.filter((o) => ['PENDING', 'COOKING'].includes(o.status));
+    const map = new Map<string, { name: string; quantity: number; tables: string[]; notes: string[] }>();
+
+    pendingAndCookingOrders.forEach((o) => {
+      const tableLabel = o.tableNo ? `โต๊ะ ${o.tableNo}` : (o.orderChannel !== 'DINE_IN' ? o.orderChannel : 'กลับบ้าน');
+      o.items?.forEach((item: any) => {
+        if (item.status === 'READY' || item.status === 'SERVED') return;
+        const key = item.name;
+        if (!map.has(key)) {
+          map.set(key, { name: item.name, quantity: 0, tables: [], notes: [] });
+        }
+        const entry = map.get(key)!;
+        entry.quantity += item.quantity || 1;
+        if (!entry.tables.includes(tableLabel)) {
+          entry.tables.push(tableLabel);
+        }
+        if (item.specialNote && !entry.notes.includes(item.specialNote)) {
+          entry.notes.push(item.specialNote);
+        }
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity);
+  }, [orders]);
+
   return (
     <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
       {/* Header & Filter Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
-        <div>
+        <div className="flex items-center justify-between w-full md:w-auto">
           <div className="flex items-center space-x-2.5">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
               <ChefHat className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -199,31 +227,102 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
               </p>
             </div>
           </div>
+
+          {/* Sound Toggle Button (Mobile) */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`md:hidden p-2 rounded-xl border text-xs font-bold flex items-center transition-all ${
+              soundEnabled ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-slate-100 border-slate-300 text-slate-500'
+            }`}
+            title={soundEnabled ? 'ปิดเสียงกระดิ่ง' : 'เปิดเสียงกระดิ่ง'}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-600" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
+          </button>
         </div>
 
-        {/* Filter Pills - Full Width Grid on Mobile */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full md:w-auto">
-          {[
-            { id: 'ACTIVE', label: `ทั้งหมด (${pendingCount + cookingCount + readyCount})`, count: pendingCount + cookingCount + readyCount },
-            { id: 'PENDING', label: `รอทำ (${pendingCount})`, color: 'bg-rose-500 text-white' },
-            { id: 'COOKING', label: `กำลังปรุง (${cookingCount})`, color: 'bg-amber-500 text-white' },
-            { id: 'READY', label: `เสร็จ (${readyCount})`, color: 'bg-emerald-500 text-white' },
-            { id: 'DELIVERY', label: `🛵 เดลิเวอรี (${deliveryOrdersCount})`, color: 'bg-emerald-700 text-white font-black' },
-          ].map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilterStatus(f.id)}
-              className={`py-2 px-1.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all text-center truncate ${
-                filterStatus === f.id
-                  ? f.color || 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* Filter Pills & Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto">
+          {/* Sound Toggle Button (Desktop) */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`hidden md:flex px-3 py-2 rounded-xl border text-xs font-bold items-center space-x-1.5 transition-all ${
+              soundEnabled ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-slate-100 border-slate-300 text-slate-500'
+            }`}
+            title={soundEnabled ? 'ปิดเสียงกระดิ่ง' : 'เปิดเสียงกระดิ่ง'}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-600" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
+            <span>{soundEnabled ? 'เสียงกระดิ่งเปิด' : 'เสียงปิด'}</span>
+          </button>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full sm:w-auto">
+            {[
+              { id: 'ACTIVE', label: `ทั้งหมด (${pendingCount + cookingCount + readyCount})`, count: pendingCount + cookingCount + readyCount },
+              { id: 'PENDING', label: `รอทำ (${pendingCount})`, color: 'bg-rose-500 text-white' },
+              { id: 'COOKING', label: `กำลังปรุง (${cookingCount})`, color: 'bg-amber-500 text-white' },
+              { id: 'READY', label: `เสร็จ (${readyCount})`, color: 'bg-emerald-500 text-white' },
+              { id: 'DELIVERY', label: `🛵 เดลิเวอรี (${deliveryOrdersCount})`, color: 'bg-emerald-700 text-white font-black' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilterStatus(f.id)}
+                className={`py-2 px-1.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all text-center truncate ${
+                  filterStatus === f.id
+                    ? f.color || 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Batch Cooking Aggregator Banner */}
+      {batchCookingSummary.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-2 mb-2.5">
+            <div className="flex items-center space-x-2">
+              <span className="p-1.5 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                <Flame className="w-4 h-4" />
+              </span>
+              <h3 className="text-sm sm:text-base font-black text-amber-950">
+                🍳 สรุปเมนูปรุงพร้อมกัน (Batch Cooking) — {batchCookingSummary.reduce((s, i) => s + i.quantity, 0)} จานค้างทำ
+              </h3>
+            </div>
+            <button
+              onClick={() => setShowBatchBar(!showBatchBar)}
+              className="text-xs font-bold text-amber-800 hover:text-amber-950 px-2 py-1 rounded-lg hover:bg-amber-100/60 transition-all"
+            >
+              {showBatchBar ? 'ย่อแถบ ▲' : 'ขยายดู ▼'}
+            </button>
+          </div>
+
+          {showBatchBar && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {batchCookingSummary.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white border border-amber-200/80 rounded-xl px-3 py-2 shadow-xs flex items-center space-x-2.5"
+                >
+                  <span className="w-6 h-6 rounded-lg bg-orange-500 text-white text-xs font-black flex items-center justify-center flex-shrink-0 shadow-sm">
+                    {item.quantity}
+                  </span>
+                  <div>
+                    <span className="text-xs sm:text-sm font-extrabold text-slate-900 block leading-tight">
+                      {item.name}
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-800/80 block">
+                      {item.tables.join(', ')}
+                      {item.notes.length > 0 && ` • โน้ต: ${item.notes.join(', ')}`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Orders Ticket Grid */}
       {filteredOrders.length === 0 ? (
@@ -299,9 +398,29 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                       </span>
                     )}
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold block">{formatTime(order.createdAt)}</span>
-                  </div>
+                  {(() => {
+                    const elapsedMin = Math.max(0, Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000));
+                    const isUrgent = elapsedMin >= 15 && order.status !== 'READY';
+                    const isWarning = elapsedMin >= 10 && elapsedMin < 15 && order.status !== 'READY';
+
+                    return (
+                      <div className="text-right flex flex-col items-end">
+                        <span className="text-xs font-bold block opacity-95">{formatTime(order.createdAt)}</span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black mt-1 shadow-xs ${
+                            isUrgent
+                              ? 'bg-rose-500 text-white animate-pulse ring-2 ring-white/60'
+                              : isWarning
+                              ? 'bg-amber-300 text-slate-950 font-black'
+                              : 'bg-black/25 text-white/95'
+                          }`}
+                        >
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{isUrgent ? `🔥 รอ ${elapsedMin} น.` : isWarning ? `⚠️ ${elapsedMin} น.` : `${elapsedMin} น.`}</span>
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Ticket Items */}
