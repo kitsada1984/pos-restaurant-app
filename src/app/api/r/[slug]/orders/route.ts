@@ -141,8 +141,11 @@ export async function POST(
       let extraPrice = 0;
       if (Array.isArray(item.selectedOptions)) {
         for (const opt of item.selectedOptions) {
-          if (typeof opt?.extraPrice === 'number' && opt.extraPrice > 0) {
-            extraPrice += opt.extraPrice;
+          const optExtra = typeof opt?.extra === 'number'
+            ? opt.extra
+            : (typeof opt?.extraPrice === 'number' ? opt.extraPrice : 0);
+          if (optExtra > 0) {
+            extraPrice += optExtra;
           }
         }
       }

@@ -23,7 +23,9 @@ export async function GET(
   // Send initial connection event
   const sendEvent = (event: string, data: any) => {
     try {
-      const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+      const payload = event === 'message'
+        ? `data: ${JSON.stringify(data)}\n\n`
+        : `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
       writer.write(encoder.encode(payload));
     } catch (e) {
       // client disconnected
@@ -35,7 +37,12 @@ export async function GET(
   // Listen to store-scoped events and global events
   const onPosEvent = (payload: EventPayload) => {
     if (!payload.storeId || payload.storeId === store.id) {
-      sendEvent(payload.type, payload.data);
+      // 1. Send standard message event so eventSource.onmessage picks it up with { type, data, storeId }
+      sendEvent('message', { type: payload.type, data: payload.data, storeId: payload.storeId });
+      // 2. Also send named event for addEventListener listeners
+      if (payload.type) {
+        sendEvent(payload.type, payload.data);
+      }
     }
   };
 

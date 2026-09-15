@@ -299,12 +299,48 @@ export default function CustomerOrderingView({
 
     connectSSE();
 
+    // Polling fallback every 15s to guarantee fresh table order status
+    const pollInterval = setInterval(() => {
+      if (isSubscribed) {
+        fetchData();
+      }
+    }, 15000);
+
     return () => {
       isSubscribed = false;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      clearInterval(pollInterval);
       eventSource?.close();
     };
   }, [slug, tableId]);
+
+  // Load persisted cart from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`pos_cart_${slug}_t${tableId}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCart(parsed);
+          }
+        }
+      } catch (e) {}
+    }
+  }, [slug, tableId]);
+
+  // Save cart to localStorage on change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        if (cart && cart.length > 0) {
+          localStorage.setItem(`pos_cart_${slug}_t${tableId}`, JSON.stringify(cart));
+        } else {
+          localStorage.removeItem(`pos_cart_${slug}_t${tableId}`);
+        }
+      } catch (e) {}
+    }
+  }, [cart, slug, tableId]);
 
   // Flattened active orders
   const activeOrders = useMemo(() => {
@@ -412,6 +448,7 @@ export default function CustomerOrderingView({
           group,
           choice: c.name,
           extra: c.extraPrice || 0,
+          extraPrice: c.extraPrice || 0,
         });
       });
     });

@@ -54,7 +54,9 @@ export async function POST(
     const effectiveCustomerName = customerName?.trim() || order.customerName || undefined;
     const effectivePointsRedeemed = Number(pointsRedeemed) || order.pointsRedeemed || 0;
     const effectivePromoCode = promoCode || order.promoCode;
-    const requestedDiscount = discountAmount !== undefined ? Number(discountAmount) : (order.discountAmount || 0);
+    const requestedDiscount = (discountAmount !== undefined && Number(discountAmount) > 0)
+      ? Number(discountAmount)
+      : (order.discountAmount || 0);
     const effectiveDiscount = Math.min(order.totalAmount, Math.max(0, requestedDiscount));
     const effectiveNetAmount = Math.max(0, order.totalAmount - effectiveDiscount);
 

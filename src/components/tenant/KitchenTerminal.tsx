@@ -92,9 +92,17 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
 
     connectSSE();
 
+    // Polling fallback every 10s to guarantee kitchen screen never misses an order
+    const pollInterval = setInterval(() => {
+      if (isSubscribed) {
+        fetchOrders();
+      }
+    }, 10000);
+
     return () => {
       isSubscribed = false;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      clearInterval(pollInterval);
       eventSource?.close();
     };
   }, [slug, soundEnabled]);

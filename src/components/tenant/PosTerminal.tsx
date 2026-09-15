@@ -387,7 +387,13 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       }
     } catch (e) {}
 
+    // Periodic polling fallback every 15s to guarantee tables & status are always fresh
+    const pollInterval = setInterval(() => {
+      fetchData();
+    }, 15000);
+
     return () => {
+      clearInterval(pollInterval);
       eventSource?.close();
     };
   }, [slug]);
@@ -486,6 +492,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         group,
         choice: c.name,
         extra: c.extraPrice || 0,
+        extraPrice: c.extraPrice || 0,
       }))
     );
 
