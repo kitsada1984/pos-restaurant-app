@@ -133,8 +133,56 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const [autoCheckoutEnabled, setAutoCheckoutEnabled] = useState<boolean>(false);
   const [isManualConfirming, setIsManualConfirming] = useState(false);
   const [previewSlipModalOpen, setPreviewSlipModalOpen] = useState(false);
-  const [ambiguousBankNotify, setAmbiguousBankNotify] = useState<any | null>(null);
-  const [bankAlertModal, setBankAlertModal] = useState<any | null>(null);
+  // Bank Alert Queue & Multi-Table Verification State
+  const [bankAlertQueue, setBankAlertQueue] = useState<any[]>([]);
+  const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState<boolean>(false);
+
+  // Derive currently active alert from queue
+  const bankAlertModal = useMemo(() => {
+    if (bankAlertQueue.length === 0) return null;
+    return bankAlertQueue.find((a) => a.id === activeAlertId) || bankAlertQueue[0];
+  }, [bankAlertQueue, activeAlertId]);
+
+  const addBankAlert = (alert: any) => {
+    const alertId = alert.id || `${alert.tableNo || alert.tableId || 'table'}_${Date.now()}`;
+    const itemWithId = { ...alert, id: alertId };
+
+    setBankAlertQueue((prev) => {
+      const existingIndex = prev.findIndex(
+        (p) =>
+          (alert.tableNo && p.tableNo === alert.tableNo) ||
+          (alert.tableId && p.tableId === alert.tableId)
+      );
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = { ...prev[existingIndex], ...itemWithId };
+        return updated;
+      }
+      return [...prev, itemWithId];
+    });
+
+    // If modal is not currently open, point to this alert and open modal
+    setActiveAlertId((curr) => curr || alertId);
+    setIsAlertModalOpen(true);
+  };
+
+  const dismissCurrentAlert = () => {
+    setIsAlertModalOpen(false);
+  };
+
+  const resolveAlertAndNext = (alertId: string) => {
+    setBankAlertQueue((prev) => {
+      const nextQueue = prev.filter((a) => a.id !== alertId);
+      if (nextQueue.length === 0) {
+        setIsAlertModalOpen(false);
+        setActiveAlertId(null);
+      } else {
+        setActiveAlertId(nextQueue[0].id);
+      }
+      return nextQueue;
+    });
+  };
 
   // Voice Announcement State
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(() => {
@@ -228,8 +276,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             const payload = JSON.parse(event.data);
             if (payload.type === 'BANK_NOTIFY_RECEIVED') {
               const d = payload.data;
-              // เปิด Pop-up แจ้งเตือนเงินเข้าทันที (ทั้งแจ้งเตือนผ่าน Email และ App ธนาคาร)
-              setBankAlertModal(d);
+              // นำรายการเข้าคิวแจ้งเตือนเงินเข้าทันที
+              addBankAlert(d);
 
               if (d.action === 'AUTO_PAID') {
                 playSuccessChime();
@@ -275,7 +323,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               if (voiceEnabled) {
                 speakSlipSubmitted(d?.tableNo, d?.amount);
               }
-              setBankAlertModal({
+              addBankAlert({
                 action: 'CUSTOMER_NOTIFY',
                 channel: 'SLIP',
                 tableId: d?.tableId || d?.tableNo,
@@ -296,7 +344,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               if (voiceEnabled) {
                 speakCustomerNotifyTransfer(d.tableNo, d.amount);
               }
-              setBankAlertModal({
+              addBankAlert({
                 action: 'CUSTOMER_NOTIFY',
                 channel: 'WEB',
                 tableId: d.tableId,
@@ -2826,10 +2874,70 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         </div>
       )}
 
-      {/* 💰 Bank Notification Popup Modal: แจ้งเตือนเงินเข้าผ่าน Email / Bank Webhook */}
-      {bankAlertModal && (
+      {/* 💰 Bank Notification Popup Modal: แจ้งเตือนเงินเข้าผ่าน Email / Bank Webhook / Direct Web */}
+      {isAlertModalOpen && bankAlertModal && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 animate-scale-up">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 animate-scale-up flex flex-col">
+            {/* Multi-table Queue Tabs / Pills Bar */}
+            {bankAlertQueue.length > 1 && (
+              <div className="bg-slate-900 px-3.5 py-2.5 border-b border-slate-800 flex items-center justify-between gap-2 shadow-inner">
+                <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-thin flex-1 min-w-0">
+                  <span className="text-[11px] font-black text-amber-400 flex-shrink-0 flex items-center gap-1 mr-1">
+                    <BellRing className="w-3.5 h-3.5 animate-bounce" />
+                    <span>รอตรวจ ({bankAlertQueue.findIndex((a) => a.id === bankAlertModal.id) + 1}/{bankAlertQueue.length}):</span>
+                  </span>
+                  {bankAlertQueue.map((item) => {
+                    const isSelected = item.id === bankAlertModal.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setActiveAlertId(item.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-xs ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white ring-2 ring-white/70 shadow-md scale-105'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+                        }`}
+                      >
+                        <span>{item.tableName || `โต๊ะ ${item.tableNo}`}</span>
+                        <span className={isSelected ? 'text-white' : 'text-amber-300 font-extrabold'}>
+                          ฿{item.amount?.toLocaleString()}
+                        </span>
+                        {item.channel === 'SLIP' && <span title="มีสลิปแนบมา">📷</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-1 flex-shrink-0 pl-1 border-l border-white/10">
+                  <button
+                    type="button"
+                    disabled={bankAlertQueue.findIndex((a) => a.id === bankAlertModal.id) <= 0}
+                    onClick={() => {
+                      const idx = bankAlertQueue.findIndex((a) => a.id === bankAlertModal.id);
+                      if (idx > 0) setActiveAlertId(bankAlertQueue[idx - 1].id);
+                    }}
+                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-25 disabled:cursor-not-allowed text-white text-xs font-black transition-all cursor-pointer"
+                    title="โต๊ะก่อนหน้า"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    type="button"
+                    disabled={bankAlertQueue.findIndex((a) => a.id === bankAlertModal.id) >= bankAlertQueue.length - 1}
+                    onClick={() => {
+                      const idx = bankAlertQueue.findIndex((a) => a.id === bankAlertModal.id);
+                      if (idx < bankAlertQueue.length - 1) setActiveAlertId(bankAlertQueue[idx + 1].id);
+                    }}
+                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-25 disabled:cursor-not-allowed text-white text-xs font-black transition-all cursor-pointer"
+                    title="โต๊ะถัดไป"
+                  >
+                    ▶
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Modal Header with Bank & Channel Badge */}
             <div
               className={`p-5 text-white ${
@@ -2873,7 +2981,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setBankAlertModal(null)}
+                  onClick={dismissCurrentAlert}
                   className="p-1 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
@@ -3030,7 +3138,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                           speakMoneyReceived(bankAlertModal.amount, bankAlertModal.tableName);
                         }
                         showSuccess(`ปิดบิล ${bankAlertModal.tableName} สำเร็จแล้ว ✅`, `ยอดรับ ฿${bankAlertModal.amount?.toLocaleString()}`);
-                        setBankAlertModal(null);
+                        resolveAlertAndNext(bankAlertModal.id);
                         fetchData();
                       } catch (e: any) {
                         showError('ไม่สามารถปิดบิลได้', e.message);
@@ -3044,7 +3152,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
                   <button
                     type="button"
-                    onClick={() => setBankAlertModal(null)}
+                    onClick={dismissCurrentAlert}
                     className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all cursor-pointer"
                   >
                     ปิดหน้าต่าง / รอตรวจสอบก่อน
@@ -3097,7 +3205,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                             paidAt: new Date().toISOString(),
                           });
                           setIsReceiptModalOpen(true);
-                          setBankAlertModal(null);
+                          resolveAlertAndNext(bankAlertModal.id);
                         }}
                         className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer transition-all"
                       >
@@ -3107,7 +3215,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                     )}
                     <button
                       type="button"
-                      onClick={() => setBankAlertModal(null)}
+                      onClick={() => resolveAlertAndNext(bankAlertModal.id)}
                       className={`py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all ${
                         !bankAlertModal.orders || bankAlertModal.orders.length === 0 ? 'col-span-2' : ''
                       }`}
@@ -3152,7 +3260,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                           speakMoneyReceived(bankAlertModal.amount, bankAlertModal.tableName);
                         }
                         showSuccess(`ปิดบิล ${bankAlertModal.tableName} สำเร็จแล้ว ✅`, `ยอดรับ ฿${bankAlertModal.amount}`);
-                        setBankAlertModal(null);
+                        resolveAlertAndNext(bankAlertModal.id);
                         fetchData();
                       } catch (e: any) {
                         showError('ไม่สามารถปิดบิลได้', e.message);
@@ -3166,7 +3274,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
                   <button
                     type="button"
-                    onClick={() => setBankAlertModal(null)}
+                    onClick={dismissCurrentAlert}
                     className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all cursor-pointer"
                   >
                     ไม่ใช่โต๊ะนี้ / ปิดหน้าต่าง
@@ -3203,7 +3311,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                               speakMoneyReceived(c.totalAmount, c.tableName);
                             }
                             showSuccess(`ปิดบิล ${c.tableName} สำเร็จแล้ว ✅`, `ยอดรับ ฿${c.totalAmount}`);
-                            setBankAlertModal(null);
+                            resolveAlertAndNext(bankAlertModal.id);
                             fetchData();
                           } catch (e: any) {
                             showError('ไม่สามารถปิดบิลได้', e.message);
@@ -3224,7 +3332,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
                   <button
                     type="button"
-                    onClick={() => setBankAlertModal(null)}
+                    onClick={dismissCurrentAlert}
                     className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all cursor-pointer"
                   >
                     ปิดหน้าต่าง / ไม่ใช่โต๊ะเหล่านี้
@@ -3277,7 +3385,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                                       speakMoneyReceived(bankAlertModal.amount, t.name);
                                     }
                                     showSuccess(`ตัดยอดปิดบิล ${t.name} สำเร็จแล้ว ✅`);
-                                    setBankAlertModal(null);
+                                    resolveAlertAndNext(bankAlertModal.id);
                                     fetchData();
                                   } catch (e: any) {
                                     showError('ไม่สามารถปิดบิลได้', e.message);
@@ -3296,7 +3404,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
                   <button
                     type="button"
-                    onClick={() => setBankAlertModal(null)}
+                    onClick={dismissCurrentAlert}
                     className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-xs transition-all cursor-pointer"
                   >
                     รับทราบ & ปิดหน้าต่าง
@@ -3305,6 +3413,25 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 🔔 Floating Action Button: รอตรวจเงินเข้า (เมื่อปิดป๊อปอัพชั่วคราวแต่ยังมีคิวค้างอยู่) */}
+      {!isAlertModalOpen && bankAlertQueue.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-40 animate-bounce">
+          <button
+            type="button"
+            onClick={() => setIsAlertModalOpen(true)}
+            className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white font-black text-sm shadow-2xl shadow-orange-500/50 hover:scale-105 active:scale-95 transition-all border-2 border-white/40 cursor-pointer"
+          >
+            <div className="relative">
+              <BellRing className="w-5 h-5 text-white animate-pulse" />
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-600 text-white rounded-full text-[10px] flex items-center justify-center font-extrabold border border-white">
+                {bankAlertQueue.length}
+              </span>
+            </div>
+            <span>รอตรวจเงินเข้า ({bankAlertQueue.length} โต๊ะ)</span>
+          </button>
         </div>
       )}
 
