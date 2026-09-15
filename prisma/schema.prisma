@@ -69,6 +69,9 @@ model Store {
   googleDriveFolderId   String?  // Folder ID ใน Google Drive สำหรับเก็บรูปสลิป
   googleDriveWebhookUrl String?  // Webhook URL (Google Apps Script) สำหรับอัปโหลดตรงเข้า Drive
   
+  // การตั้งค่าปุ่มเรียกพนักงานจากโต๊ะลูกค้า (Service Call Items)
+  serviceCallItems      String?  // JSON string: [{ id, icon, label, active }]
+  
   // ความสัมพันธ์ข้อมูลของร้าน
   users           User[]
   categories      Category[]

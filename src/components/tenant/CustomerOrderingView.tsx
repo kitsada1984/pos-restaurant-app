@@ -1573,16 +1573,21 @@ export default function CustomerOrderingView({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-2">
-                  {[
-                    { icon: '🌶️', label: 'ขอน้ำปลาพริก / พริกน้ำส้ม / เครื่องปรุง' },
-                    { icon: '🧊', label: 'ขอเติมน้ำแข็ง / น้ำดื่ม' },
-                    { icon: '🥢', label: 'ขอช้อนส้อม / ตะเกียบ / จานแบ่ง' },
-                    { icon: '🧻', label: 'ขอกระดาษทิชชู่' },
-                    { icon: '💵', label: 'เรียกเช็คบิล (ชำระด้วยเงินสด)' },
-                    { icon: '❓', label: 'สอบถามพนักงาน / ความช่วยเหลืออื่นๆ' },
-                  ].map((srv, idx) => (
+                  {(
+                    (Array.isArray(store?.serviceCallItems) && store.serviceCallItems.length > 0
+                      ? store.serviceCallItems.filter((i: any) => i.active !== false)
+                      : [
+                          { icon: '🌶️', label: 'ขอน้ำปลาพริก / พริกน้ำส้ม / เครื่องปรุง' },
+                          { icon: '🧊', label: 'ขอเติมน้ำแข็ง / น้ำดื่ม' },
+                          { icon: '🥢', label: 'ขอช้อนส้อม / ตะเกียบ / จานแบ่ง' },
+                          { icon: '🧻', label: 'ขอกระดาษทิชชู่' },
+                          { icon: '💵', label: 'เรียกเช็คบิล (ชำระด้วยเงินสด)' },
+                          { icon: '❓', label: 'สอบถามพนักงาน / ความช่วยเหลืออื่นๆ' },
+                        ]
+                    )
+                  ).map((srv: any, idx: number) => (
                     <button
-                      key={idx}
+                      key={srv.id || idx}
                       disabled={isCallingService}
                       onClick={() => handleSendServiceCall(srv.label)}
                       className="w-full p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-[0.98] border border-slate-700/60 text-left flex items-center space-x-3 transition-all text-xs font-bold text-slate-200 group"

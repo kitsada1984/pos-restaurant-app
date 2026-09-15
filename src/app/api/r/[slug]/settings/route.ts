@@ -4,6 +4,15 @@ import { broadcastEvent } from '@/lib/events';
 
 import { testGoogleDriveWebhook } from '@/lib/google-drive-storage';
 
+const DEFAULT_SERVICE_CALL_ITEMS = [
+  { id: 'srv-1', icon: '🌶️', label: 'ขอน้ำปลาพริก / พริกน้ำส้ม / เครื่องปรุง', active: true },
+  { id: 'srv-2', icon: '🧊', label: 'ขอเติมน้ำแข็ง / น้ำดื่ม', active: true },
+  { id: 'srv-3', icon: '🥢', label: 'ขอช้อนส้อม / ตะเกียบ / จานแบ่ง', active: true },
+  { id: 'srv-4', icon: '🧻', label: 'ขอกระดาษทิชชู่', active: true },
+  { id: 'srv-5', icon: '💵', label: 'เรียกเช็คบิล (ชำระด้วยเงินสด)', active: true },
+  { id: 'srv-6', icon: '❓', label: 'สอบถามพนักงาน / ความช่วยเหลืออื่นๆ', active: true },
+];
+
 export async function GET(
   request: Request,
   { params }: { params: { slug: string } }
@@ -17,6 +26,18 @@ export async function GET(
     });
 
     if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
+
+    let parsedServiceItems = DEFAULT_SERVICE_CALL_ITEMS;
+    if (store.serviceCallItems) {
+      try {
+        const parsed = JSON.parse(store.serviceCallItems);
+        if (Array.isArray(parsed)) {
+          parsedServiceItems = parsed;
+        }
+      } catch (e) {
+        parsedServiceItems = DEFAULT_SERVICE_CALL_ITEMS;
+      }
+    }
 
     return NextResponse.json({
       id: store.id,
@@ -45,6 +66,7 @@ export async function GET(
       bankAutoCheckout: store.bankAutoCheckout ?? true,
       googleDriveFolderId: store.googleDriveFolderId || '',
       googleDriveWebhookUrl: store.googleDriveWebhookUrl || '',
+      serviceCallItems: parsedServiceItems,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -80,6 +102,7 @@ export async function PUT(
       googleDriveFolderId,
       googleDriveWebhookUrl,
       testGoogleDrive,
+      serviceCallItems,
     } = body;
 
     const store = await prisma.store.findUnique({
@@ -140,11 +163,26 @@ export async function PUT(
         bankAutoCheckout: bankAutoCheckout !== undefined ? Boolean(bankAutoCheckout) : store.bankAutoCheckout,
         googleDriveFolderId: googleDriveFolderId !== undefined ? (googleDriveFolderId ? googleDriveFolderId.trim() : null) : store.googleDriveFolderId,
         googleDriveWebhookUrl: googleDriveWebhookUrl !== undefined ? (googleDriveWebhookUrl ? googleDriveWebhookUrl.trim() : null) : store.googleDriveWebhookUrl,
+        serviceCallItems: serviceCallItems !== undefined 
+          ? (typeof serviceCallItems === 'string' ? serviceCallItems : JSON.stringify(serviceCallItems)) 
+          : store.serviceCallItems,
       },
       include: { plan: true },
     });
 
     broadcastEvent('TABLE_UPDATED', { action: 'settings_update' }, store.id);
+
+    let parsedServiceItems = DEFAULT_SERVICE_CALL_ITEMS;
+    if (updated.serviceCallItems) {
+      try {
+        const parsed = JSON.parse(updated.serviceCallItems);
+        if (Array.isArray(parsed)) {
+          parsedServiceItems = parsed;
+        }
+      } catch (e) {
+        parsedServiceItems = DEFAULT_SERVICE_CALL_ITEMS;
+      }
+    }
 
     return NextResponse.json({
       id: updated.id,
@@ -173,6 +211,7 @@ export async function PUT(
       bankAutoCheckout: updated.bankAutoCheckout,
       googleDriveFolderId: updated.googleDriveFolderId || '',
       googleDriveWebhookUrl: updated.googleDriveWebhookUrl || '',
+      serviceCallItems: parsedServiceItems,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
