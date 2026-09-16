@@ -83,10 +83,58 @@ export default function PosPage() {
     note?: string;
     timestamp: number;
   }
+  type ServiceCallAlertMode = 'BOTH' | 'VOICE_ONLY' | 'CHIME_ONLY' | 'MUTE';
+
   const [serviceCallQueue, setServiceCallQueue] = useState<ServiceCallItem[]>([]);
   const [activeServiceCallIndex, setActiveServiceCallIndex] = useState<number>(0);
   const [isServiceCallModalOpen, setIsServiceCallModalOpen] = useState<boolean>(false);
   const [activeServiceCalls, setActiveServiceCalls] = useState<{ [tableKey: string]: { requestType: string; timestamp: number } }>({});
+
+  // Service Call Alert Mode: ทั้งพูด+กริ่ง | เฉพาะพูด | เฉพาะกริ่ง | ปิดเสียง
+  const [serviceCallAlertMode, setServiceCallAlertMode] = useState<ServiceCallAlertMode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('pos_service_call_alert_mode');
+      if (saved === 'BOTH' || saved === 'VOICE_ONLY' || saved === 'CHIME_ONLY' || saved === 'MUTE') {
+        return saved;
+      }
+    }
+    return 'BOTH';
+  });
+  const serviceCallAlertModeRef = React.useRef(serviceCallAlertMode);
+  useEffect(() => {
+    serviceCallAlertModeRef.current = serviceCallAlertMode;
+  }, [serviceCallAlertMode]);
+
+  const updateServiceCallAlertMode = (mode: ServiceCallAlertMode) => {
+    setServiceCallAlertMode(mode);
+    serviceCallAlertModeRef.current = mode;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('pos_service_call_alert_mode', mode);
+    }
+  };
+
+  // Repeat service call alert every 20 seconds as long as there is an unacknowledged call
+  useEffect(() => {
+    if (serviceCallQueue.length === 0 || serviceCallAlertMode === 'MUTE') return;
+
+    const repeatTimer = setInterval(() => {
+      const call = serviceCallQueue[activeServiceCallIndex] || serviceCallQueue[0];
+      if (call) {
+        if (serviceCallAlertMode === 'BOTH') {
+          playServiceCallChime();
+          setTimeout(() => {
+            speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
+          }, 350);
+        } else if (serviceCallAlertMode === 'VOICE_ONLY') {
+          speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
+        } else if (serviceCallAlertMode === 'CHIME_ONLY') {
+          playServiceCallChime();
+        }
+      }
+    }, 20000);
+
+    return () => clearInterval(repeatTimer);
+  }, [serviceCallQueue, activeServiceCallIndex, serviceCallAlertMode]);
 
   const currentServiceCall = useMemo(() => {
     if (serviceCallQueue.length === 0) return null;
@@ -208,8 +256,17 @@ export default function PosPage() {
             const payload = JSON.parse(event.data);
             if (payload.type === 'SERVICE_CALLED') {
               const d = payload.data;
-              playServiceCallChime();
-              speakServiceCall(d.tableNo, d.requestType, d.note);
+              const mode = serviceCallAlertModeRef.current;
+              if (mode === 'BOTH') {
+                playServiceCallChime();
+                setTimeout(() => {
+                  speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
+                }, 350);
+              } else if (mode === 'VOICE_ONLY') {
+                speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
+              } else if (mode === 'CHIME_ONLY') {
+                playServiceCallChime();
+              }
               addServiceCall({
                 id: d.id,
                 tableNo: Number(d.tableNo) || 1,
@@ -575,6 +632,40 @@ export default function PosPage() {
               >
                 รอเช็คบิล ({tables.filter((t) => t.status === 'PAYMENT_PENDING').length})
               </button>
+            </div>
+
+            {/* Service Call Audio Alert Setting Dropdown */}
+            <div className="relative flex items-center">
+              <select
+                value={serviceCallAlertMode}
+                onChange={(e) => {
+                  const mode = e.target.value as ServiceCallAlertMode;
+                  updateServiceCallAlertMode(mode);
+                  if (mode === 'BOTH') {
+                    playServiceCallChime();
+                    setTimeout(() => speakServiceCall(1, 'ทดสอบเสียง', '', 1.15), 350);
+                  } else if (mode === 'VOICE_ONLY') {
+                    speakServiceCall(1, 'ทดสอบเสียง', '', 1.15);
+                  } else if (mode === 'CHIME_ONLY') {
+                    playServiceCallChime();
+                  }
+                }}
+                className={`h-9 px-2.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer outline-none ${
+                  serviceCallAlertMode === 'BOTH'
+                    ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-sm'
+                    : serviceCallAlertMode === 'VOICE_ONLY'
+                    ? 'bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100 shadow-sm'
+                    : serviceCallAlertMode === 'CHIME_ONLY'
+                    ? 'bg-purple-50 text-purple-900 border-purple-300 hover:bg-purple-100 shadow-sm'
+                    : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
+                }`}
+                title="ตั้งค่าโหมดเสียงเตือนเมื่อลูกค้ากดเรียกพนักงาน (เตือนซ้ำทุก 20 วิ จนกว่าจะกดรับทราบ)"
+              >
+                <option value="BOTH">🔔🗣️ เสียงเรียก: พูด + กริ่ง</option>
+                <option value="VOICE_ONLY">🗣️ เสียงเรียก: เฉพาะพูดไทย</option>
+                <option value="CHIME_ONLY">🔔 เสียงเรียก: เฉพาะกริ่ง</option>
+                <option value="MUTE">🔇 ปิดเสียงเรียก</option>
+              </select>
             </div>
 
             <button
@@ -1479,7 +1570,7 @@ export default function PosPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, currentServiceCall.note)}
+                  onClick={() => speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, currentServiceCall.note, 1.15)}
                   className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 text-xs font-bold cursor-pointer transition-colors flex-shrink-0"
                   title="ฟังเสียงพูดซ้ำ"
                 >
@@ -1555,6 +1646,46 @@ export default function PosPage() {
                 >
                   ปิดหน้าต่างชั่วคราว (ป้ายเตือนยังคงแสดงบนโต๊ะ)
                 </button>
+
+                {/* Sound Mode Quick Switcher inside Modal */}
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1.5 px-0.5">
+                    <span>โหมดเสียงเตือนเรียกพนักงาน:</span>
+                    <span className="text-[10px] text-amber-600 font-semibold">เตือนซ้ำทุก 20 วิ</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[
+                      { id: 'BOTH', label: 'พูด+กริ่ง', icon: '🔔🗣️' },
+                      { id: 'VOICE_ONLY', label: 'เฉพาะพูด', icon: '🗣️' },
+                      { id: 'CHIME_ONLY', label: 'เฉพาะกริ่ง', icon: '🔔' },
+                      { id: 'MUTE', label: 'ปิดเสียง', icon: '🔇' },
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          updateServiceCallAlertMode(m.id as ServiceCallAlertMode);
+                          if (m.id === 'BOTH') {
+                            playServiceCallChime();
+                            setTimeout(() => speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, '', 1.15), 350);
+                          } else if (m.id === 'VOICE_ONLY') {
+                            speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, '', 1.15);
+                          } else if (m.id === 'CHIME_ONLY') {
+                            playServiceCallChime();
+                          }
+                        }}
+                        className={`py-1.5 px-1 rounded-xl text-[10px] sm:text-[11px] font-extrabold flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                          serviceCallAlertMode === m.id
+                            ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                        }`}
+                      >
+                        <span className="text-xs">{m.icon}</span>
+                        <span className="whitespace-nowrap leading-tight">{m.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

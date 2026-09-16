@@ -214,16 +214,19 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
  * Thai Text-to-Speech Voice Synthesizer
  * อ่านออกเสียงข้อความภาษาไทยด้วย Web Speech API
  */
-export function speakThaiVoice(text: string) {
+export function speakThaiVoice(text: string, rate: number = 1.0) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   if (!text || !text.trim()) return;
   try {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
     // ยกเลิกเสียงที่กำลังพูดค้างอยู่ก่อนหน้า
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text.trim());
     utterance.lang = 'th-TH';
-    utterance.rate = 1.0; // ความเร็วมาตรฐานชัดเจน
+    utterance.rate = rate; // ความเร็วตามที่กำหนด (ค่าเริ่มต้น 1.0)
     utterance.pitch = 1.0;
 
     const voice = cachedThaiVoice || findBestThaiVoice();
@@ -331,12 +334,34 @@ export function speakSlipSubmitted(tableNo?: number | string, amount?: number) {
 
 /**
  * แจ้งเตือนลูกค้ากดเรียกพนักงานที่โต๊ะอาหาร
+ * ใช้ประโยคสั้นกระชับ รวดเร็ว สปีด 1.15x เพื่อให้พูดจบไวใน 1-2 วินาที
  */
-export function speakServiceCall(tableNo?: number | string, requestType?: string, note?: string) {
+export function speakServiceCall(
+  tableNo?: number | string,
+  requestType?: string,
+  note?: string,
+  rate: number = 1.15
+) {
   const cleanTable = tableNo ? String(tableNo).replace(/^โต๊ะ\s*/, '').trim() : '';
-  const cleanType = requestType || 'เรียกพนักงาน';
-  const cleanNote = note && note.trim() ? ` หมายเหตุ ${note.trim()}` : '';
-  speakThaiVoice(`โต๊ะ ${cleanTable} เรียกพนักงานค่ะ ${cleanType}${cleanNote}`);
+  const rawType = (requestType || '').trim();
+  const cleanType = rawType && rawType !== 'เรียกพนักงาน' ? rawType : '';
+  
+  let phrase = '';
+  if (cleanTable) {
+    if (cleanType) {
+      phrase = `โต๊ะ ${cleanTable} เรียกค่ะ ${cleanType}`;
+    } else {
+      phrase = `โต๊ะ ${cleanTable} เรียกพนักงานค่ะ`;
+    }
+  } else {
+    phrase = cleanType ? `ลูกค้าเรียกค่ะ ${cleanType}` : 'มีลูกค้าเรียกพนักงานค่ะ';
+  }
+
+  if (note && note.trim() && note.trim().length <= 30) {
+    phrase += ` ${note.trim()}`;
+  }
+
+  speakThaiVoice(phrase, rate);
 }
 
 
