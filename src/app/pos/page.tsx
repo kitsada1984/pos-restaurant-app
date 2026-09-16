@@ -26,9 +26,11 @@ import {
   User,
   AlertCircle,
   Filter,
+  BellRing,
+  Volume2,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime } from '@/lib/utils';
-import { playOrderChime, playSuccessChime } from '@/lib/sound';
+import { playOrderChime, playSuccessChime, playServiceCallChime, speakServiceCall } from '@/lib/sound';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 
 export default function PosPage() {
@@ -71,6 +73,77 @@ export default function PosPage() {
   const [newTableId, setNewTableId] = useState('');
   const [newTableName, setNewTableName] = useState('');
   const [isCreatingTable, setIsCreatingTable] = useState(false);
+
+  // Service Call Queue & Alert States
+  interface ServiceCallItem {
+    id: string;
+    tableNo: number;
+    tableName: string;
+    requestType: string;
+    note?: string;
+    timestamp: number;
+  }
+  const [serviceCallQueue, setServiceCallQueue] = useState<ServiceCallItem[]>([]);
+  const [activeServiceCallIndex, setActiveServiceCallIndex] = useState<number>(0);
+  const [isServiceCallModalOpen, setIsServiceCallModalOpen] = useState<boolean>(false);
+  const [activeServiceCalls, setActiveServiceCalls] = useState<{ [tableKey: string]: { requestType: string; timestamp: number } }>({});
+
+  const currentServiceCall = useMemo(() => {
+    if (serviceCallQueue.length === 0) return null;
+    return serviceCallQueue[activeServiceCallIndex] || serviceCallQueue[0];
+  }, [serviceCallQueue, activeServiceCallIndex]);
+
+  const addServiceCall = (call: Omit<ServiceCallItem, 'id'> & { id?: string }) => {
+    const callId = call.id || `call_${call.tableNo}_${Date.now()}`;
+    const newCall: ServiceCallItem = { ...call, id: callId };
+
+    setServiceCallQueue((prev) => {
+      const idx = prev.findIndex((p) => p.tableNo === call.tableNo);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = newCall;
+        return updated;
+      }
+      return [...prev, newCall];
+    });
+
+    const key = String(call.tableNo);
+    setActiveServiceCalls((prev) => ({
+      ...prev,
+      [key]: { requestType: call.requestType, timestamp: call.timestamp || Date.now() },
+    }));
+
+    setIsServiceCallModalOpen(true);
+  };
+
+  const dismissServiceCall = (callId: string) => {
+    setServiceCallQueue((prev) => {
+      const call = prev.find((c) => c.id === callId);
+      if (call) {
+        const key = String(call.tableNo);
+        setActiveServiceCalls((curr) => {
+          const copy = { ...curr };
+          delete copy[key];
+          return copy;
+        });
+      }
+      const nextQueue = prev.filter((c) => c.id !== callId);
+      if (nextQueue.length === 0) {
+        setIsServiceCallModalOpen(false);
+        setActiveServiceCallIndex(0);
+      } else {
+        setActiveServiceCallIndex((idx) => Math.min(idx, nextQueue.length - 1));
+      }
+      return nextQueue;
+    });
+  };
+
+  const dismissAllServiceCalls = () => {
+    setActiveServiceCalls({});
+    setServiceCallQueue([]);
+    setIsServiceCallModalOpen(false);
+    setActiveServiceCallIndex(0);
+  };
 
   const fetchData = async () => {
     try {
@@ -133,7 +206,19 @@ export default function PosPage() {
         eventSource.onmessage = (event) => {
           try {
             const payload = JSON.parse(event.data);
-            if (
+            if (payload.type === 'SERVICE_CALLED') {
+              const d = payload.data;
+              playServiceCallChime();
+              speakServiceCall(d.tableNo, d.requestType, d.note);
+              addServiceCall({
+                id: d.id,
+                tableNo: Number(d.tableNo) || 1,
+                tableName: d.tableName || (d.tableNo ? `โต๊ะ ${d.tableNo}` : 'โต๊ะอาหาร'),
+                requestType: d.requestType || 'เรียกพนักงาน',
+                note: d.note || '',
+                timestamp: d.timestamp || Date.now(),
+              });
+            } else if (
               payload.type === 'ORDER_CREATED' ||
               payload.type === 'ORDER_UPDATED' ||
               payload.type === 'TABLE_UPDATED' ||
@@ -610,6 +695,31 @@ export default function PosPage() {
                       {isOccupied && 'มีลูกค้า'}
                     </span>
                   </div>
+
+                  {/* Active Service Call Badge on Table Card */}
+                  {activeServiceCalls[String(table.tableNo || table.id)] && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const key = String(table.tableNo || table.id);
+                        setActiveServiceCalls((prev) => {
+                          const next = { ...prev };
+                          delete next[key];
+                          return next;
+                        });
+                      }}
+                      className="my-1.5 p-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-950 text-[11px] font-bold flex items-center justify-between gap-1 animate-pulse hover:bg-amber-500/30 transition-all cursor-pointer shadow-xs"
+                      title="กดเพื่อรับทราบและปิดการแจ้งเตือน"
+                    >
+                      <span className="flex items-center gap-1 truncate">
+                        <BellRing className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 animate-bounce" />
+                        <span className="truncate">เรียก: {activeServiceCalls[String(table.tableNo || table.id)].requestType}</span>
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500 text-white font-black flex-shrink-0 hover:bg-amber-600">
+                        รับทราบ ✓
+                      </span>
+                    </div>
+                  )}
 
                   {/* Middle Content */}
                   <div className="my-2">
@@ -1307,6 +1417,166 @@ export default function PosPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 🔔 Service Call Alert Modal (ป๊อปอัพเด้งแจ้งเตือนลูกค้าเรียกพนักงาน) */}
+      {isServiceCallModalOpen && currentServiceCall && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border-2 border-amber-500/60 overflow-hidden text-slate-900 animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white relative">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
+                    <BellRing className="w-6 h-6 text-white animate-bounce" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-100 block">
+                      ลูกค้ากดเรียกพนักงาน 🔔
+                    </span>
+                    <h3 className="text-xl font-black leading-tight">
+                      {currentServiceCall.tableName || `โต๊ะ ${currentServiceCall.tableNo}`}
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Queue count indicator */}
+                <div className="flex items-center space-x-1.5">
+                  {serviceCallQueue.length > 1 && (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-black bg-white/25 border border-white/40 text-white shadow-sm">
+                      {activeServiceCallIndex + 1} / {serviceCallQueue.length} โต๊ะ
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsServiceCallModalOpen(false)}
+                    className="p-1.5 rounded-full bg-white/15 hover:bg-white/30 text-white transition-colors cursor-pointer"
+                    title="ปิดหน้าต่างชั่วคราว"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 sm:p-6 space-y-4">
+              {/* Highlight Service Request Box */}
+              <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 flex items-start justify-between gap-3">
+                <div className="space-y-1 min-w-0">
+                  <span className="text-xs font-bold text-amber-800 flex items-center gap-1">
+                    <span>สิ่งที่ลูกค้าต้องการ:</span>
+                  </span>
+                  <div className="text-lg font-black text-slate-900 leading-snug break-words">
+                    {currentServiceCall.requestType}
+                  </div>
+                  {currentServiceCall.note && (
+                    <div className="text-xs font-semibold text-slate-600 bg-white/90 p-2 rounded-xl border border-amber-200/80 mt-1">
+                      💬 "{currentServiceCall.note}"
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, currentServiceCall.note)}
+                  className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 text-xs font-bold cursor-pointer transition-colors flex-shrink-0"
+                  title="ฟังเสียงพูดซ้ำ"
+                >
+                  <Volume2 className="w-4 h-4 text-amber-700" />
+                  <span>ฟังเสียง</span>
+                </button>
+              </div>
+
+              {/* Timing info */}
+              <div className="flex items-center justify-between text-xs text-slate-500 px-1 font-medium">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>เวลาที่เรียก: {formatTime(new Date(currentServiceCall.timestamp).toISOString())}</span>
+                </span>
+                <span className="text-[11px] text-amber-700 font-bold bg-amber-100/70 px-2 py-0.5 rounded-md">
+                  กำลังรอพนักงานไปบริการ
+                </span>
+              </div>
+
+              {/* Navigation buttons if multiple calls */}
+              {serviceCallQueue.length > 1 && (
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={activeServiceCallIndex <= 0}
+                    onClick={() => setActiveServiceCallIndex((i) => Math.max(0, i - 1))}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-30 cursor-pointer"
+                  >
+                    ← ดูโต๊ะก่อนหน้า
+                  </button>
+                  <button
+                    type="button"
+                    disabled={activeServiceCallIndex >= serviceCallQueue.length - 1}
+                    onClick={() => setActiveServiceCallIndex((i) => Math.min(serviceCallQueue.length - 1, i + 1))}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-30 cursor-pointer"
+                  >
+                    ดูโต๊ะถัดไป →
+                  </button>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissServiceCall(currentServiceCall.id);
+                    playSuccessChime();
+                  }}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer transition-all active:scale-95"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>✅ รับทราบ / ไปบริการแล้ว</span>
+                </button>
+
+                {serviceCallQueue.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dismissAllServiceCalls();
+                      playSuccessChime();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-xs transition-all cursor-pointer"
+                  >
+                    รับทราบทั้งหมด ({serviceCallQueue.length} โต๊ะ)
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsServiceCallModalOpen(false)}
+                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all cursor-pointer"
+                >
+                  ปิดหน้าต่างชั่วคราว (ป้ายเตือนยังคงแสดงบนโต๊ะ)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔔 Floating Action Button: ลูกค้าเรียกพนักงาน (เมื่อปิดป๊อปอัพชั่วคราวแต่ยังมีค้างอยู่) */}
+      {!isServiceCallModalOpen && serviceCallQueue.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-40 animate-bounce">
+          <button
+            type="button"
+            onClick={() => setIsServiceCallModalOpen(true)}
+            className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white font-black text-sm shadow-2xl shadow-amber-500/50 hover:scale-105 active:scale-95 transition-all border-2 border-white/50 cursor-pointer"
+          >
+            <div className="relative">
+              <BellRing className="w-5 h-5 text-white animate-pulse" />
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-600 text-white rounded-full text-[10px] flex items-center justify-center font-extrabold border border-white">
+                {serviceCallQueue.length}
+              </span>
+            </div>
+            <span>ลูกค้าเรียกพนักงาน ({serviceCallQueue.length} โต๊ะ)</span>
+          </button>
         </div>
       )}
 

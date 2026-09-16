@@ -76,6 +76,51 @@ export function playSuccessChime() {
 }
 
 /**
+ * Distinct 2-Strike Service Desk Bell Chime for Customer Calling Staff ("Ding-Dong ... Ding-Dong")
+ */
+export function playServiceCallChime() {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+
+    const playStrike = (startTime: number) => {
+      // High Ding (E6 ~1318Hz)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(1318.51, startTime);
+      gain1.gain.setValueAtTime(0.45, startTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, startTime + 0.55);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(startTime);
+      osc1.stop(startTime + 0.55);
+
+      // Resonant Dong / Harmonic (B5 ~987Hz)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(987.77, startTime + 0.1);
+      gain2.gain.setValueAtTime(0.35, startTime + 0.1);
+      gain2.gain.exponentialRampToValueAtTime(0.001, startTime + 0.65);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(startTime + 0.1);
+      osc2.stop(startTime + 0.65);
+    };
+
+    // Double strike desk bell
+    playStrike(now);
+    playStrike(now + 0.4);
+  } catch (err) {
+    console.warn('Audio service call chime error:', err);
+  }
+}
+
+/**
  * Distinct Rapid Triple-Beep Chime for Incoming Delivery Orders (LINE MAN / Grab)
  */
 export function playDeliveryChime() {
@@ -282,6 +327,16 @@ export function speakSlipSubmitted(tableNo?: number | string, amount?: number) {
   } else {
     speakThaiVoice(`ตรวจสอบเงินเข้าโต๊ะ ${cleanTable} ค่ะ`.replace(/\s+/g, ' ').trim());
   }
+}
+
+/**
+ * แจ้งเตือนลูกค้ากดเรียกพนักงานที่โต๊ะอาหาร
+ */
+export function speakServiceCall(tableNo?: number | string, requestType?: string, note?: string) {
+  const cleanTable = tableNo ? String(tableNo).replace(/^โต๊ะ\s*/, '').trim() : '';
+  const cleanType = requestType || 'เรียกพนักงาน';
+  const cleanNote = note && note.trim() ? ` หมายเหตุ ${note.trim()}` : '';
+  speakThaiVoice(`โต๊ะ ${cleanTable} เรียกพนักงานค่ะ ${cleanType}${cleanNote}`);
 }
 
 
