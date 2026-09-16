@@ -190,7 +190,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           playServiceCallChime();
           setTimeout(() => {
             speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
-          }, 350);
+          }, 650);
         } else if (serviceCallAlertMode === 'VOICE_ONLY') {
           speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
         } else if (serviceCallAlertMode === 'CHIME_ONLY') {
@@ -415,7 +415,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                     playServiceCallChime();
                     setTimeout(() => {
                       speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
-                    }, 350);
+                    }, 650);
                   } else if (mode === 'VOICE_ONLY') {
                     speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
                   } else if (mode === 'CHIME_ONLY') {
@@ -467,7 +467,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                     playServiceCallChime();
                     setTimeout(() => {
                       speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
-                    }, 350);
+                    }, 650);
                   } else if (mode === 'VOICE_ONLY') {
                     speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
                   } else if (mode === 'CHIME_ONLY') {
@@ -611,7 +611,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                 playServiceCallChime();
                 setTimeout(() => {
                   speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
-                }, 350);
+                }, 650);
               } else if (mode === 'VOICE_ONLY') {
                 speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
               } else if (mode === 'CHIME_ONLY') {
@@ -1521,7 +1521,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   if (mode === 'BOTH') {
                     showSuccess('🔊 เสียงเรียก: พูดไทย + กริ่งเตือน (เตือนซ้ำทุก 20 วิ)');
                     playServiceCallChime();
-                    setTimeout(() => speakServiceCall(1, 'ทดสอบเสียง', '', 1.15), 350);
+                    setTimeout(() => speakServiceCall(1, 'ทดสอบเสียง', '', 1.15), 650);
                   } else if (mode === 'VOICE_ONLY') {
                     showSuccess('🗣️ เสียงเรียก: เฉพาะพูดภาษาไทย (เตือนซ้ำทุก 20 วิ)');
                     speakServiceCall(1, 'ทดสอบเสียง', '', 1.15);
@@ -3998,7 +3998,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                           updateServiceCallAlertMode(m.id as ServiceCallAlertMode);
                           if (m.id === 'BOTH') {
                             playServiceCallChime();
-                            setTimeout(() => speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, '', 1.15), 350);
+                            setTimeout(() => speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, '', 1.15), 650);
                           } else if (m.id === 'VOICE_ONLY') {
                             speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, '', 1.15);
                           } else if (m.id === 'CHIME_ONLY') {

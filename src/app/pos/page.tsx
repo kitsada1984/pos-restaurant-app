@@ -124,7 +124,7 @@ export default function PosPage() {
           playServiceCallChime();
           setTimeout(() => {
             speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
-          }, 350);
+          }, 650);
         } else if (serviceCallAlertMode === 'VOICE_ONLY') {
           speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
         } else if (serviceCallAlertMode === 'CHIME_ONLY') {
@@ -249,7 +249,7 @@ export default function PosPage() {
                     playServiceCallChime();
                     setTimeout(() => {
                       speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
-                    }, 350);
+                    }, 650);
                   } else if (mode === 'VOICE_ONLY') {
                     speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
                   } else if (mode === 'CHIME_ONLY') {
@@ -301,7 +301,7 @@ export default function PosPage() {
                     playServiceCallChime();
                     setTimeout(() => {
                       speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
-                    }, 350);
+                    }, 650);
                   } else if (mode === 'VOICE_ONLY') {
                     speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
                   } else if (mode === 'CHIME_ONLY') {
@@ -371,7 +371,7 @@ export default function PosPage() {
                 playServiceCallChime();
                 setTimeout(() => {
                   speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
-                }, 350);
+                }, 650);
               } else if (mode === 'VOICE_ONLY') {
                 speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
               } else if (mode === 'CHIME_ONLY') {
@@ -753,7 +753,7 @@ export default function PosPage() {
                   updateServiceCallAlertMode(mode);
                   if (mode === 'BOTH') {
                     playServiceCallChime();
-                    setTimeout(() => speakServiceCall(1, 'ทดสอบเสียง', '', 1.15), 350);
+                    setTimeout(() => speakServiceCall(1, 'ทดสอบเสียง', '', 1.15), 650);
                   } else if (mode === 'VOICE_ONLY') {
                     speakServiceCall(1, 'ทดสอบเสียง', '', 1.15);
                   } else if (mode === 'CHIME_ONLY') {
@@ -1777,7 +1777,7 @@ export default function PosPage() {
                           updateServiceCallAlertMode(m.id as ServiceCallAlertMode);
                           if (m.id === 'BOTH') {
                             playServiceCallChime();
-                            setTimeout(() => speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, '', 1.15), 350);
+                            setTimeout(() => speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, '', 1.15), 650);
                           } else if (m.id === 'VOICE_ONLY') {
                             speakServiceCall(currentServiceCall.tableNo, currentServiceCall.requestType, '', 1.15);
                           } else if (m.id === 'CHIME_ONLY') {

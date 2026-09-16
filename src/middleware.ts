@@ -135,6 +135,7 @@ export async function middleware(request: NextRequest) {
     // Whitelist public endpoints for customer tables, SSE stream, and webhooks
     const isPublic =
       subPath === 'settings/public' ||
+      subPath === 'tts' ||
       (subPath === 'menu' && method === 'GET') ||
       (subPath.startsWith('menu/') && method === 'GET') ||
       (subPath.startsWith('tables/') && method === 'GET') ||

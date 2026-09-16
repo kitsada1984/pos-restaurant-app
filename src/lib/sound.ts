@@ -164,15 +164,45 @@ export function formatThaiCurrencyForSpeech(amount: number): string {
   return `${baht} บาท`;
 }
 
+// Active HTML Audio element for high-quality online Thai speech
+let activeTtsAudio: HTMLAudioElement | null = null;
 let cachedThaiVoice: SpeechSynthesisVoice | null = null;
 
+/**
+ * Clean and simplify service call labels for natural, fluid spoken Thai
+ */
+export function cleanRequestTypeForSpeech(raw?: string): string {
+  if (!raw) return '';
+  let str = raw.trim();
+  if (str === 'ทดสอบเสียง') return 'ทดสอบระบบเสียงเรียกพนักงานค่ะ';
+  if (str === 'เรียกพนักงาน') return '';
+
+  // Remove parenthesized content like (ชำระด้วยเงินสด)
+  str = str.replace(/\([^)]*\)/g, '').trim();
+
+  // Normalize known service call items into fluid spoken Thai
+  if (str.includes('น้ำปลาพริก')) return 'ขอน้ำปลาพริก เครื่องปรุง';
+  if (str.includes('น้ำแข็ง')) return 'ขอน้ำแข็ง น้ำดื่ม';
+  if (str.includes('ช้อนส้อม')) return 'ขอช้อนส้อม จานแบ่ง';
+  if (str.includes('ทิชชู่')) return 'ขอกระดาษทิชชู่';
+  if (str.includes('เช็คบิล')) return 'เช็คบิลค่ะ';
+  if (str.includes('สอบถาม')) return 'สอบถามพนักงานค่ะ';
+
+  // Replace multiple slashes with simple space
+  str = str.replace(/\s*\/\s*/g, ' ');
+  return str.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Search local/browser voices for a genuine Thai speech synthesis voice
+ */
 function findBestThaiVoice(): SpeechSynthesisVoice | null {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
   try {
     const voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return null;
 
-    // กรองเฉพาะเสียงภาษาไทย (th-TH, th_TH, th)
+    // Filter genuine Thai voices (th-TH, th_TH, th)
     const thaiVoices = voices.filter((v) => {
       const lang = (v.lang || '').toLowerCase().replace('_', '-');
       return lang === 'th-th' || lang.startsWith('th');
@@ -180,7 +210,7 @@ function findBestThaiVoice(): SpeechSynthesisVoice | null {
 
     if (thaiVoices.length === 0) return null;
 
-    // ให้ความสำคัญกับเสียง Natural, Google หรือเสียงพรีเมียมก่อน
+    // Prioritize natural, Google, or high-fidelity Thai voices
     const premiumVoice = thaiVoices.find((v) => {
       const name = (v.name || '').toLowerCase();
       return (
@@ -214,34 +244,142 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 }
 
 /**
- * Thai Text-to-Speech Voice Synthesizer
- * อ่านออกเสียงข้อความภาษาไทยด้วย Web Speech API
+ * Preload and unlock audio context across browsers on first interaction
  */
-export function speakThaiVoice(text: string, rate: number = 1.0) {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-  if (!text || !text.trim()) return;
+export function initAudioUnlock() {
+  if (typeof window === 'undefined') return;
+  const unlock = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
+      }
+      if ('speechSynthesis' in window && window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+    } catch {}
+  };
+  window.addEventListener('click', unlock, { once: true });
+  window.addEventListener('touchstart', unlock, { once: true });
+  window.addEventListener('keydown', unlock, { once: true });
+}
+
+if (typeof window !== 'undefined') {
+  initAudioUnlock();
+}
+
+/**
+ * Play high-quality native Thai speech streamed from TTS proxy (/api/tts)
+ * Works universally on Windows, iOS, Android, macOS without requiring OS Thai voice packs.
+ */
+export function playThaiAudioStream(text: string): Promise<boolean> {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  const clean = text.trim();
+  if (!clean) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    try {
+      // Cancel previous speech audio if still playing
+      if (activeTtsAudio) {
+        activeTtsAudio.pause();
+        activeTtsAudio.currentTime = 0;
+      }
+
+      const encoded = encodeURIComponent(clean);
+      const audioUrl = `/api/tts?text=${encoded}`;
+      const audio = new Audio(audioUrl);
+      activeTtsAudio = audio;
+
+      let settled = false;
+      const finish = (success: boolean) => {
+        if (!settled) {
+          settled = true;
+          resolve(success);
+        }
+      };
+
+      audio.onended = () => finish(true);
+      audio.onerror = () => finish(false);
+
+      const timer = setTimeout(() => finish(false), 9000);
+      audio.addEventListener('ended', () => clearTimeout(timer), { once: true });
+      audio.addEventListener('error', () => clearTimeout(timer), { once: true });
+
+      const p = audio.play();
+      if (p !== undefined) {
+        p.catch((err) => {
+          console.warn('[TTS] playThaiAudioStream play() caught:', err);
+          clearTimeout(timer);
+          finish(false);
+        });
+      }
+    } catch (err) {
+      console.warn('[TTS] playThaiAudioStream error:', err);
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Fallback to Web Speech API if browser has genuine Thai voice installed
+ */
+export function speakViaWebSpeech(text: string, rate: number = 1.0): boolean {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
+  if (!text || !text.trim()) return false;
   try {
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
     }
-    // ยกเลิกเสียงที่กำลังพูดค้างอยู่ก่อนหน้า
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text.trim());
     utterance.lang = 'th-TH';
-    utterance.rate = rate; // ความเร็วตามที่กำหนด (ค่าเริ่มต้น 1.0)
+    utterance.rate = rate;
     utterance.pitch = 1.0;
 
     const voice = cachedThaiVoice || findBestThaiVoice();
     if (voice) {
       cachedThaiVoice = voice;
       utterance.voice = voice;
+    } else {
+      // Do not allow English voice to read Thai characters
+      return false;
     }
 
     window.speechSynthesis.speak(utterance);
+    return true;
   } catch (err) {
-    console.warn('Speech synthesis error:', err);
+    console.warn('[TTS] Web Speech synthesis error:', err);
+    return false;
   }
+}
+
+/**
+ * Universal Thai Voice Synthesizer
+ * 1. Streams crisp, native Google Thai speech via /api/tts (works 100% on all OS/devices)
+ * 2. Falls back to Web Speech API if offline or if Thai voice is present
+ * 3. Falls back to service chime as guaranteed audible alert
+ */
+export function speakThaiVoice(text: string, rate: number = 1.0) {
+  if (typeof window === 'undefined') return;
+  if (!text || !text.trim()) return;
+  const clean = text.trim();
+
+  // Try Online Google Thai TTS first (Crystal-clear native Thai pronunciation)
+  playThaiAudioStream(clean).then((played) => {
+    if (!played) {
+      // Try local Web Speech API (only if genuine Thai voice exists)
+      const webSpeechPlayed = speakViaWebSpeech(clean, rate);
+      if (!webSpeechPlayed) {
+        // Guarantee audible notification with chime
+        console.warn('[TTS] Thai voice fallback to service chime');
+        playServiceCallChime();
+      }
+    }
+  });
 }
 
 /**
@@ -346,12 +484,13 @@ export function speakServiceCall(
   rate: number = 1.15
 ) {
   const cleanTable = tableNo ? String(tableNo).replace(/^โต๊ะ\s*/, '').trim() : '';
-  const rawType = (requestType || '').trim();
-  const cleanType = rawType && rawType !== 'เรียกพนักงาน' ? rawType : '';
-  
+  const cleanType = cleanRequestTypeForSpeech(requestType);
+
   let phrase = '';
   if (cleanTable) {
-    if (cleanType) {
+    if (cleanType.includes('ทดสอบ')) {
+      phrase = `โต๊ะ ${cleanTable} ${cleanType}`;
+    } else if (cleanType) {
       phrase = `โต๊ะ ${cleanTable} เรียกค่ะ ${cleanType}`;
     } else {
       phrase = `โต๊ะ ${cleanTable} เรียกพนักงานค่ะ`;
@@ -361,7 +500,8 @@ export function speakServiceCall(
   }
 
   if (note && note.trim() && note.trim().length <= 30) {
-    phrase += ` ${note.trim()}`;
+    const cleanNote = note.trim().replace(/\s*\/\s*/g, ' ');
+    phrase += ` ${cleanNote}`;
   }
 
   speakThaiVoice(phrase, rate);
