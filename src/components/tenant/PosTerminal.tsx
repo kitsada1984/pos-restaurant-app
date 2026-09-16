@@ -231,10 +231,19 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     setIsServiceCallModalOpen(true);
   };
 
+  const dismissedCallKeysRef = React.useRef<Set<string>>(new Set());
+
   const dismissServiceCall = (callId: string) => {
     setServiceCallQueue((prev) => {
       const call = prev.find((c) => c.id === callId);
       if (call) {
+        dismissedCallKeysRef.current.add(`${call.tableNo}_${call.timestamp}`);
+        fetch(`/api/r/${slug}/service-call`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'DISMISS', tableNo: call.tableNo }),
+        }).catch(() => {});
+
         const key = String(call.tableNo);
         setActiveServiceCalls((curr) => {
           const copy = { ...curr };
@@ -254,6 +263,15 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   };
 
   const dismissAllServiceCalls = () => {
+    serviceCallQueue.forEach((c) => {
+      dismissedCallKeysRef.current.add(`${c.tableNo}_${c.timestamp}`);
+    });
+    fetch(`/api/r/${slug}/service-call`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'DISMISS_ALL' }),
+    }).catch(() => {});
+
     setActiveServiceCalls({});
     setServiceCallQueue([]);
     setIsServiceCallModalOpen(false);
@@ -379,12 +397,104 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         const updated = tData.find((t: any) => t.id === selectedTable.id || t.tableNo === selectedTable.tableNo);
         if (updated) setSelectedTable(updated);
       }
+
+      // Synchronize active service calls from DB
+      if (Array.isArray(tData)) {
+        tData.forEach((tableItem: any) => {
+          if (tableItem.activeServiceCall) {
+            const call = tableItem.activeServiceCall;
+            const callKey = `${call.tableNo}_${call.timestamp}`;
+            if (!dismissedCallKeysRef.current.has(callKey)) {
+              setServiceCallQueue((prevQueue) => {
+                const alreadyExists = prevQueue.some(
+                  (q) => q.tableNo === call.tableNo && Math.abs(q.timestamp - call.timestamp) < 5000
+                );
+                if (!alreadyExists) {
+                  const mode = serviceCallAlertModeRef.current;
+                  if (mode === 'BOTH') {
+                    playServiceCallChime();
+                    setTimeout(() => {
+                      speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
+                    }, 350);
+                  } else if (mode === 'VOICE_ONLY') {
+                    speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
+                  } else if (mode === 'CHIME_ONLY') {
+                    playServiceCallChime();
+                  }
+                  setIsServiceCallModalOpen(true);
+                  return [...prevQueue, call];
+                }
+                return prevQueue;
+              });
+
+              setActiveServiceCalls((prev) => ({
+                ...prev,
+                [String(call.tableNo)]: { requestType: call.requestType, timestamp: call.timestamp },
+              }));
+            }
+          }
+        });
+      }
     } catch (err) {
       console.error('Error loading POS data:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  // Dedicated fast poll for service calls every 3 seconds (serverless resilience)
+  useEffect(() => {
+    let isMounted = true;
+    const pollServiceCalls = async () => {
+      try {
+        const res = await fetch(`/api/r/${slug}/service-call`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const calls: ServiceCallItem[] = data.calls || [];
+        if (!isMounted) return;
+
+        if (calls.length > 0) {
+          calls.forEach((call) => {
+            const callKey = `${call.tableNo}_${call.timestamp}`;
+            if (!dismissedCallKeysRef.current.has(callKey)) {
+              setServiceCallQueue((prevQueue) => {
+                const alreadyExists = prevQueue.some(
+                  (q) => q.tableNo === call.tableNo && Math.abs(q.timestamp - call.timestamp) < 5000
+                );
+                if (!alreadyExists) {
+                  const mode = serviceCallAlertModeRef.current;
+                  if (mode === 'BOTH') {
+                    playServiceCallChime();
+                    setTimeout(() => {
+                      speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
+                    }, 350);
+                  } else if (mode === 'VOICE_ONLY') {
+                    speakServiceCall(call.tableNo, call.requestType, call.note, 1.15);
+                  } else if (mode === 'CHIME_ONLY') {
+                    playServiceCallChime();
+                  }
+                  setIsServiceCallModalOpen(true);
+                  return [...prevQueue, call];
+                }
+                return prevQueue;
+              });
+
+              setActiveServiceCalls((prev) => ({
+                ...prev,
+                [String(call.tableNo)]: { requestType: call.requestType, timestamp: call.timestamp },
+              }));
+            }
+          });
+        }
+      } catch (e) {}
+    };
+
+    const intervalId = setInterval(pollServiceCalls, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [slug]);
 
   useEffect(() => {
     fetchData();

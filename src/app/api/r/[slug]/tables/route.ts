@@ -44,6 +44,16 @@ export async function GET(
       const hasPendingSlip = activeOrders.some((o: any) => o.slipUrl || o.paymentStatus === 'PENDING_CONFIRMATION');
       const latestSlipOrder = activeOrders.find((o: any) => o.slipUrl);
 
+      let activeServiceCall = null;
+      if (t.currentSessionId) {
+        try {
+          const parsed = JSON.parse(t.currentSessionId);
+          if (parsed && parsed.serviceCall) {
+            activeServiceCall = parsed.serviceCall;
+          }
+        } catch (e) {}
+      }
+
       return {
         id: t.tableNo, // integer table number for compatibility
         tableNo: t.tableNo,
@@ -57,6 +67,7 @@ export async function GET(
         firstOrderAt,
         hasPendingSlip,
         latestSlipUrl: latestSlipOrder?.slipUrl || null,
+        activeServiceCall,
       };
     });
 

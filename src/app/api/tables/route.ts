@@ -55,6 +55,16 @@ export async function GET() {
         }
       }
 
+      let activeServiceCall = null;
+      if (t.currentSessionId) {
+        try {
+          const parsed = JSON.parse(t.currentSessionId);
+          if (parsed && parsed.serviceCall) {
+            activeServiceCall = parsed.serviceCall;
+          }
+        } catch (e) {}
+      }
+
       return {
         id: t.tableNo,
         tableNo: t.tableNo,
@@ -66,6 +76,7 @@ export async function GET() {
         totalAmount,
         activeOrders,
         firstOrderAt: activeOrders.length > 0 ? activeOrders[0].createdAt : null,
+        activeServiceCall,
       };
     });
 
