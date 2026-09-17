@@ -667,6 +667,57 @@ export default function PosPage() {
     }
   };
 
+  const handlePrintBillForTable = (table: any) => {
+    const orders = table.activeOrders || [];
+    const total = orders.reduce((sum: number, o: any) => sum + (o.netAmount ?? o.totalAmount ?? 0), 0);
+    const allItems: any[] = [];
+    orders.forEach((o: any) => {
+      if (o.items) allItems.push(...o.items);
+    });
+
+    setReceiptOrder({
+      id: orders[0]?.id || `BILL-${table.id}-${Date.now().toString().slice(-4)}`,
+      tableId: table.id,
+      tableName: table.name,
+      orders,
+      items: allItems,
+      totalAmount: total,
+      discountAmount: 0,
+      netAmount: total,
+      paymentMethod: 'PENDING',
+      isPreCheck: true,
+      paidAt: new Date().toISOString(),
+    });
+    setIsReceiptModalOpen(true);
+  };
+
+  const handlePrintBillFromCheckout = () => {
+    if (!selectedTable) return;
+    const allItems: any[] = [];
+    (selectedTable.activeOrders || []).forEach((o: any) => {
+      if (o.items) allItems.push(...o.items);
+    });
+    const netTotal = Math.max(0, selectedTable.totalAmount - discountAmount);
+    const numCash = parseFloat(cashReceived) || null;
+
+    setReceiptOrder({
+      id: selectedTable.activeOrders?.[0]?.id || `BILL-${selectedTable.id}-${Date.now().toString().slice(-4)}`,
+      tableId: selectedTable.id,
+      tableName: selectedTable.name,
+      orders: selectedTable.activeOrders || [],
+      items: allItems,
+      totalAmount: selectedTable.totalAmount,
+      discountAmount,
+      netAmount: netTotal,
+      paymentMethod,
+      cashReceived: paymentMethod === 'CASH' ? numCash : null,
+      changeAmount: paymentMethod === 'CASH' && numCash ? Math.max(0, numCash - netTotal) : 0,
+      isPreCheck: true,
+      paidAt: new Date().toISOString(),
+    });
+    setIsReceiptModalOpen(true);
+  };
+
   const posPromptPayPayload = useMemo(() => {
     if (!selectedTable || !store?.promptPayId) return '';
     const net = Math.max(0, selectedTable.totalAmount - discountAmount);
@@ -993,7 +1044,7 @@ export default function PosPage() {
             </div>
 
             {/* Quick Actions Grid */}
-            <div className="p-4 border-b border-slate-100 grid grid-cols-3 gap-2 bg-white">
+            <div className="p-4 border-b border-slate-100 grid grid-cols-4 gap-2 bg-white">
               <button
                 onClick={() => {
                   setCashierCart([]);
@@ -1002,7 +1053,17 @@ export default function PosPage() {
                 className="p-3 rounded-2xl bg-orange-50 border border-orange-200/80 text-orange-700 font-bold text-xs flex flex-col items-center justify-center space-y-1 hover:bg-orange-100 transition-all active:scale-95"
               >
                 <Plus className="w-4 h-4 text-orange-600" />
-                <span>สั่งอาหารเพิ่ม</span>
+                <span>สั่งอาหาร</span>
+              </button>
+
+              <button
+                disabled={selectedTable.activeOrdersCount === 0}
+                onClick={() => handlePrintBillForTable(selectedTable)}
+                className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-700 font-bold text-xs flex flex-col items-center justify-center space-y-1 hover:bg-amber-100 transition-all disabled:opacity-30 active:scale-95 cursor-pointer"
+                title="พิมพ์ใบแจ้งค่าอาหาร / ใบเช็คบิล"
+              >
+                <Printer className="w-4 h-4 text-amber-600" />
+                <span>พิมพ์บิล</span>
               </button>
 
               <button
@@ -1129,19 +1190,31 @@ export default function PosPage() {
                 </div>
               </div>
 
-              <button
-                disabled={selectedTable.activeOrdersCount === 0}
-                onClick={() => {
-                  setPaymentMethod('PROMPTPAY');
-                  setCashReceived('');
-                  setDiscountAmount(0);
-                  setIsPayModalOpen(true);
-                }}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/20 active:scale-98 transition-all flex items-center justify-center space-x-2 disabled:opacity-30"
-              >
-                <CreditCard className="w-5 h-5" />
-                <span>เช็คบิล / รับชำระเงิน</span>
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button
+                  disabled={selectedTable.activeOrdersCount === 0}
+                  onClick={() => handlePrintBillForTable(selectedTable)}
+                  className="py-3.5 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 font-bold text-xs border border-slate-300 transition-all flex items-center justify-center space-x-1.5 shadow-sm disabled:opacity-30 active:scale-95 cursor-pointer"
+                  title="พิมพ์ใบแจ้งค่าอาหาร / ใบเช็คบิล"
+                >
+                  <Printer className="w-4 h-4 text-orange-500" />
+                  <span>พิมพ์บิล</span>
+                </button>
+
+                <button
+                  disabled={selectedTable.activeOrdersCount === 0}
+                  onClick={() => {
+                    setPaymentMethod('PROMPTPAY');
+                    setCashReceived('');
+                    setDiscountAmount(0);
+                    setIsPayModalOpen(true);
+                  }}
+                  className="sm:col-span-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/20 active:scale-98 transition-all flex items-center justify-center space-x-2 disabled:opacity-30 cursor-pointer"
+                >
+                  <CreditCard className="w-5 h-5" />
+                  <span>เช็คบิล / รับชำระเงิน</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1528,14 +1601,26 @@ export default function PosPage() {
               <span className="text-2xl font-black text-orange-600">{formatPrice(netPayAmount)}</span>
             </div>
 
-            <button
-              disabled={isProcessingPay}
-              onClick={handleProcessPayment}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/20 active:scale-98 transition-all flex items-center justify-center space-x-2"
-            >
-              <CheckCircle2 className="w-5 h-5" />
-              <span>ยืนยันการรับเงิน & ปิดบิล</span>
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={handlePrintBillFromCheckout}
+                className="py-4 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 font-bold text-xs border border-slate-300 transition-all flex items-center justify-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer"
+                title="พิมพ์ใบแจ้งค่าอาหาร / สรุปยอดก่อนชำระเงิน"
+              >
+                <Printer className="w-4 h-4 text-orange-500" />
+                <span>พิมพ์บิล</span>
+              </button>
+
+              <button
+                disabled={isProcessingPay}
+                onClick={handleProcessPayment}
+                className="sm:col-span-2 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/20 active:scale-98 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                <span>ยืนยันการรับเงิน &amp; ปิดบิล</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

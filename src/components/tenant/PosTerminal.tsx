@@ -1047,6 +1047,67 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       ? parseFloat(cashReceived) - finalNetAmount
       : 0;
 
+  const handlePrintBillForTable = (table: any) => {
+    const orders = table.activeOrders || [];
+    const total = orders.reduce((sum: number, o: any) => sum + (o.netAmount ?? o.totalAmount ?? 0), 0);
+    const existingPhone = orders.find((o: any) => o.memberPhone)?.memberPhone;
+    const existingName = orders.find((o: any) => o.customerName)?.customerName;
+
+    setReceiptOrder({
+      storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
+      promptPayName: store?.promptPayName || '',
+      promptPayId: store?.promptPayId || '',
+      phone: store?.phone || '',
+      address: store?.address || '',
+      receiptFooter: store?.receiptFooter || '',
+      tableId: table.tableNo || table.id,
+      tableName: table.name || `โต๊ะ ${table.tableNo || table.id}`,
+      orders: orders,
+      items: orders.flatMap((o: any) => o.items || []),
+      totalAmount: total,
+      discountAmount: 0,
+      netAmount: total,
+      paymentMethod: 'PENDING',
+      isPreCheck: true,
+      customerName: existingName && !/^\d{9,10}$/.test(existingName.replace(/\D/g, '')) ? existingName : '',
+      memberPhone: existingPhone || (existingName && /^\d{9,10}$/.test(existingName.replace(/\D/g, '')) ? existingName : ''),
+      pointsEarned: existingPhone ? Math.floor(total / (store?.pointsRate || 25)) : 0,
+      orderId: orders[0]?.id || `BILL-${table.tableNo || table.id}-${Date.now().toString().slice(-4)}`,
+      paidAt: new Date().toISOString(),
+    });
+    setIsReceiptModalOpen(true);
+  };
+
+  const handlePrintBillFromCheckout = () => {
+    if (!selectedTable) return;
+    setReceiptOrder({
+      storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
+      promptPayName: store?.promptPayName || '',
+      promptPayId: store?.promptPayId || '',
+      phone: store?.phone || '',
+      address: store?.address || '',
+      receiptFooter: store?.receiptFooter || '',
+      tableId: selectedTable.tableNo || selectedTable.id,
+      tableName: selectedTable.name,
+      orders: activeOrders,
+      items: activeOrders.flatMap((o: any) => o.items || []),
+      totalAmount: rawTotalAmount,
+      discountAmount: totalCombinedDiscount,
+      netAmount: finalNetAmount,
+      paymentMethod: paymentMethod,
+      cashReceived: paymentMethod === 'CASH' && cashReceived ? parseFloat(cashReceived) || null : null,
+      changeAmount: paymentMethod === 'CASH' ? Math.max(0, change) : 0,
+      isPreCheck: true,
+      customerName: customerNameInput.trim() || memberData?.name || '',
+      memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : '',
+      memberPoints: memberData?.points,
+      pointsEarned: memberPhone ? Math.floor(finalNetAmount / (store?.pointsRate || 25)) : 0,
+      orderId: activeOrders[0]?.id || `BILL-${selectedTable.tableNo || selectedTable.id}-${Date.now().toString().slice(-4)}`,
+      paidAt: new Date().toISOString(),
+    });
+    setIsReceiptModalOpen(true);
+  };
+
   const handleProcessPayment = async () => {
     if (!selectedTable || activeOrders.length === 0) return;
     setIsProcessingPay(true);
@@ -1085,12 +1146,14 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       setReceiptOrder({
         storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
         promptPayName: store?.promptPayName || '',
+        promptPayId: store?.promptPayId || '',
         phone: store?.phone || '',
         address: store?.address || '',
         receiptFooter: store?.receiptFooter || '',
         tableId: selectedTable.id || selectedTable.tableNo,
         tableName: selectedTable.name,
         orders: activeOrders,
+        items: activeOrders.flatMap((o: any) => o.items || []),
         totalAmount: rawTotalAmount,
         discountAmount: totalCombinedDiscount,
         netAmount: finalNetAmount,
@@ -1098,6 +1161,12 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         cashReceived: paymentMethod === 'CASH' ? parseFloat(cashReceived) : null,
         changeAmount: paymentMethod === 'CASH' ? Math.max(0, change) : 0,
         paidAt: new Date().toISOString(),
+        customerName: customerNameInput.trim() || memberData?.name || '',
+        memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : '',
+        memberPoints: memberData?.points,
+        pointsEarned: memberPhone ? Math.floor(finalNetAmount / (store?.pointsRate || 25)) : 0,
+        orderId: activeOrders[0]?.id || `REC-${selectedTable.tableNo || selectedTable.id}-${Date.now().toString().slice(-4)}`,
+        isPreCheck: false,
       });
 
       setIsPayModalOpen(false);
@@ -1947,6 +2016,15 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   >
                     <ArrowRightLeft className="w-3.5 h-3.5" />
                     <span>ย้ายโต๊ะ</span>
+                  </button>
+
+                  <button
+                    onClick={() => handlePrintBillForTable(selectedTable)}
+                    className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 font-bold text-xs border border-amber-500/40 hover:border-amber-500/70 flex items-center space-x-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
+                    title="พิมพ์ใบแจ้งค่าอาหาร / ใบเช็คบิล"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>พิมพ์บิล</span>
                   </button>
 
                   <button
@@ -3190,15 +3268,27 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               </div>
             )}
 
-            <button
-              type="button"
-              disabled={isProcessingPay || (paymentMethod === 'CASH' && change < 0)}
-              onClick={handleProcessPayment}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm shadow-lg shadow-emerald-500/25 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
-            >
-              <CheckCircle2 className="w-5 h-5" />
-              <span>ยืนยันชำระเงิน &amp; ปิดบิล</span>
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handlePrintBillFromCheckout}
+                className="py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 font-bold text-xs border border-slate-300 transition-all flex items-center justify-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer"
+                title="พิมพ์ใบแจ้งค่าอาหาร / ใบเช็คบิลพร้อม QR Code ก่อนชำระเงิน"
+              >
+                <Printer className="w-4 h-4 text-orange-500" />
+                <span>พิมพ์บิล</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isProcessingPay || (paymentMethod === 'CASH' && change < 0)}
+                onClick={handleProcessPayment}
+                className="sm:col-span-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm shadow-lg shadow-emerald-500/25 transition-all disabled:opacity-50 flex items-center justify-center space-x-2 active:scale-95 cursor-pointer"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                <span>ยืนยันชำระเงิน &amp; ปิดบิล</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -4159,6 +4249,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
           isOpen={isReceiptModalOpen}
           onClose={() => setIsReceiptModalOpen(false)}
           order={receiptOrder}
+          store={store}
         />
       )}
     </div>
