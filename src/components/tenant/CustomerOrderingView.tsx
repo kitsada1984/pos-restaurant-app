@@ -91,6 +91,8 @@ export default function CustomerOrderingView({
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [payMethod, setPayMethod] = useState<'PROMPTPAY' | 'CASH'>('PROMPTPAY');
   const [isCashCalled, setIsCashCalled] = useState(false);
+  const [isBillRequested, setIsBillRequested] = useState(false);
+  const [isRequestingBill, setIsRequestingBill] = useState(false);
 
   // Slip Upload & Direct Web Transfer Notification State for Customer
   const [customerSlipPreview, setCustomerSlipPreview] = useState<string | null>(null);
@@ -105,6 +107,7 @@ export default function CustomerOrderingView({
   const [isCallingService, setIsCallingService] = useState(false);
   const [serviceCallSuccess, setServiceCallSuccess] = useState<string | null>(null);
 
+  // Send Service Call notification to cashier
   const handleSendServiceCall = async (requestType: string, note?: string) => {
     setIsCallingService(true);
     try {
@@ -118,6 +121,18 @@ export default function CustomerOrderingView({
           note: note || '',
         }),
       });
+
+      if (requestType.includes('เช็คบิล')) {
+        try {
+          await fetch(`/api/r/${slug}/tables/${tableId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'PAYMENT_PENDING' }),
+          });
+          setIsBillRequested(true);
+        } catch (e) {}
+      }
+
       if (res.ok) {
         playSuccessChime();
         showSuccess('เรียกพนักงานสำเร็จ 🔔', `${requestType} • พนักงานกำลังมาให้บริการครับ`);
@@ -133,6 +148,58 @@ export default function CustomerOrderingView({
       showError('เกิดข้อผิดพลาด', 'กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsCallingService(false);
+    }
+  };
+
+  // Direct checkout request from customer (notifies cashier immediately)
+  const handleCustomerRequestBill = async () => {
+    if (isRequestingBill) return;
+    setIsRequestingBill(true);
+    try {
+      const note = `ยอดรวม ฿${totalAmountToPay.toLocaleString()}`;
+      const res = await fetch(`/api/r/${slug}/service-call`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableNo: tableId,
+          tableName: tableData?.name || `โต๊ะ ${tableId}`,
+          requestType: 'เรียกเช็คบิล',
+          note,
+        }),
+      });
+
+      try {
+        await fetch(`/api/r/${slug}/tables/${tableId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'PAYMENT_PENDING' }),
+        });
+      } catch (err) {
+        console.error('Failed to update table status:', err);
+      }
+
+      if (res.ok) {
+        playSuccessChime();
+        const wasRequested = isBillRequested;
+        setIsBillRequested(true);
+        if (wasRequested) {
+          showSuccess(
+            'แจ้งเตือนซ้ำเรียบร้อยแล้ว 🔔',
+            `เรียกเช็คบิล (${note}) • แคชเชียร์รับทราบแล้วครับ`
+          );
+        } else {
+          showSuccess(
+            'แจ้งแคชเชียร์เรียบร้อยแล้ว 🔔',
+            `เรียกเช็คบิล (${note}) • กรุณารอสักครู่หรือชำระเงินที่เคาน์เตอร์ครับ`
+          );
+        }
+      } else {
+        showError('ไม่สามารถแจ้งเช็คบิลได้', 'กรุณาลองใหม่อีกครั้ง หรือติดต่อพนักงานที่เคาน์เตอร์ครับ');
+      }
+    } catch (e) {
+      showError('เกิดข้อผิดพลาด', 'กรุณาลองใหม่อีกครั้ง หรือติดต่อพนักงานที่เคาน์เตอร์ครับ');
+    } finally {
+      setIsRequestingBill(false);
     }
   };
 
@@ -269,6 +336,12 @@ export default function CustomerOrderingView({
       setTableData(t?.error ? null : t);
       setStore(s?.error ? null : s);
 
+      if (t?.status === 'PAYMENT_PENDING') {
+        setIsBillRequested(true);
+      } else if (t?.status === 'AVAILABLE' || !t?.orders || t?.orders?.length === 0) {
+        setIsBillRequested(false);
+      }
+
       if (t?.orders && Array.isArray(t.orders) && t.orders.length > 0) {
         const orderWithPhone = t.orders.find((o: any) => o.memberPhone);
         if (orderWithPhone?.memberPhone && !memberPhone) {
@@ -313,6 +386,7 @@ export default function CustomerOrderingView({
               if (payload.type === 'PAYMENT_RECEIVED') {
                 setIsPayModalOpen(false);
                 setIsCashCalled(false);
+                setIsBillRequested(false);
                 playSuccessChime();
                 confetti({
                   particleCount: 120,
@@ -910,14 +984,30 @@ export default function CustomerOrderingView({
 
                   {totalAmountToPay > 0 && (
                     <button
-                      onClick={() => {
-                        setIsCashCalled(false);
-                        setIsPayModalOpen(true);
-                      }}
-                      className="px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center space-x-1.5 transition-all"
+                      onClick={handleCustomerRequestBill}
+                      disabled={isRequestingBill}
+                      className={`px-4 py-2.5 rounded-2xl font-black text-xs shadow-lg flex items-center space-x-1.5 transition-all active:scale-95 cursor-pointer ${
+                        isBillRequested
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/25'
+                          : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/25'
+                      }`}
                     >
-                      <QrCode className="w-4 h-4" />
-                      <span>เช็คบิล</span>
+                      {isRequestingBill ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>กำลังแจ้ง...</span>
+                        </>
+                      ) : isBillRequested ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>แจ้งเช็คบิลแล้ว</span>
+                        </>
+                      ) : (
+                        <>
+                          <Receipt className="w-4 h-4" />
+                          <span>เช็คบิล</span>
+                        </>
+                      )}
                     </button>
                   )}
                 </div>

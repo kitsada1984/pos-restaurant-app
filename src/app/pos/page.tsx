@@ -1724,6 +1724,42 @@ export default function PosPage() {
 
               {/* Action Buttons */}
               <div className="space-y-2 pt-2">
+                {/* 💵 Quick Checkout button if customer called for bill */}
+                {currentServiceCall.requestType.includes('เช็คบิล') && (() => {
+                  const targetTable = tables.find(
+                    (t: any) =>
+                      t.id === currentServiceCall.tableNo ||
+                      t.id === Number(currentServiceCall.tableNo) ||
+                      t.tableNo === currentServiceCall.tableNo ||
+                      t.tableNo === Number(currentServiceCall.tableNo) ||
+                      t.name === currentServiceCall.tableName ||
+                      t.name === `โต๊ะ ${currentServiceCall.tableNo}`
+                  );
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dismissServiceCall(currentServiceCall.id);
+                        setIsServiceCallModalOpen(false);
+                        if (targetTable) {
+                          setSelectedTable(targetTable);
+                          setPaymentMethod('PROMPTPAY');
+                          setCashReceived('');
+                          setDiscountAmount(0);
+                          setIsPayModalOpen(true);
+                        }
+                      }}
+                      className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-700 hover:from-emerald-700 hover:to-green-700 text-white text-sm font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer transition-all active:scale-95 animate-pulse"
+                    >
+                      <Receipt className="w-5 h-5" />
+                      <span>
+                        💵 เปิดคิดเงิน / ปิดบิล {currentServiceCall.tableName || `โต๊ะ ${currentServiceCall.tableNo}`}
+                        {targetTable?.totalAmount ? ` (฿${targetTable.totalAmount.toLocaleString()})` : ''}
+                      </span>
+                    </button>
+                  );
+                })()}
+
                 <button
                   type="button"
                   onClick={() => {

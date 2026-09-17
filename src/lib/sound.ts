@@ -500,8 +500,10 @@ export function speakServiceCall(
   }
 
   if (note && note.trim() && note.trim().length <= 30) {
-    const cleanNote = note.trim().replace(/\s*\/\s*/g, ' ');
-    phrase += ` ${cleanNote}`;
+    if (!note.includes('฿') && !note.includes('ยอดรวม')) {
+      const cleanNote = note.trim().replace(/\s*\/\s*/g, ' ');
+      phrase += ` ${cleanNote}`;
+    }
   }
 
   speakThaiVoice(phrase, rate);
