@@ -1525,24 +1525,28 @@ export default function PosTerminal({
             speakThaiVoice('ระบบเสียงแจ้งเตือนเงินเข้าพร้อมทำงานแล้วค่ะ');
             showSuccess('🔊 เปิดระบบเสียงแจ้งเตือนสำเร็จ', 'พร้อมรับเสียงพูดแจ้งเตือนเงินเข้าภาษาไทยอัตโนมัติ');
           }}
-          className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between shadow-lg shadow-orange-500/20 cursor-pointer animate-pulse hover:brightness-105 transition-all"
+          className={`rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between shadow-md shadow-orange-500/20 cursor-pointer animate-pulse hover:brightness-105 transition-all ${
+            isSplitView ? 'p-2 sm:p-2.5' : 'p-3 sm:p-4'
+          }`}
         >
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl flex-shrink-0">
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <div className={`${isSplitView ? 'w-8 h-8 text-base rounded-lg' : 'w-10 h-10 text-xl rounded-xl'} bg-white/20 flex items-center justify-center flex-shrink-0`}>
               🔊
             </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-black">คลิกตรงนี้ 1 ครั้ง เพื่อเปิดระบบเสียงพูดแจ้งเตือนเงินเข้า</h4>
-              <p className="text-[11px] sm:text-xs text-white/90">
-                เบราว์เซอร์ต้องการให้สัมผัสหน้าจอ 1 ครั้ง เพื่อปลดล็อกให้ระบบส่งเสียงพูดภาษาไทยอัตโนมัติเมื่อมีเงินเข้า
-              </p>
+            <div className="min-w-0 truncate">
+              <h4 className={`${isSplitView ? 'text-xs' : 'text-xs sm:text-sm'} font-black truncate`}>คลิกตรงนี้ 1 ครั้ง เพื่อเปิดระบบเสียงเตือนเงินเข้า</h4>
+              {!isSplitView && (
+                <p className="text-[11px] sm:text-xs text-white/90 truncate">
+                  เบราว์เซอร์ต้องการให้สัมผัสหน้าจอ 1 ครั้ง เพื่อปลดล็อกให้ระบบส่งเสียงพูดภาษาไทยอัตโนมัติเมื่อมีเงินเข้า
+                </p>
+              )}
             </div>
           </div>
           <button
             type="button"
-            className="px-3.5 py-1.5 rounded-xl bg-white text-orange-700 text-xs font-black shadow-sm flex-shrink-0 ml-2"
+            className={`${isSplitView ? 'px-2.5 py-1 text-[11px]' : 'px-3.5 py-1.5 text-xs'} rounded-xl bg-white text-orange-700 font-black shadow-sm flex-shrink-0 ml-2 cursor-pointer`}
           >
-            เปิดเสียงเลย ⚡
+            เปิดเสียง ⚡
           </button>
         </div>
       )}
@@ -1800,7 +1804,7 @@ export default function PosTerminal({
             <div
               key={table.tableNo || table.id}
               onClick={() => setSelectedTable(table)}
-              className={`relative p-4 sm:p-5 rounded-2xl sm:rounded-3xl border cursor-pointer transition-all duration-200 flex flex-col justify-between group w-full min-h-[90px] sm:min-h-[150px] ${
+              className={`relative ${isSplitView ? 'p-3 sm:p-3.5 rounded-xl sm:rounded-2xl' : 'p-4 sm:p-5 rounded-2xl sm:rounded-3xl'} border cursor-pointer transition-all duration-200 flex flex-col justify-between group w-full min-h-[90px] ${isSplitView ? 'sm:min-h-[120px]' : 'sm:min-h-[150px]'} ${
                 isSelected
                   ? 'ring-4 ring-orange-500/30 border-orange-500 shadow-xl bg-white scale-[1.01]'
                   : isOccupied
@@ -1844,7 +1848,7 @@ export default function PosTerminal({
                         e.stopPropagation();
                         handleOpenCheckoutForTable(table);
                       }}
-                      className={`px-3 py-1.5 rounded-xl font-black text-xs shadow-md transition-all active:scale-95 flex items-center space-x-1 ${
+                      className={`px-2.5 py-1.5 rounded-xl font-black text-[11px] shadow-sm transition-all active:scale-95 flex items-center space-x-1 ${
                         table.hasPendingSlip
                           ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-amber-500/25 ring-2 ring-amber-400/50 animate-pulse'
                           : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-500/20'
@@ -1852,13 +1856,13 @@ export default function PosTerminal({
                     >
                       {table.hasPendingSlip ? (
                         <>
-                          <Camera className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span>ตรวจสลิป ฿{(table.totalAmount || 0).toLocaleString()} 📷</span>
+                          <Camera className="w-3 h-3 flex-shrink-0" />
+                          <span>ตรวจสลิป</span>
                         </>
                       ) : (
                         <>
-                          <Banknote className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span>เช็คบิล ฿{(table.totalAmount || 0).toLocaleString()}</span>
+                          <Banknote className="w-3 h-3 flex-shrink-0" />
+                          <span>เช็คบิล</span>
                         </>
                       )}
                     </button>
@@ -1898,12 +1902,12 @@ export default function PosTerminal({
               )}
 
               {/* Desktop Bottom Action Area */}
-              <div className="hidden sm:flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-100 w-full">
+              <div className={`hidden sm:flex items-center justify-between gap-1.5 ${isSplitView ? 'pt-2 mt-2' : 'pt-3 mt-3'} border-t border-slate-100 w-full`}>
                 {isOccupied ? (
                   <>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ยอดรอชำระ</span>
-                      <span className="text-base lg:text-lg font-black text-slate-900 leading-tight">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">ยอดรอชำระ</span>
+                      <span className={`${isSplitView ? 'text-sm sm:text-base' : 'text-base lg:text-lg'} font-black text-slate-900 leading-tight truncate`}>
                         ฿{(table.totalAmount || 0).toLocaleString()}
                       </span>
                     </div>
@@ -1913,7 +1917,7 @@ export default function PosTerminal({
                         e.stopPropagation();
                         handleOpenCheckoutForTable(table);
                       }}
-                      className={`px-3.5 py-2 rounded-xl font-black text-xs shadow-md transition-all hover:scale-[1.03] active:scale-95 flex items-center space-x-1.5 flex-shrink-0 ${
+                      className={`px-2.5 py-1.5 rounded-lg sm:rounded-xl font-black text-[11px] sm:text-xs shadow-sm transition-all hover:scale-[1.02] active:scale-95 flex items-center space-x-1 flex-shrink-0 cursor-pointer ${
                         table.hasPendingSlip
                           ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-500/25 ring-2 ring-amber-400/50 animate-pulse'
                           : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-emerald-500/20'
@@ -1921,13 +1925,13 @@ export default function PosTerminal({
                     >
                       {table.hasPendingSlip ? (
                         <>
-                          <Camera className="w-3.5 h-3.5" />
-                          <span>ตรวจสลิป ฿{(table.totalAmount || 0).toLocaleString()} 📷</span>
+                          <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                          <span>ตรวจสลิป</span>
                         </>
                       ) : (
                         <>
-                          <Banknote className="w-3.5 h-3.5" />
-                          <span>เช็คบิล ฿{(table.totalAmount || 0).toLocaleString()}</span>
+                          <Banknote className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                          <span>เช็คบิล</span>
                         </>
                       )}
                     </button>
@@ -1935,7 +1939,7 @@ export default function PosTerminal({
                 ) : (
                   <div className="w-full flex items-center justify-between text-slate-400 text-xs font-bold">
                     <span>พร้อมให้บริการ</span>
-                    <span className="text-orange-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                    <span className="text-orange-600 group-hover:translate-x-1 transition-transform flex items-center gap-1 text-[11px] sm:text-xs font-black">
                       <span>สั่งอาหาร</span>
                       <span>→</span>
                     </span>
