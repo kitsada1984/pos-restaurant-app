@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePathname, useParams } from 'next/navigation';
 import {
   LayoutGrid,
@@ -19,8 +20,27 @@ import {
   Gift,
   MoreHorizontal,
   X,
+  Columns2,
 } from 'lucide-react';
 import { playOrderChime } from '@/lib/sound';
+
+const PosTerminal = dynamic(() => import('@/components/tenant/PosTerminal'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex-1 h-full flex items-center justify-center p-12 text-slate-400 font-bold text-xs">
+      กำลังโหลดจอ POS...
+    </div>
+  ),
+});
+
+const KitchenTerminal = dynamic(() => import('@/components/tenant/KitchenTerminal'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex-1 h-full flex items-center justify-center p-12 text-slate-400 font-bold text-xs">
+      กำลังโหลดจอครัว KDS...
+    </div>
+  ),
+});
 
 export default function TenantStoreLayout({
   children,
@@ -34,6 +54,26 @@ export default function TenantStoreLayout({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [storeInfo, setStoreInfo] = useState<any>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isSplitScreen, setIsSplitScreen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    try {
+      const saved = localStorage.getItem('pos_split_screen_mode');
+      if (saved === 'true') {
+        setIsSplitScreen(true);
+      }
+    } catch (e) {}
+  }, []);
+
+  const toggleSplitScreen = () => {
+    const nextVal = !isSplitScreen;
+    setIsSplitScreen(nextVal);
+    try {
+      localStorage.setItem('pos_split_screen_mode', nextVal ? 'true' : 'false');
+    } catch (e) {}
+  };
 
   useEffect(() => {
     fetch(`/api/r/${slug}/settings`)
@@ -131,6 +171,23 @@ export default function TenantStoreLayout({
 
             {/* Actions & Links */}
             <div className="flex items-center space-x-2 flex-shrink-0 whitespace-nowrap">
+              {/* Split Screen Toggle (Desktop / Tablet >= 1024px) */}
+              <button
+                type="button"
+                onClick={toggleSplitScreen}
+                title={isSplitScreen ? 'กลับสู่โหมดจอเดี่ยวปกติ' : 'เปิดโหมดแบ่ง 2 จอ (POS + ห้องครัว)'}
+                className={`hidden lg:flex items-center space-x-1.5 px-3 py-2 sm:py-2.5 rounded-xl text-xs transition-all border font-extrabold cursor-pointer shadow-xs ${
+                  isSplitScreen
+                    ? 'border-orange-500 bg-orange-500 text-white shadow-orange-500/25 ring-2 ring-orange-400/30'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <Columns2 className={`w-4 h-4 ${isSplitScreen ? 'text-white' : 'text-orange-500'}`} />
+                <span className="text-[11px] whitespace-nowrap">
+                  {isSplitScreen ? '2 จอ (POS+ครัว)' : 'แบ่ง 2 จอ'}
+                </span>
+              </button>
+
               {/* Sound toggle */}
               <button
                 onClick={() => {
@@ -164,7 +221,52 @@ export default function TenantStoreLayout({
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col w-full max-w-full overflow-x-hidden">
-        {children}
+        {isMounted && isSplitScreen ? (
+          <div className="hidden lg:flex flex-row w-full h-[calc(100vh-68px)] overflow-hidden bg-slate-100 divide-x divide-slate-200">
+            {/* Left Pane: POS Terminal */}
+            <div className="w-1/2 h-full overflow-y-auto bg-white flex flex-col relative scrollbar-thin">
+              <div className="sticky top-0 z-20 bg-slate-900 text-white px-3 py-1.5 text-[11px] font-black flex items-center justify-between shadow-xs">
+                <span className="flex items-center space-x-1.5">
+                  <LayoutGrid className="w-3.5 h-3.5 text-orange-400" />
+                  <span>จอฝั่งซ้าย: ผังโต๊ะ & POS แคชเชียร์</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">รับออเดอร์ / คิดเงิน</span>
+              </div>
+              <div className="flex-1">
+                <PosTerminal slug={slug} />
+              </div>
+            </div>
+
+            {/* Right Pane: Kitchen Terminal */}
+            <div className="w-1/2 h-full overflow-y-auto bg-slate-50 flex flex-col relative scrollbar-thin">
+              <div className="sticky top-0 z-20 bg-amber-600 text-white px-3 py-1.5 text-[11px] font-black flex items-center justify-between shadow-xs">
+                <span className="flex items-center space-x-1.5">
+                  <ChefHat className="w-3.5 h-3.5 text-amber-200" />
+                  <span>จอฝั่งขวา: ห้องครัว KDS (สถานะ 4 จังหวะ)</span>
+                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] text-amber-100 font-medium">ตั๋วเข้าครัวแบบเรียลไทม์</span>
+                  <button
+                    type="button"
+                    onClick={toggleSplitScreen}
+                    title="ปิดโหมดแบ่ง 2 จอ กลับสู่จอเดี่ยว"
+                    className="p-0.5 rounded hover:bg-amber-700 text-amber-100 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1">
+                <KitchenTerminal slug={slug} />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Normal Single View (Shown when not in split mode, or on mobile screen) */}
+        <div className={isMounted && isSplitScreen ? 'lg:hidden flex-1 flex flex-col' : 'flex-1 flex flex-col'}>
+          {children}
+        </div>
       </div>
 
       {/* Mobile Bottom Navigation Bar (5 equal columns) */}
