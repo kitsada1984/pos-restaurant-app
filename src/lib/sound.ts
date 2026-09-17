@@ -383,8 +383,8 @@ export function speakThaiVoice(text: string, rate: number = 1.0) {
 }
 
 /**
- * อ่านออกเสียงยอดเงินเข้าภาษาไทย เช่น "เงินเข้า โต๊ะ 1 50 บาท เรียบร้อยค่ะ"
- * อ่านเฉพาะยอดเงินเข้า ไม่มียอดคงเหลือปะปน
+ * อ่านออกเสียงยอดเงินเข้าภาษาไทย เช่น "เงินเข้า 170 บาท โต๊ะ 2 ค่ะ"
+ * อ่านเฉพาะยอดเงินเข้า ไม่มียอดคงเหลือปะปน และเรียงยอดเงินมาก่อนเลขโต๊ะ เพื่อป้องกันตัวเลขติดกัน
  */
 export function speakMoneyReceived(amount: number, tableName?: string) {
   const formattedAmount = formatThaiCurrencyForSpeech(amount);
@@ -392,7 +392,7 @@ export function speakMoneyReceived(amount: number, tableName?: string) {
   if (tableName) {
     target = String(tableName).startsWith('โต๊ะ') ? ` ${tableName}` : ` โต๊ะ ${tableName}`;
   }
-  speakThaiVoice(`เงินเข้า${target} ${formattedAmount} เรียบร้อยค่ะ`.replace(/\s+/g, ' ').trim());
+  speakThaiVoice(`เงินเข้า ${formattedAmount}${target} ค่ะ`.replace(/\s+/g, ' ').trim());
 }
 
 /**
@@ -404,17 +404,18 @@ export function speakSlipVerified(amount: number, tableName?: string) {
   if (tableName) {
     target = String(tableName).startsWith('โต๊ะ') ? ` ${tableName}` : ` โต๊ะ ${tableName}`;
   }
-  speakThaiVoice(`เงินเข้า${target} ${formattedAmount} เรียบร้อยค่ะ`.replace(/\s+/g, ' ').trim());
+  speakThaiVoice(`เงินเข้า ${formattedAmount}${target} ค่ะ`.replace(/\s+/g, ' ').trim());
 }
 
 /**
  * อ่านออกเสียงเมื่อลูกค้ากดแจ้งโอนเงินผ่านหน้าเว็บ (รอแคชเชียร์ตรวจเช็ค)
- * เช่น "ตรวจสอบเงินเข้าโต๊ะ 1 จำนวน 50 บาทค่ะ"
+ * เช่น "เงินเข้า 170 บาท โต๊ะ 2 ค่ะ"
  */
 export function speakCustomerNotifyTransfer(tableNo: number | string, amount: number) {
   const cleanTable = String(tableNo || '').replace(/^โต๊ะ\s*/, '').trim();
   const amountPart = formatThaiCurrencyForSpeech(amount);
-  speakThaiVoice(`ตรวจสอบเงินเข้าโต๊ะ ${cleanTable} จำนวน ${amountPart} ค่ะ`.replace(/\s+/g, ' ').trim());
+  const target = cleanTable ? ` โต๊ะ ${cleanTable}` : '';
+  speakThaiVoice(`เงินเข้า ${amountPart}${target} ค่ะ`.replace(/\s+/g, ' ').trim());
 }
 
 /**
@@ -422,8 +423,11 @@ export function speakCustomerNotifyTransfer(tableNo: number | string, amount: nu
  */
 export function speakSlipReadSuccess(amount: number, tableName?: string) {
   const formattedAmount = formatThaiCurrencyForSpeech(amount);
-  const target = tableName ? ` ${tableName}` : '';
-  speakThaiVoice(`อ่านสลิปถูกต้อง ได้รับเงิน ${formattedAmount}${target} ค่ะ กรุณากดยืนยันปิดบิลค่ะ`);
+  let target = '';
+  if (tableName) {
+    target = String(tableName).startsWith('โต๊ะ') ? ` ${tableName}` : ` โต๊ะ ${tableName}`;
+  }
+  speakThaiVoice(`อ่านสลิปถูกต้อง ได้รับเงิน ${formattedAmount}${target} ค่ะ กรุณากดยืนยันปิดบิลค่ะ`.replace(/\s+/g, ' ').trim());
 }
 
 /**
@@ -465,11 +469,12 @@ export function speakSlipNoQr() {
  */
 export function speakSlipSubmitted(tableNo?: number | string, amount?: number) {
   const cleanTable = tableNo ? String(tableNo).replace(/^โต๊ะ\s*/, '').trim() : '';
+  const target = cleanTable ? ` โต๊ะ ${cleanTable}` : '';
   if (amount) {
     const amountPart = formatThaiCurrencyForSpeech(amount);
-    speakThaiVoice(`ตรวจสอบเงินเข้าโต๊ะ ${cleanTable} จำนวน ${amountPart} ค่ะ`.replace(/\s+/g, ' ').trim());
+    speakThaiVoice(`เงินเข้า ${amountPart}${target} ค่ะ`.replace(/\s+/g, ' ').trim());
   } else {
-    speakThaiVoice(`ตรวจสอบเงินเข้าโต๊ะ ${cleanTable} ค่ะ`.replace(/\s+/g, ' ').trim());
+    speakThaiVoice(`ตรวจสอบสลิป${target} ค่ะ`.replace(/\s+/g, ' ').trim());
   }
 }
 

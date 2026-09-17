@@ -527,7 +527,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
               } else if (d.action === 'MANUAL_CONFIRM') {
                 playOrderChime();
                 if (voiceEnabled) {
-                  speakThaiVoice(`มีเงินเข้า ${d.amount} บาท ${d.tableName || `โต๊ะ ${d.tableNo}`} ค่ะ กรุณากดยืนยันปิดบิลค่ะ`);
+                  const rawTable = d.tableName || (d.tableNo ? `โต๊ะ ${d.tableNo}` : '');
+                  const target = rawTable ? (rawTable.startsWith('โต๊ะ') ? ` ${rawTable}` : ` โต๊ะ ${rawTable}`) : '';
+                  speakThaiVoice(`เงินเข้า ${d.amount} บาท${target} ค่ะ กรุณากดยืนยันปิดบิลค่ะ`.replace(/\s+/g, ' ').trim());
                 }
                 showInfo(
                   `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
@@ -3600,9 +3602,11 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                     } else if (bankAlertModal.action === 'AUTO_PAID') {
                       speakMoneyReceived(bankAlertModal.amount, bankAlertModal.tableName);
                     } else if (bankAlertModal.tableName) {
-                      speakThaiVoice(`มีเงินเข้า ${bankAlertModal.amount} บาท ${bankAlertModal.tableName} ค่ะ`);
+                      const rawTable = String(bankAlertModal.tableName);
+                      const target = rawTable.startsWith('โต๊ะ') ? ` ${rawTable}` : ` โต๊ะ ${rawTable}`;
+                      speakThaiVoice(`เงินเข้า ${bankAlertModal.amount} บาท${target} ค่ะ`.replace(/\s+/g, ' ').trim());
                     } else {
-                      speakThaiVoice(`มีเงินเข้า ${bankAlertModal.amount} บาทค่ะ`);
+                      speakThaiVoice(`เงินเข้า ${bankAlertModal.amount} บาท ค่ะ`.replace(/\s+/g, ' ').trim());
                     }
                   }}
                   className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold cursor-pointer transition-colors"
