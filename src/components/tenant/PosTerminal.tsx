@@ -1548,27 +1548,29 @@ export default function PosTerminal({
       )}
 
       {/* Top Header & Table Filters */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
-        <div className="flex-shrink-0">
+      <div className={`bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full transition-all ${
+        isSplitView ? 'p-2.5 sm:p-3 flex flex-col gap-2' : 'p-3.5 sm:p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 sm:gap-4'
+      }`}>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center space-x-2">
-            <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              ผังโต๊ะ &amp; แคชเชียร์ (POS)
+            <h1 className={`font-black text-slate-900 tracking-tight ${isSplitView ? 'text-base' : 'text-lg sm:text-2xl'}`}>
+              ผังโต๊ะ &amp; POS
             </h1>
-            <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-black bg-orange-100 text-orange-700">
+            <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-black bg-orange-100 text-orange-700">
               {tables.length} โต๊ะ
             </span>
           </div>
-          <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
+          <div className="text-[11px] text-slate-500 font-medium">
             ร้าน: <span className="font-bold text-slate-800">{store?.storeName || store?.name || slug}</span> • กำลังทาน{' '}
-            <span className="text-orange-600 font-bold">{totalOccupied} โต๊ะ</span> • ว่าง{' '}
-            <span className="text-emerald-600 font-bold">{totalAvailable} โต๊ะ</span>
-          </p>
+            <span className="text-orange-600 font-bold">{totalOccupied}</span> • ว่าง{' '}
+            <span className="text-emerald-600 font-bold">{totalAvailable}</span>
+          </div>
         </div>
 
         {/* Filter Pills & Action Buttons */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 w-full xl:w-auto">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           {/* Filter Pills */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
             {[
               { id: 'ALL', label: 'ทั้งหมด' },
               { id: 'OCCUPIED', label: `กำลังทาน (${totalOccupied})`, activeClass: 'bg-orange-500 text-white shadow-sm' },
@@ -1578,7 +1580,7 @@ export default function PosTerminal({
               <button
                 key={f.id}
                 onClick={() => setStatusFilter(f.id as any)}
-                className={`py-2 px-2.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center whitespace-nowrap ${
+                className={`py-1.5 px-2.5 rounded-xl text-[10px] sm:text-[11px] font-black transition-all whitespace-nowrap cursor-pointer ${
                   statusFilter === f.id
                     ? f.activeClass || 'bg-slate-900 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1590,8 +1592,8 @@ export default function PosTerminal({
           </div>
 
           {/* Action CTAs */}
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto flex-shrink-0">
-            {/* 1. Voice Announcement for Money Received */}
+          <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+            {/* Voice Announcement for Money Received */}
             <button
               type="button"
               onClick={() => {
@@ -1607,66 +1609,28 @@ export default function PosTerminal({
                   showInfo('🔇 ปิดเสียงอ่านแจ้งเตือนเงินเข้า');
                 }
               }}
-              className={`h-10 px-3 rounded-xl text-xs font-extrabold border flex items-center justify-center space-x-1.5 transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer ${
+              className={`h-8 px-2.5 rounded-xl text-[11px] font-extrabold border flex items-center justify-center space-x-1 transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer ${
                 voiceEnabled
-                  ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-sm'
+                  ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-2xs'
                   : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
               }`}
               title={voiceEnabled ? 'คลิกเพื่อปิดเสียงพูดเงินเข้า' : 'คลิกเพื่อเปิดเสียงพูดเงินเข้า'}
             >
-              {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-600" /> : <VolumeX className="w-4 h-4" />}
-              <span className="hidden sm:inline">{voiceEnabled ? 'เสียงพูดเงินเข้า' : 'ปิดเสียงพูด'}</span>
+              {voiceEnabled ? <Volume2 className="w-3.5 h-3.5 text-amber-600" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span className={isSplitView ? 'hidden' : 'hidden sm:inline'}>{voiceEnabled ? 'เสียงเงินเข้า' : 'ปิดเสียง'}</span>
             </button>
 
-            {/* 2. Service Call Audio Alert Setting Dropdown */}
-            <div className="relative flex items-center">
-              <select
-                value={serviceCallAlertMode}
-                onChange={(e) => {
-                  const mode = e.target.value as ServiceCallAlertMode;
-                  updateServiceCallAlertMode(mode);
-                  if (mode === 'BOTH') {
-                    showSuccess('🔊 เสียงเรียก: พูดไทย + กริ่งเตือน (เตือนซ้ำทุก 20 วิ)');
-                    playServiceCallChime();
-                    setTimeout(() => speakServiceCall(1, 'ทดสอบเสียง', '', 1.15), 650);
-                  } else if (mode === 'VOICE_ONLY') {
-                    showSuccess('🗣️ เสียงเรียก: เฉพาะพูดภาษาไทย (เตือนซ้ำทุก 20 วิ)');
-                    speakServiceCall(1, 'ทดสอบเสียง', '', 1.15);
-                  } else if (mode === 'CHIME_ONLY') {
-                    showSuccess('🔔 เสียงเรียก: เฉพาะกริ่งเตือน (เตือนซ้ำทุก 20 วิ)');
-                    playServiceCallChime();
-                  } else if (mode === 'MUTE') {
-                    showInfo('🔇 ปิดเสียงเรียกพนักงานชั่วคราว');
-                  }
-                }}
-                className={`h-10 px-2.5 sm:px-3 rounded-xl text-xs font-extrabold border transition-all cursor-pointer outline-none w-full sm:w-auto ${
-                  serviceCallAlertMode === 'BOTH'
-                    ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-sm'
-                    : serviceCallAlertMode === 'VOICE_ONLY'
-                    ? 'bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100 shadow-sm'
-                    : serviceCallAlertMode === 'CHIME_ONLY'
-                    ? 'bg-purple-50 text-purple-900 border-purple-300 hover:bg-purple-100 shadow-sm'
-                    : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
-                }`}
-                title="ตั้งค่าโหมดเสียงเตือนเมื่อลูกค้ากดเรียกพนักงาน (เตือนซ้ำทุก 20 วิ จนกว่าจะกดรับทราบ)"
-              >
-                <option value="BOTH">🔔🗣️ เสียงเรียก: พูด + กริ่ง</option>
-                <option value="VOICE_ONLY">🗣️ เสียงเรียก: เฉพาะพูดไทย</option>
-                <option value="CHIME_ONLY">🔔 เสียงเรียก: เฉพาะกริ่ง</option>
-                <option value="MUTE">🔇 ปิดเสียงเรียก</option>
-              </select>
-            </div>
-
-            {/* 3. Delivery Orders */}
+            {/* Delivery Quick Button */}
             <button
               onClick={() => handleOpenDeliveryModal('LINEMAN')}
-              className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-1.5 transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer"
+              className="h-8 px-2.5 rounded-xl text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs flex items-center space-x-1 transition-all whitespace-nowrap flex-shrink-0 cursor-pointer active:scale-95"
+              title="รับออเดอร์เดลิเวอรี"
             >
-              <span className="text-sm">🛵</span>
-              <span className="whitespace-nowrap">รับเดลิเวอรี</span>
+              <span className="text-xs">🛵</span>
+              <span>เดลิเวอรี</span>
             </button>
 
-            {/* 4. Add Table */}
+            {/* Add Table Quick Button */}
             <button
               onClick={() => {
                 const highestNo = tables.reduce((max, t) => Math.max(max, t.tableNo || t.id || 0), 0);
@@ -1674,10 +1638,11 @@ export default function PosTerminal({
                 setNewTableName(`โต๊ะ ${highestNo + 1}`);
                 setIsAddTableModalOpen(true);
               }}
-              className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-extrabold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm hover:shadow-md shadow-orange-500/20 flex items-center justify-center space-x-1.5 transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer"
+              className="h-8 px-2.5 rounded-xl text-[11px] font-black bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-2xs flex items-center space-x-1 transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer"
+              title="เพิ่มโต๊ะใหม่"
             >
-              <Plus className="w-4 h-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">เพิ่มโต๊ะ</span>
+              <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>เพิ่มโต๊ะ</span>
             </button>
           </div>
         </div>
@@ -1985,52 +1950,53 @@ export default function PosTerminal({
 
       {/* Selected Table Drawer / Action Bar */}
       {selectedTable && (
-        <div className={`z-40 bg-slate-900 text-white p-3.5 sm:p-5 shadow-2xl border-t border-slate-800 backdrop-blur-xl bg-opacity-95 ${
-          isSplitView ? 'sticky bottom-0 inset-x-0' : 'fixed inset-x-0 bottom-14 xl:bottom-0'
+        <div className={`z-40 bg-slate-900 text-white shadow-2xl border-t border-slate-800 backdrop-blur-xl bg-opacity-95 ${
+          isSplitView ? 'sticky bottom-0 inset-x-0 p-2.5 sm:p-3' : 'fixed inset-x-0 bottom-14 xl:bottom-0 p-3.5 sm:p-5'
         }`}>
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-2xl bg-orange-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-orange-500/30">
+          <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white font-black text-base shadow-md shadow-orange-500/30 flex-shrink-0">
                 {selectedTable.tableNo || selectedTable.id}
               </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-lg font-black text-white">{selectedTable.name}</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-800 text-orange-400 border border-slate-700">
+              <div className="min-w-0 truncate">
+                <div className="flex items-center space-x-1.5 truncate">
+                  <h3 className="text-sm sm:text-base font-black text-white truncate">{selectedTable.name}</h3>
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-800 text-orange-400 border border-slate-700 flex-shrink-0">
                     {selectedTable.status === 'OCCUPIED' ? 'กำลังทาน' : 'โต๊ะว่าง'}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-[11px] text-slate-400 truncate">
                   {selectedTable.activeOrdersCount > 0
                     ? `${selectedTable.totalItems} รายการ • รวม ฿${(selectedTable.totalAmount || 0).toLocaleString()}`
-                    : 'ยังไม่มีออเดอร์ สามารถกด + เพิ่มออเดอร์หน้าร้านได้'}
+                    : 'ยังไม่มีออเดอร์'}
                 </p>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 onClick={() => setIsCashierOrderOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 flex items-center space-x-1.5 transition-all"
+                className="px-3 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-sm flex items-center space-x-1 transition-all cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
-                <span>+ สั่งอาหารหน้าร้าน</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ สั่งอาหาร</span>
               </button>
 
               {selectedTable.activeOrdersCount > 0 && (
                 <>
                   <button
                     onClick={() => setIsMoveModalOpen(true)}
-                    className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 flex items-center space-x-1.5 transition-all"
+                    className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 flex items-center space-x-1 transition-all cursor-pointer"
+                    title="ย้ายโต๊ะ"
                   >
                     <ArrowRightLeft className="w-3.5 h-3.5" />
-                    <span>ย้ายโต๊ะ</span>
+                    <span>ย้าย</span>
                   </button>
 
                   <button
                     onClick={() => handlePrintBillForTable(selectedTable)}
-                    className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 font-bold text-xs border border-amber-500/40 hover:border-amber-500/70 flex items-center space-x-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
+                    className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 font-bold text-xs border border-amber-500/40 hover:border-amber-500/70 flex items-center space-x-1 transition-all cursor-pointer"
                     title="พิมพ์ใบแจ้งค่าอาหาร / ใบเช็คบิล"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -2039,41 +2005,33 @@ export default function PosTerminal({
 
                   <button
                     onClick={() => handleOpenCheckoutForTable(selectedTable)}
-                    className={`px-5 py-2.5 rounded-xl font-black text-xs shadow-lg flex items-center space-x-1.5 transition-all ${
+                    className={`px-3.5 py-2 rounded-xl font-black text-xs shadow-md flex items-center space-x-1 transition-all cursor-pointer ${
                       selectedTable.hasPendingSlip
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-500/30 ring-2 ring-amber-400/50 animate-pulse'
-                        : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-emerald-500/25'
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white ring-2 ring-amber-400/50 animate-pulse'
+                        : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-500/20'
                     }`}
                   >
                     {selectedTable.hasPendingSlip ? (
                       <>
-                        <Camera className="w-4 h-4" />
-                        <span>ตรวจสลิป &amp; เช็คบิล (฿{(selectedTable.totalAmount || 0).toLocaleString()})</span>
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>ตรวจสลิป ฿{(selectedTable.totalAmount || 0).toLocaleString()}</span>
                       </>
                     ) : (
                       <>
-                        <Banknote className="w-4 h-4" />
-                        <span>เช็คบิล (฿{(selectedTable.totalAmount || 0).toLocaleString()})</span>
+                        <Banknote className="w-3.5 h-3.5" />
+                        <span>เช็คบิล ฿{(selectedTable.totalAmount || 0).toLocaleString()}</span>
                       </>
                     )}
                   </button>
                 </>
               )}
 
-              <Link
-                href={`/r/${slug}/table/${selectedTable.tableNo || selectedTable.id}`}
-                target="_blank"
-                className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 flex items-center space-x-1 transition-all"
-              >
-                <span>หน้าลูกค้า</span>
-                <ExternalLink className="w-3.5 h-3.5 text-orange-400" />
-              </Link>
-
               <button
                 onClick={() => setSelectedTable(null)}
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title="ปิดแถบโต๊ะ"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
