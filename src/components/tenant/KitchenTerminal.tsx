@@ -108,53 +108,98 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
     };
   }, [slug, soundEnabled]);
 
-  const updateItemStatus = async (orderId: string, itemId: string, newStatus: string) => {
-    try {
-      const res = await fetch(`/api/r/${slug}/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId, itemStatus: newStatus }),
-      });
-      if (res.ok) {
-        if (newStatus === 'READY') {
-          playSuccessChime();
-          showSuccess('ปรุงเสร็จแล้ว 🔔', 'พร้อมนำไปเสิร์ฟที่โต๊ะ');
-        } else if (newStatus === 'SERVED') {
-          showSuccess('เสิร์ฟเรียบร้อย ✨');
-        } else if (newStatus === 'COOKING') {
-          showInfo('เริ่มทำรายการ 👨‍🍳');
+  const updateItemStatus = (orderId: string, itemId: string, newStatus: string) => {
+    // ⚡ Optimistic UI Update: เปลี่ยนสถานะบนหน้าจอทันที 0ms ไม่หน่วงเวลา
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        const nextItems = o.items?.map((it: any) =>
+          it.id === itemId ? { ...it, status: newStatus } : it
+        );
+        let nextOrderStatus = o.status;
+        if (nextItems && nextItems.length > 0) {
+          const allReady = nextItems.every((it: any) => it.status === 'READY' || it.status === 'SERVED');
+          const allServed = nextItems.every((it: any) => it.status === 'SERVED');
+          if (allServed) nextOrderStatus = 'SERVED';
+          else if (allReady) nextOrderStatus = 'READY';
+          else if (newStatus === 'COOKING' && o.status === 'PENDING') nextOrderStatus = 'COOKING';
         }
-        fetchOrders();
-      }
-    } catch (err) {
-      console.error('Error updating item status:', err);
-      showError('ไม่สามารถอัปเดตสถานะได้');
+        return { ...o, status: nextOrderStatus, items: nextItems };
+      })
+    );
+
+    // เสียงแจ้งเตือนและข้อความ Toast แจ้งเตือนทันที
+    if (newStatus === 'READY') {
+      playSuccessChime();
+      showSuccess('ปรุงเสร็จแล้ว 🔔', 'พร้อมนำไปเสิร์ฟที่โต๊ะ');
+    } else if (newStatus === 'SERVED') {
+      showSuccess('เสิร์ฟเรียบร้อย ✨');
+    } else if (newStatus === 'COOKING') {
+      showInfo('เริ่มทำรายการ 👨‍🍳');
     }
+
+    // ส่งบันทึกลง Database ใน Background ไม่บล็อก UI
+    fetch(`/api/r/${slug}/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId, itemStatus: newStatus }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          fetchOrders();
+          showError('ไม่สามารถอัปเดตสถานะได้');
+        }
+      })
+      .catch((err) => {
+        console.error('Error updating item status:', err);
+        fetchOrders();
+        showError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      });
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    try {
-      const res = await fetch(`/api/r/${slug}/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        if (newStatus === 'READY') {
-          playSuccessChime();
-          showSuccess('ออเดอร์พร้อมเสิร์ฟครบทุกจาน 🔔');
-        } else if (newStatus === 'SERVED') {
-          playSuccessChime();
-          showSuccess('เสิร์ฟออเดอร์ครบถ้วน ✨');
-        } else if (newStatus === 'CANCELLED') {
-          showWarning('ยกเลิกออเดอร์เรียบร้อย');
-        }
-        fetchOrders();
-      }
-    } catch (err) {
-      console.error('Error updating order status:', err);
-      showError('ไม่สามารถอัปเดตสถานะได้');
+  const updateOrderStatus = (orderId: string, newStatus: string) => {
+    // ⚡ Optimistic UI Update: เปลี่ยนสถานะและเคลียร์บิลบนหน้าจอทันที 0ms
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        const nextItems = o.items?.map((it: any) => {
+          if (newStatus === 'READY') return { ...it, status: 'READY' };
+          if (newStatus === 'SERVED') return { ...it, status: 'SERVED' };
+          if (newStatus === 'COOKING' && it.status === 'PENDING') return { ...it, status: 'COOKING' };
+          return it;
+        });
+        return { ...o, status: newStatus, items: nextItems };
+      })
+    );
+
+    // เสียงแจ้งเตือนและข้อความ Toast แสดงทันที
+    if (newStatus === 'READY') {
+      playSuccessChime();
+      showSuccess('ออเดอร์พร้อมเสิร์ฟครบทุกจาน 🔔');
+    } else if (newStatus === 'SERVED') {
+      playSuccessChime();
+      showSuccess('เสิร์ฟออเดอร์ครบถ้วน ✨');
+    } else if (newStatus === 'CANCELLED') {
+      showWarning('ยกเลิกออเดอร์เรียบร้อย');
     }
+
+    // ส่งบันทึกลง Database ใน Background ไม่บล็อก UI
+    fetch(`/api/r/${slug}/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          fetchOrders();
+          showError('ไม่สามารถอัปเดตสถานะได้');
+        }
+      })
+      .catch((err) => {
+        console.error('Error updating order status:', err);
+        fetchOrders();
+        showError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      });
   };
 
   const deliveryOrdersCount = orders.filter(

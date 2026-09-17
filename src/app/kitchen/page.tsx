@@ -102,18 +102,37 @@ export default function KitchenPage() {
   }, [soundEnabled]);
 
   // Update order status
-  const handleUpdateStatus = async (orderId: string, nextStatus: string) => {
-    try {
-      await fetch(`/api/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
+  const handleUpdateStatus = (orderId: string, nextStatus: string) => {
+    // ⚡ Optimistic UI Update: เปลี่ยนสถานะทันที 0ms ไม่หน่วงเวลา
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o?.id !== orderId) return o;
+        const nextItems = o.items?.map((it: any) => {
+          if (nextStatus === 'READY') return { ...it, status: 'READY' };
+          if (nextStatus === 'SERVED') return { ...it, status: 'SERVED' };
+          if (nextStatus === 'COOKING' && it.status === 'PENDING') return { ...it, status: 'COOKING' };
+          return it;
+        });
+        return { ...o, status: nextStatus, items: nextItems };
+      })
+    );
+
+    playSuccessChime();
+
+    fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: nextStatus }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          fetchOrders();
+        }
+      })
+      .catch((err) => {
+        console.error('Error updating status:', err);
+        fetchOrders();
       });
-      playSuccessChime();
-      fetchOrders();
-    } catch (err) {
-      console.error('Error updating status:', err);
-    }
   };
 
   const deliveryOrdersCount = useMemo(() => {
