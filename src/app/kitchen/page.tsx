@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Navbar from '@/components/Navbar';
 import {
   ChefHat,
@@ -19,20 +19,23 @@ import {
 import { formatTime } from '@/lib/utils';
 import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
 import KitchenTicketPrintModal from '@/components/KitchenTicketPrintModal';
+import ServeConfirmModal from '@/components/ServeConfirmModal';
 
 export default function KitchenPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('ACTIVE'); // 'ACTIVE' | 'PENDING' | 'COOKING' | 'READY' | 'DELIVERY'
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [exitingOrderIds, setExitingOrderIds] = useState<Set<string>>(new Set());
+  const [confirmingServeOrder, setConfirmingServeOrder] = useState<any | null>(null);
   const [printingOrder, setPrintingOrder] = useState<any | null>(null);
+  const servedOrderIdsRef = useRef<Set<string>>(new Set());
 
   const fetchOrders = async () => {
     try {
       const res = await fetch('/api/orders?status=kitchen');
       const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
+      const raw = Array.isArray(data) ? data : [];
+      setOrders(raw.filter((o: any) => !servedOrderIdsRef.current.has(o.id)));
     } catch (err) {
       console.error('Error fetching kitchen orders:', err);
       setOrders([]);
@@ -185,19 +188,37 @@ export default function KitchenPage() {
       });
   };
 
-  // ✨ เล่นแอนิเมชันเสิร์ฟนุ่มนวล 350ms
-  const handleServeOrder = (orderId: string) => {
-    setExitingOrderIds((prev) => new Set(prev).add(orderId));
+  // ✅ ยืนยันการเสิร์ฟออเดอร์: หายถาวรทันที 0ms ไม่มีการเด้งกลับมา
+  const confirmServeOrder = (orderId: string) => {
+    // 1. เพิ่มเข้า servedOrderIdsRef ป้องกันการเด้งกลับจากการ fetch ข้อมูล
+    servedOrderIdsRef.current.add(orderId);
+
+    // 2. ปิดโมดอลยืนยัน
+    setConfirmingServeOrder(null);
+
+    // 3. ลบออเดอร์ออกจากหน้าจอทันที 0ms (หายถาวร)
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+
+    // 4. เสียงแจ้งเตือนทันที
     playSuccessChime();
 
-    setTimeout(() => {
-      handleUpdateStatus(orderId, 'SERVED');
-      setExitingOrderIds((prev) => {
-        const next = new Set(prev);
-        next.delete(orderId);
-        return next;
+    // 5. ส่งบันทึกลง Database ใน Background
+    fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'SERVED' }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          servedOrderIdsRef.current.delete(orderId);
+          fetchOrders();
+        }
+      })
+      .catch((err) => {
+        console.error('Error serving order:', err);
+        servedOrderIdsRef.current.delete(orderId);
+        fetchOrders();
       });
-    }, 350);
   };
 
   const deliveryOrdersCount = useMemo(() => {
@@ -365,7 +386,6 @@ export default function KitchenPage() {
               const isCooking = order.status === 'COOKING';
               const isReady = order.status === 'READY';
               const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(order.orderChannel);
-              const isExiting = exitingOrderIds.has(order.id);
 
               // Progress Bar Calculation
               const totalItems = order.items?.reduce((sum: number, it: any) => sum + (it.quantity || 1), 0) || 0;
@@ -408,22 +428,8 @@ export default function KitchenPage() {
               return (
                 <div
                   key={order.id}
-                  className={`relative rounded-3xl border flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md transition-all duration-350 ease-out transform bg-white ${borderStyle} ${
-                    isExiting
-                      ? '-translate-y-3 scale-95 opacity-0 pointer-events-none'
-                      : 'translate-y-0 scale-100 opacity-100'
-                  }`}
+                  className={`relative rounded-3xl border flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 bg-white ${borderStyle}`}
                 >
-                  {/* ✨ Smooth Exit Overlay */}
-                  {isExiting && (
-                    <div className="absolute inset-0 z-30 bg-emerald-500/95 backdrop-blur-xs flex flex-col items-center justify-center text-white p-4 text-center animate-in fade-in zoom-in-95 duration-200">
-                      <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mb-2 shadow-inner">
-                        <CheckCircle2 className="w-8 h-8 text-white animate-bounce" />
-                      </div>
-                      <span className="text-base font-black tracking-wide">เสิร์ฟเรียบร้อยแล้ว ✨</span>
-                      <span className="text-xs text-emerald-100 mt-0.5">เคลียร์รายการออกจากหน้าจอ</span>
-                    </div>
-                  )}
 
                   {/* Ticket Header */}
                   <div className={`p-4 flex items-center justify-between ${headerBg}`}>
@@ -567,11 +573,11 @@ export default function KitchenPage() {
                     {order.status === 'READY' && (
                       <button
                         type="button"
-                        onClick={() => handleServeOrder(order.id)}
+                        onClick={() => setConfirmingServeOrder(order)}
                         className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
                       >
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>เสิร์ฟเรียบร้อย</span>
+                        <span>เสิร์ฟอาหาร</span>
                       </button>
                     )}
 
@@ -603,6 +609,14 @@ export default function KitchenPage() {
           </div>
         )}
       </main>
+
+      {/* Modal ยืนยันการเสิร์ฟอาหาร (ป้องกันกดพลาด & หายถาวรทันที 0ms) */}
+      <ServeConfirmModal
+        isOpen={!!confirmingServeOrder}
+        onClose={() => setConfirmingServeOrder(null)}
+        order={confirmingServeOrder}
+        onConfirm={() => confirmingServeOrder && confirmServeOrder(confirmingServeOrder.id)}
+      />
 
       {/* Modal พิมพ์ใบสั่งอาหารห้องครัว (KOT) */}
       <KitchenTicketPrintModal

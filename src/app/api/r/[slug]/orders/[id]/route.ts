@@ -86,6 +86,22 @@ export async function PATCH(
             updateData.paymentMethod = 'DELIVERY_APP';
           }
         }
+      } else if (status === 'READY') {
+        await prisma.orderItem.updateMany({
+          where: {
+            orderId: params.id,
+            status: { not: 'SERVED' },
+          },
+          data: { status: 'READY' },
+        });
+      } else if (status === 'COOKING') {
+        await prisma.orderItem.updateMany({
+          where: {
+            orderId: params.id,
+            status: 'PENDING',
+          },
+          data: { status: 'COOKING' },
+        });
       } else if (status === 'CANCELLED' && existingOrder.status !== 'CANCELLED') {
         // Bug #12: Restock ingredients and release table when order is cancelled
         await prisma.orderItem.updateMany({

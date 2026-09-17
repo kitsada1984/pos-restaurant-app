@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ChefHat,
   Clock,
@@ -19,6 +19,7 @@ import { formatTime } from '@/lib/utils';
 import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
 import { useToast } from '@/context/ToastContext';
 import KitchenTicketPrintModal from '@/components/KitchenTicketPrintModal';
+import ServeConfirmModal from '@/components/ServeConfirmModal';
 
 export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const { showSuccess, showInfo, showWarning, showError } = useToast();
@@ -27,14 +28,17 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   const [filterStatus, setFilterStatus] = useState<string>('ACTIVE'); // 'ACTIVE' | 'PENDING' | 'COOKING' | 'READY' | 'DELIVERY'
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showBatchBar, setShowBatchBar] = useState(true);
-  const [exitingOrderIds, setExitingOrderIds] = useState<Set<string>>(new Set());
+  const [confirmingServeOrder, setConfirmingServeOrder] = useState<any | null>(null);
   const [printingOrder, setPrintingOrder] = useState<any | null>(null);
+  const servedOrderIdsRef = useRef<Set<string>>(new Set());
 
   const fetchOrders = async () => {
     try {
       const res = await fetch(`/api/r/${slug}/orders`);
       const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
+      const raw = Array.isArray(data) ? data : [];
+      // ป้องกัน Race Condition: ออเดอร์ที่กดยืนยันเสิร์ฟแล้วบนหน้านี้ จะไม่ถูกดึงกลับมาแสดงผลซ้ำ
+      setOrders(raw.filter((o: any) => !servedOrderIdsRef.current.has(o.id)));
     } catch (err) {
       console.error('Error fetching kitchen orders:', err);
       setOrders([]);
@@ -259,20 +263,40 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
       });
   };
 
-  // ✨ จัดการแอนิเมชันเสิร์ฟออเดอร์นุ่มนวล (350ms Slide-up & Fade-out)
-  const handleServeOrder = (orderId: string) => {
-    setExitingOrderIds((prev) => new Set(prev).add(orderId));
-    playSuccessChime();
-    showSuccess('เสิร์ฟออเดอร์ครบถ้วน ✨');
+  // ✅ ยืนยันการเสิร์ฟออเดอร์: หายถาวรทันที 0ms ไม่มีการเด้งกลับมา
+  const confirmServeOrder = (orderId: string) => {
+    // 1. เพิ่มเข้า servedOrderIdsRef ป้องกันการเด้งกลับจากการ fetch ข้อมูล
+    servedOrderIdsRef.current.add(orderId);
 
-    setTimeout(() => {
-      updateOrderStatus(orderId, 'SERVED');
-      setExitingOrderIds((prev) => {
-        const next = new Set(prev);
-        next.delete(orderId);
-        return next;
+    // 2. ปิดโมดอลยืนยัน
+    setConfirmingServeOrder(null);
+
+    // 3. ลบออเดอร์ออกจากหน้าจอทันที 0ms (หายถาวร)
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+
+    // 4. เสียงและข้อความแจ้งเตือนทันที
+    playSuccessChime();
+    showSuccess('เสิร์ฟออเดอร์เรียบร้อย ✨');
+
+    // 5. ส่งบันทึกลง Database ใน Background
+    fetch(`/api/r/${slug}/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'SERVED' }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          servedOrderIdsRef.current.delete(orderId);
+          fetchOrders();
+          showError('ไม่สามารถอัปเดตสถานะเสิร์ฟได้');
+        }
+      })
+      .catch((err) => {
+        console.error('Error serving order:', err);
+        servedOrderIdsRef.current.delete(orderId);
+        fetchOrders();
+        showError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
       });
-    }, 350);
   };
 
   const deliveryOrdersCount = orders.filter(
@@ -458,7 +482,6 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
             const isCooking = order.status === 'COOKING';
             const isReady = order.status === 'READY';
             const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(order.orderChannel);
-            const isExiting = exitingOrderIds.has(order.id);
 
             // Progress Bar Calculation
             const totalItems = order.items?.reduce((sum: number, it: any) => sum + (it.quantity || 1), 0) || 0;
@@ -499,11 +522,7 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
             return (
               <div
                 key={order.id}
-                className={`relative rounded-3xl border shadow-sm flex flex-col justify-between overflow-hidden bg-white transition-all duration-350 ease-out transform ${
-                  isExiting
-                    ? '-translate-y-3 scale-95 opacity-0 pointer-events-none'
-                    : 'translate-y-0 scale-100 opacity-100'
-                } ${
+                className={`rounded-3xl border shadow-sm flex flex-col justify-between overflow-hidden bg-white transition-all duration-200 ${
                   isDelivery
                     ? 'border-emerald-300 ring-2 ring-emerald-500/30'
                     : isPending
@@ -513,16 +532,6 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                     : 'border-emerald-300 ring-2 ring-emerald-500/20'
                 }`}
               >
-                {/* ✨ Smooth Exit Overlay (แสดงเมื่อกดเสิร์ฟเรียบร้อย) */}
-                {isExiting && (
-                  <div className="absolute inset-0 z-30 bg-emerald-500/95 backdrop-blur-xs flex flex-col items-center justify-center text-white p-4 text-center animate-in fade-in zoom-in-95 duration-200">
-                    <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mb-2 shadow-inner">
-                      <CheckCircle2 className="w-8 h-8 text-white animate-bounce" />
-                    </div>
-                    <span className="text-base font-black tracking-wide">เสิร์ฟเรียบร้อยแล้ว ✨</span>
-                    <span className="text-xs text-emerald-100 mt-0.5">เคลียร์รายการออกจากหน้าจอ</span>
-                  </div>
-                )}
 
                 {/* Ticket Header */}
                 <div className={`p-4 text-white flex items-center justify-between ${headerBg}`}>
@@ -735,11 +744,11 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                   {isReady && (
                     <button
                       type="button"
-                      onClick={() => handleServeOrder(order.id)}
+                      onClick={() => setConfirmingServeOrder(order)}
                       className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-extrabold text-xs shadow-md flex items-center justify-center space-x-1.5 transition-all duration-150 cursor-pointer"
                     >
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span>เสิร์ฟแล้ว (เรียบร้อย)</span>
+                      <span>เสิร์ฟอาหาร</span>
                     </button>
                   )}
 
@@ -770,6 +779,14 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
           })}
         </div>
       )}
+
+      {/* Modal ยืนยันการเสิร์ฟอาหาร (ป้องกันกดพลาด & หายถาวรทันที 0ms) */}
+      <ServeConfirmModal
+        isOpen={!!confirmingServeOrder}
+        onClose={() => setConfirmingServeOrder(null)}
+        order={confirmingServeOrder}
+        onConfirm={() => confirmingServeOrder && confirmServeOrder(confirmingServeOrder.id)}
+      />
 
       {/* Modal พิมพ์ใบสั่งอาหารห้องครัว (KOT) */}
       <KitchenTicketPrintModal

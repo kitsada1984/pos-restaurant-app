@@ -38,6 +38,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     if (status) {
       updateData.status = status;
+
+      if (status === 'SERVED' || status === 'COMPLETED') {
+        await prisma.orderItem.updateMany({
+          where: { orderId: params.id },
+          data: { status: 'SERVED' },
+        });
+      } else if (status === 'READY') {
+        await prisma.orderItem.updateMany({
+          where: { orderId: params.id, status: { not: 'SERVED' } },
+          data: { status: 'READY' },
+        });
+      } else if (status === 'COOKING') {
+        await prisma.orderItem.updateMany({
+          where: { orderId: params.id, status: 'PENDING' },
+          data: { status: 'COOKING' },
+        });
+      }
     }
 
     if (discountAmount !== undefined) {
