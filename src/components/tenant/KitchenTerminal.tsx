@@ -21,7 +21,13 @@ import { useToast } from '@/context/ToastContext';
 import KitchenTicketPrintModal from '@/components/KitchenTicketPrintModal';
 import ServeConfirmModal from '@/components/ServeConfirmModal';
 
-export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string }) {
+export default function KitchenTerminal({
+  slug = 'lung-pa',
+  isSplitView = false,
+}: {
+  slug?: string;
+  isSplitView?: boolean;
+}) {
   const { showSuccess, showInfo, showWarning, showError } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -597,7 +603,7 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
           <p className="text-xs text-slate-400">ออเดอร์ใหม่จากลูกค้า แคชเชียร์ หรือ LINE MAN / Grab จะปรากฏที่นี่ทันทีแบบเรียลไทม์</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div className={`grid gap-4 sm:gap-5 ${isSplitView ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
           {filteredOrders.map((order) => {
             const isPending = order.status === 'PENDING';
             const isCooking = order.status === 'COOKING';

@@ -71,7 +71,13 @@ import { scanSlipQrClient } from '@/lib/slip-scanner-client';
 import { parseBankNotificationText } from '@/lib/bank-message-parser';
 import { useToast } from '@/context/ToastContext';
 
-export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
+export default function PosTerminal({
+  slug = 'lung-pa',
+  isSplitView = false,
+}: {
+  slug?: string;
+  isSplitView?: boolean;
+}) {
   const { showSuccess, showError, showInfo } = useToast();
   const [tables, setTables] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -1820,7 +1826,7 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
       {/* Tables Grid - Full Width matching Header on Mobile (when not on Delivery filter) */}
       {statusFilter !== 'DELIVERY' && (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 auto-rows-fr w-full">
+      <div className={`grid gap-3 sm:gap-4 auto-rows-fr w-full ${isSplitView ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'}`}>
         {filteredTables.map((table) => {
           const isOccupied = table.status === 'OCCUPIED' || table.activeOrdersCount > 0;
           const isSelected = selectedTable?.id === table.id || selectedTable?.tableNo === table.tableNo;
@@ -1979,7 +1985,9 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
       {/* Selected Table Drawer / Action Bar */}
       {selectedTable && (
-        <div className="fixed inset-x-0 bottom-14 xl:bottom-0 z-40 bg-slate-900 text-white p-3.5 sm:p-6 shadow-2xl border-t border-slate-800 backdrop-blur-xl bg-opacity-95">
+        <div className={`z-40 bg-slate-900 text-white p-3.5 sm:p-5 shadow-2xl border-t border-slate-800 backdrop-blur-xl bg-opacity-95 ${
+          isSplitView ? 'sticky bottom-0 inset-x-0' : 'fixed inset-x-0 bottom-14 xl:bottom-0'
+        }`}>
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 rounded-2xl bg-orange-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-orange-500/30">

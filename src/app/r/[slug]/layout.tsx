@@ -233,7 +233,7 @@ export default function TenantStoreLayout({
                 <span className="text-[10px] text-slate-400 font-medium">รับออเดอร์ / คิดเงิน</span>
               </div>
               <div className="flex-1">
-                <PosTerminal slug={slug} />
+                <PosTerminal slug={slug} isSplitView={true} />
               </div>
             </div>
 
@@ -257,7 +257,7 @@ export default function TenantStoreLayout({
                 </div>
               </div>
               <div className="flex-1">
-                <KitchenTerminal slug={slug} />
+                <KitchenTerminal slug={slug} isSplitView={true} />
               </div>
             </div>
           </div>
