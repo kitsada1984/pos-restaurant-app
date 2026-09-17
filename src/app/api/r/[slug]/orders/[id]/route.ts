@@ -71,12 +71,41 @@ export async function PATCH(
     if (status) {
       updateData.status = status;
 
-      if (status === 'SERVED' || status === 'COMPLETED') {
-        await prisma.orderItem.updateMany({
-          where: { orderId: params.id },
-          data: { status: 'SERVED' },
-        });
+      // Mass item update only when NOT targeting a single item
+      if (!itemId) {
+        if (status === 'SERVED' || status === 'COMPLETED') {
+          await prisma.orderItem.updateMany({
+            where: { orderId: params.id },
+            data: { status: 'SERVED' },
+          });
+        } else if (status === 'READY') {
+          await prisma.orderItem.updateMany({
+            where: {
+              orderId: params.id,
+              status: { not: 'SERVED' },
+            },
+            data: { status: 'READY' },
+          });
+        } else if (status === 'COOKING') {
+          await prisma.orderItem.updateMany({
+            where: {
+              orderId: params.id,
+              status: { in: ['PENDING', 'READY'] },
+            },
+            data: { status: 'COOKING' },
+          });
+        } else if (status === 'PENDING') {
+          await prisma.orderItem.updateMany({
+            where: {
+              orderId: params.id,
+              status: { in: ['COOKING', 'READY'] },
+            },
+            data: { status: 'PENDING' },
+          });
+        }
+      }
 
+      if (status === 'SERVED' || status === 'COMPLETED') {
         // Bug #5: If delivery order is served/completed, ensure it is marked as PAID so it appears in daily sales reports
         const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(existingOrder.orderChannel);
         if (isDelivery && existingOrder.paymentStatus !== 'PAID') {
@@ -86,30 +115,6 @@ export async function PATCH(
             updateData.paymentMethod = 'DELIVERY_APP';
           }
         }
-      } else if (status === 'READY') {
-        await prisma.orderItem.updateMany({
-          where: {
-            orderId: params.id,
-            status: { not: 'SERVED' },
-          },
-          data: { status: 'READY' },
-        });
-      } else if (status === 'COOKING') {
-        await prisma.orderItem.updateMany({
-          where: {
-            orderId: params.id,
-            status: { in: ['PENDING', 'READY'] },
-          },
-          data: { status: 'COOKING' },
-        });
-      } else if (status === 'PENDING') {
-        await prisma.orderItem.updateMany({
-          where: {
-            orderId: params.id,
-            status: { in: ['COOKING', 'READY'] },
-          },
-          data: { status: 'PENDING' },
-        });
       } else if (status === 'CANCELLED' && existingOrder.status !== 'CANCELLED') {
         // Bug #12: Restock ingredients and release table when order is cancelled
         await prisma.orderItem.updateMany({

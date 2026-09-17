@@ -58,26 +58,29 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (status) {
       updateData.status = status;
 
-      if (status === 'SERVED' || status === 'COMPLETED') {
-        await prisma.orderItem.updateMany({
-          where: { orderId: params.id },
-          data: { status: 'SERVED' },
-        });
-      } else if (status === 'READY') {
-        await prisma.orderItem.updateMany({
-          where: { orderId: params.id, status: { not: 'SERVED' } },
-          data: { status: 'READY' },
-        });
-      } else if (status === 'COOKING') {
-        await prisma.orderItem.updateMany({
-          where: { orderId: params.id, status: { in: ['PENDING', 'READY'] } },
-          data: { status: 'COOKING' },
-        });
-      } else if (status === 'PENDING') {
-        await prisma.orderItem.updateMany({
-          where: { orderId: params.id, status: { in: ['COOKING', 'READY'] } },
-          data: { status: 'PENDING' },
-        });
+      // Mass item update only when NOT updating a single item
+      if (!itemId && (!itemStatusUpdates || itemStatusUpdates.length === 0)) {
+        if (status === 'SERVED' || status === 'COMPLETED') {
+          await prisma.orderItem.updateMany({
+            where: { orderId: params.id },
+            data: { status: 'SERVED' },
+          });
+        } else if (status === 'READY') {
+          await prisma.orderItem.updateMany({
+            where: { orderId: params.id, status: { not: 'SERVED' } },
+            data: { status: 'READY' },
+          });
+        } else if (status === 'COOKING') {
+          await prisma.orderItem.updateMany({
+            where: { orderId: params.id, status: { in: ['PENDING', 'READY'] } },
+            data: { status: 'COOKING' },
+          });
+        } else if (status === 'PENDING') {
+          await prisma.orderItem.updateMany({
+            where: { orderId: params.id, status: { in: ['COOKING', 'READY'] } },
+            data: { status: 'PENDING' },
+          });
+        }
       }
     } else if (itemId || (itemStatusUpdates && itemStatusUpdates.length > 0)) {
       const currentItems = await prisma.orderItem.findMany({
