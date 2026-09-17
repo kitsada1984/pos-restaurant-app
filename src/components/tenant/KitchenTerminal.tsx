@@ -20,6 +20,7 @@ import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound
 import { useToast } from '@/context/ToastContext';
 import KitchenTicketPrintModal from '@/components/KitchenTicketPrintModal';
 import ServeConfirmModal from '@/components/ServeConfirmModal';
+import { subscribeRealtime } from '@/lib/realtimeManager';
 
 export default function KitchenTerminal({
   slug = 'lung-pa',
@@ -103,69 +104,42 @@ export default function KitchenTerminal({
   useEffect(() => {
     fetchOrders();
 
-    let eventSource: EventSource | null = null;
-    let reconnectTimeout: any = null;
-    let isSubscribed = true;
-
-    const connectSSE = () => {
-      if (!isSubscribed || typeof window === 'undefined' || !('EventSource' in window)) return;
+    const unsubscribe = subscribeRealtime(slug, (payload) => {
       try {
-        eventSource = new EventSource(`/api/r/${slug}/stream`);
-        eventSource.onmessage = (event) => {
-          try {
-            const payload = JSON.parse(event.data);
-            if (payload.type === 'ORDER_CREATED') {
-              // Bug #4: Read order object from payload.data (or fallback payload.order)
-              const orderData = payload.data || payload.order;
-              const ch = orderData?.orderChannel;
-              const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(ch);
-              if (soundEnabled) {
-                if (isDelivery) {
-                  playDeliveryChime();
-                } else {
-                  playOrderChime();
-                }
-              }
-
-              if (isDelivery) {
-                const label = ch === 'LINEMAN' ? 'LINE MAN' : ch === 'GRAB' ? 'GrabFood' : ch === 'SHOPEE_FOOD' ? 'ShopeeFood' : 'Robinhood';
-                showInfo(`🛵 ออเดอร์เดลิเวอรีเข้าใหม่ (${label})`, `#${orderData?.deliveryOrderId || orderData?.id?.slice(-4)}`);
-              } else {
-                showInfo('มีออเดอร์ใหม่เข้าครัว 🛎️', `โต๊ะ ${orderData?.tableNo || orderData?.table?.tableNo || 'สั่งใหม่'}`);
-              }
-              fetchOrders();
-            } else if (payload.type === 'ORDER_UPDATED' || payload.type === 'TABLE_UPDATED') {
-              fetchOrders();
+        if (payload.type === 'ORDER_CREATED') {
+          // Bug #4: Read order object from payload.data (or fallback payload.order)
+          const orderData = payload.data || payload.order;
+          const ch = orderData?.orderChannel;
+          const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(ch);
+          if (soundEnabled) {
+            if (isDelivery) {
+              playDeliveryChime();
+            } else {
+              playOrderChime();
             }
-          } catch (e) {}
-        };
-        eventSource.onerror = () => {
-          eventSource?.close();
-          if (isSubscribed) {
-            reconnectTimeout = setTimeout(connectSSE, 3000);
           }
-        };
-      } catch (e) {
-        if (isSubscribed) {
-          reconnectTimeout = setTimeout(connectSSE, 3000);
+
+          if (isDelivery) {
+            const label = ch === 'LINEMAN' ? 'LINE MAN' : ch === 'GRAB' ? 'GrabFood' : ch === 'SHOPEE_FOOD' ? 'ShopeeFood' : 'Robinhood';
+            showInfo(`🛵 ออเดอร์เดลิเวอรีเข้าใหม่ (${label})`, `#${orderData?.deliveryOrderId || orderData?.id?.slice(-4)}`);
+          } else {
+            showInfo('มีออเดอร์ใหม่เข้าครัว 🛎️', `โต๊ะ ${orderData?.tableNo || orderData?.table?.tableNo || 'สั่งใหม่'}`);
+          }
+          fetchOrders();
+        } else if (payload.type === 'ORDER_UPDATED' || payload.type === 'TABLE_UPDATED') {
+          fetchOrders();
         }
-      }
-    };
+      } catch (e) {}
+    });
 
-    connectSSE();
-
-    // Polling fallback every 10s to guarantee kitchen screen never misses an order
+    // Polling fallback every 15s to guarantee kitchen screen never misses an order
     const pollInterval = setInterval(() => {
-      if (isSubscribed) {
-        fetchOrders();
-      }
-    }, 10000);
+      fetchOrders();
+    }, 15000);
 
     return () => {
-      isSubscribed = false;
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      unsubscribe();
       clearInterval(pollInterval);
-      eventSource?.close();
     };
   }, [slug, soundEnabled]);
 

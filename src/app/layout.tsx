@@ -1,8 +1,23 @@
 import type { Metadata, Viewport } from 'next';
+import { Plus_Jakarta_Sans, Prompt } from 'next/font/google';
 import './globals.css';
 import { ToastProvider } from '@/context/ToastContext';
 import PwaRegister from '@/components/PwaRegister';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt';
+
+const prompt = Prompt({
+  subsets: ['thai', 'latin'],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  variable: '--font-prompt',
+  display: 'swap',
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   themeColor: '#ea580c',
@@ -44,14 +59,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th" className="scroll-smooth">
+    <html lang="th" className={`scroll-smooth ${prompt.variable} ${plusJakarta.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

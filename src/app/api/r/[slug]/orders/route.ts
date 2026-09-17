@@ -2,16 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
 import { requireStoreAccess } from '@/lib/auth';
+import { getStoreBySlug } from '@/lib/storeCache';
 
 export async function GET(
   request: Request,
   { params }: { params: { slug: string } }
 ) {
   try {
-    const store = await prisma.store.findUnique({
-      where: { slug: params.slug },
-      select: { id: true },
-    });
+    const store = await getStoreBySlug(params.slug);
 
     if (!store) return NextResponse.json({ error: 'ไม่พบร้านค้า' }, { status: 404 });
 

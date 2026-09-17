@@ -70,6 +70,8 @@ import { generatePromptPayPayload } from '@/lib/promptpay';
 import { scanSlipQrClient } from '@/lib/slip-scanner-client';
 import { parseBankNotificationText } from '@/lib/bank-message-parser';
 import { useToast } from '@/context/ToastContext';
+import { fetchWithCache, invalidateCache } from '@/lib/clientCache';
+import { subscribeRealtime } from '@/lib/realtimeManager';
 
 export default function PosTerminal({
   slug = 'lung-pa',
@@ -371,21 +373,17 @@ export default function PosTerminal({
   const [newTableName, setNewTableName] = useState('');
   const [isCreatingTable, setIsCreatingTable] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
     try {
-      const [tablesRes, menuRes, settingsRes, ordersRes, promoRes] = await Promise.all([
-        fetch(`/api/r/${slug}/tables`),
-        fetch(`/api/r/${slug}/menu`),
-        fetch(`/api/r/${slug}/settings`),
-        fetch(`/api/r/${slug}/orders`),
-        fetch(`/api/r/${slug}/promotions`),
-      ]);
+      if (forceRefresh) {
+        invalidateCache(slug);
+      }
       const [tData, mData, sData, oData, promoData] = await Promise.all([
-        tablesRes.json().catch(() => []),
-        menuRes.json().catch(() => []),
-        settingsRes.json().catch(() => null),
-        ordersRes.json().catch(() => []),
-        promoRes.json().catch(() => ({ promotions: [] })),
+        fetch(`/api/r/${slug}/tables`).then((r) => r.json()).catch(() => []),
+        fetchWithCache(`menu_${slug}`, () => fetch(`/api/r/${slug}/menu`).then((r) => r.json()).catch(() => []), 60000),
+        fetchWithCache(`settings_${slug}`, () => fetch(`/api/r/${slug}/settings`).then((r) => r.json()).catch(() => null), 60000),
+        fetch(`/api/r/${slug}/orders`).then((r) => r.json()).catch(() => []),
+        fetchWithCache(`promotions_${slug}`, () => fetch(`/api/r/${slug}/promotions`).then((r) => r.json()).catch(() => ({ promotions: [] })), 60000),
       ]);
       setTables(Array.isArray(tData) ? tData : []);
       setCategories(Array.isArray(mData) ? mData : []);
@@ -498,7 +496,8 @@ export default function PosTerminal({
       } catch (e) {}
     };
 
-    const intervalId = setInterval(pollServiceCalls, 3000);
+    // Periodic polling fallback for service calls (every 12s)
+    const intervalId = setInterval(pollServiceCalls, 12000);
     return () => {
       isMounted = false;
       clearInterval(intervalId);
@@ -508,149 +507,139 @@ export default function PosTerminal({
   useEffect(() => {
     fetchData();
 
-    let eventSource: EventSource | null = null;
-    try {
-      if (typeof window !== 'undefined' && 'EventSource' in window) {
-        eventSource = new EventSource(`/api/r/${slug}/stream`);
-        eventSource.onmessage = (event) => {
-          try {
-            const payload = JSON.parse(event.data);
-            if (payload.type === 'BANK_NOTIFY_RECEIVED') {
-              const d = payload.data;
-              // นำรายการเข้าคิวแจ้งเตือนเงินเข้าทันที
-              addBankAlert(d);
+    const unsubscribe = subscribeRealtime(slug, (payload) => {
+      try {
+        if (payload.type === 'BANK_NOTIFY_RECEIVED') {
+          const d = payload.data;
+          // นำรายการเข้าคิวแจ้งเตือนเงินเข้าทันที
+          addBankAlert(d);
 
-              if (d.action === 'AUTO_PAID') {
-                playSuccessChime();
-                if (voiceEnabled) {
-                  speakMoneyReceived(d.amount, d.tableName || (d.tableNo ? `โต๊ะ ${d.tableNo}` : ''));
-                }
-                showSuccess(
-                  `💰 รับเงิน ฿${d.amount?.toLocaleString()} จาก ${d.bankName || d.bank}`,
-                  `ปิดบิลและเคลียร์ ${d.tableName || `โต๊ะ ${d.tableNo}`} สำเร็จแล้ว 🎉`
-                );
-                fetchData();
-              } else if (d.action === 'MANUAL_CONFIRM') {
-                playOrderChime();
-                if (voiceEnabled) {
-                  const rawTable = d.tableName || (d.tableNo ? `โต๊ะ ${d.tableNo}` : '');
-                  const target = rawTable ? (rawTable.startsWith('โต๊ะ') ? ` ${rawTable}` : ` โต๊ะ ${rawTable}`) : '';
-                  speakThaiVoice(`เงินเข้า ${d.amount} บาท${target} ค่ะ กรุณากดยืนยันปิดบิลค่ะ`.replace(/\s+/g, ' ').trim());
-                }
-                showInfo(
-                  `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
-                  `ตรงกับ ${d.tableName || `โต๊ะ ${d.tableNo}`} กรุณากดยืนยันปิดบิล`
-                );
-              } else if (d.action === 'AMBIGUOUS_CHOICE') {
-                playOrderChime();
-                if (voiceEnabled) {
-                  speakThaiVoice(`มีเงินเข้า ${d.amount} บาท กรุณาเลือกโต๊ะค่ะ`);
-                }
-                showInfo(
-                  `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
-                  `มียอดตรงกับ ${d.candidates?.length} โต๊ะ กรุณาเลือกโต๊ะที่ต้องการตัดยอด`
-                );
-              } else if (d.action === 'UNMATCHED') {
-                playOrderChime();
-                if (voiceEnabled) {
-                  speakThaiVoice(`มีเงินเข้า ${d.amount} บาท ไม่พบโต๊ะที่ตรงกันค่ะ`);
-                }
-                showInfo(
-                  `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
-                  'ไม่พบโต๊ะที่มียอดตรงกันในขณะนี้'
-                );
-              }
-            } else if (payload.type === 'SLIP_SUBMITTED') {
-              const d = payload.data;
-              playOrderChime();
-              if (voiceEnabled) {
-                speakSlipSubmitted(d?.tableNo, d?.amount);
-              }
-              addBankAlert({
-                action: 'CUSTOMER_NOTIFY',
-                channel: 'SLIP',
-                tableId: d?.tableId || d?.tableNo,
-                tableNo: d?.tableNo,
-                tableName: d?.tableName || `โต๊ะ ${d?.tableNo}`,
-                amount: d?.amount,
-                orderIds: d?.orderIds || (d?.orderId ? [d?.orderId] : []),
-                memberPhone: d?.memberPhone,
-                customerName: d?.customerName,
-                slipUrl: d?.slipUrl,
-                timestamp: Date.now(),
-              });
-              showInfo(`📷 โต๊ะ ${d?.tableNo || ''} ส่งสลิปโอนเงินเข้ามา!`, 'กรุณาตรวจสอบสลิปและกดยืนยันปิดบิล');
-              fetchData();
-            } else if (payload.type === 'CUSTOMER_PAYMENT_NOTIFIED') {
-              const d = payload.data;
-              playOrderChime();
-              if (voiceEnabled) {
-                speakCustomerNotifyTransfer(d.tableNo, d.amount);
-              }
-              addBankAlert({
-                action: 'CUSTOMER_NOTIFY',
-                channel: 'WEB',
-                tableId: d.tableId,
-                tableNo: d.tableNo,
-                tableName: d.tableName || `โต๊ะ ${d.tableNo}`,
-                amount: d.amount,
-                orderIds: d.orderIds || [],
-                memberPhone: d.memberPhone,
-                customerName: d.customerName,
-                timestamp: d.timestamp || Date.now(),
-              });
-              showInfo(
-                `🔔 ${d.tableName || `โต๊ะ ${d.tableNo}`} แจ้งโอนเงิน ฿${d.amount?.toLocaleString()} ผ่านเว็บ`,
-                'กรุณาตรวจสอบยอดเงินและกดยืนยันปิดบิล'
-              );
-              fetchData();
-            } else if (payload.type === 'PAYMENT_RECEIVED') {
-              playSuccessChime();
-              if (voiceEnabled && payload.data) {
-                const orderData = payload.data;
-                const tableText = orderData.tableNo ? `โต๊ะ ${orderData.tableNo}` : (orderData.tableName || '');
-                const amt = orderData.netAmount || orderData.totalAmount || orderData.slipAmount;
-                if (amt) {
-                  speakMoneyReceived(amt, tableText);
-                }
-              }
-              fetchData();
-            } else if (payload.type === 'SERVICE_CALLED') {
-              const d = payload.data;
-              const mode = serviceCallAlertModeRef.current;
-              if (mode === 'BOTH') {
-                playServiceCallChime();
-                setTimeout(() => {
-                  speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
-                }, 650);
-              } else if (mode === 'VOICE_ONLY') {
-                speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
-              } else if (mode === 'CHIME_ONLY') {
-                playServiceCallChime();
-              }
-              showInfo(`🔔 ${d.tableName || `โต๊ะ ${d.tableNo}`} เรียกพนักงาน!`, `${d.requestType} ${d.note ? `(${d.note})` : ''}`);
-              addServiceCall({
-                id: d.id,
-                tableNo: Number(d.tableNo) || 1,
-                tableName: d.tableName || (d.tableNo ? `โต๊ะ ${d.tableNo}` : 'โต๊ะอาหาร'),
-                requestType: d.requestType || 'เรียกพนักงาน',
-                note: d.note || '',
-                timestamp: d.timestamp || Date.now(),
-              });
-            } else if (
-              payload.type === 'ORDER_CREATED' ||
-              payload.type === 'ORDER_UPDATED' ||
-              payload.type === 'TABLE_UPDATED'
-            ) {
-              fetchData();
+          if (d.action === 'AUTO_PAID') {
+            playSuccessChime();
+            if (voiceEnabled) {
+              speakMoneyReceived(d.amount, d.tableName || (d.tableNo ? `โต๊ะ ${d.tableNo}` : ''));
             }
-          } catch (e) {}
-        };
-        eventSource.onerror = () => {
-          eventSource?.close();
-        };
-      }
-    } catch (e) {}
+            showSuccess(
+              `💰 รับเงิน ฿${d.amount?.toLocaleString()} จาก ${d.bankName || d.bank}`,
+              `ปิดบิลและเคลียร์ ${d.tableName || `โต๊ะ ${d.tableNo}`} สำเร็จแล้ว 🎉`
+            );
+            fetchData();
+          } else if (d.action === 'MANUAL_CONFIRM') {
+            playOrderChime();
+            if (voiceEnabled) {
+              const rawTable = d.tableName || (d.tableNo ? `โต๊ะ ${d.tableNo}` : '');
+              const target = rawTable ? (rawTable.startsWith('โต๊ะ') ? ` ${rawTable}` : ` โต๊ะ ${rawTable}`) : '';
+              speakThaiVoice(`เงินเข้า ${d.amount} บาท${target} ค่ะ กรุณากดยืนยันปิดบิลค่ะ`.replace(/\s+/g, ' ').trim());
+            }
+            showInfo(
+              `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
+              `ตรงกับ ${d.tableName || `โต๊ะ ${d.tableNo}`} กรุณากดยืนยันปิดบิล`
+            );
+          } else if (d.action === 'AMBIGUOUS_CHOICE') {
+            playOrderChime();
+            if (voiceEnabled) {
+              speakThaiVoice(`มีเงินเข้า ${d.amount} บาท กรุณาเลือกโต๊ะค่ะ`);
+            }
+            showInfo(
+              `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
+              `มียอดตรงกับ ${d.candidates?.length} โต๊ะ กรุณาเลือกโต๊ะที่ต้องการตัดยอด`
+            );
+          } else if (d.action === 'UNMATCHED') {
+            playOrderChime();
+            if (voiceEnabled) {
+              speakThaiVoice(`มีเงินเข้า ${d.amount} บาท ไม่พบโต๊ะที่ตรงกันค่ะ`);
+            }
+            showInfo(
+              `🔔 เงินเข้า ฿${d.amount?.toLocaleString()} (${d.bankName || d.bank})`,
+              'ไม่พบโต๊ะที่มียอดตรงกันในขณะนี้'
+            );
+          }
+        } else if (payload.type === 'SLIP_SUBMITTED') {
+          const d = payload.data;
+          playOrderChime();
+          if (voiceEnabled) {
+            speakSlipSubmitted(d?.tableNo, d?.amount);
+          }
+          addBankAlert({
+            action: 'CUSTOMER_NOTIFY',
+            channel: 'SLIP',
+            tableId: d?.tableId || d?.tableNo,
+            tableNo: d?.tableNo,
+            tableName: d?.tableName || `โต๊ะ ${d?.tableNo}`,
+            amount: d?.amount,
+            orderIds: d?.orderIds || (d?.orderId ? [d?.orderId] : []),
+            memberPhone: d?.memberPhone,
+            customerName: d?.customerName,
+            slipUrl: d?.slipUrl,
+            timestamp: Date.now(),
+          });
+          showInfo(`📷 โต๊ะ ${d?.tableNo || ''} ส่งสลิปโอนเงินเข้ามา!`, 'กรุณาตรวจสอบสลิปและกดยืนยันปิดบิล');
+          fetchData();
+        } else if (payload.type === 'CUSTOMER_PAYMENT_NOTIFIED') {
+          const d = payload.data;
+          playOrderChime();
+          if (voiceEnabled) {
+            speakCustomerNotifyTransfer(d.tableNo, d.amount);
+          }
+          addBankAlert({
+            action: 'CUSTOMER_NOTIFY',
+            channel: 'WEB',
+            tableId: d.tableId,
+            tableNo: d.tableNo,
+            tableName: d.tableName || `โต๊ะ ${d.tableNo}`,
+            amount: d.amount,
+            orderIds: d.orderIds || [],
+            memberPhone: d.memberPhone,
+            customerName: d.customerName,
+            timestamp: d.timestamp || Date.now(),
+          });
+          showInfo(
+            `🔔 ${d.tableName || `โต๊ะ ${d.tableNo}`} แจ้งโอนเงิน ฿${d.amount?.toLocaleString()} ผ่านเว็บ`,
+            'กรุณาตรวจสอบยอดเงินและกดยืนยันปิดบิล'
+          );
+          fetchData();
+        } else if (payload.type === 'PAYMENT_RECEIVED') {
+          playSuccessChime();
+          if (voiceEnabled && payload.data) {
+            const orderData = payload.data;
+            const tableText = orderData.tableNo ? `โต๊ะ ${orderData.tableNo}` : (orderData.tableName || '');
+            const amt = orderData.netAmount || orderData.totalAmount || orderData.slipAmount;
+            if (amt) {
+              speakMoneyReceived(amt, tableText);
+            }
+          }
+          fetchData();
+        } else if (payload.type === 'SERVICE_CALLED') {
+          const d = payload.data;
+          const mode = serviceCallAlertModeRef.current;
+          if (mode === 'BOTH') {
+            playServiceCallChime();
+            setTimeout(() => {
+              speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
+            }, 650);
+          } else if (mode === 'VOICE_ONLY') {
+            speakServiceCall(d.tableNo, d.requestType, d.note, 1.15);
+          } else if (mode === 'CHIME_ONLY') {
+            playServiceCallChime();
+          }
+          showInfo(`🔔 ${d.tableName || `โต๊ะ ${d.tableNo}`} เรียกพนักงาน!`, `${d.requestType} ${d.note ? `(${d.note})` : ''}`);
+          addServiceCall({
+            id: d.id,
+            tableNo: Number(d.tableNo) || 1,
+            tableName: d.tableName || (d.tableNo ? `โต๊ะ ${d.tableNo}` : 'โต๊ะอาหาร'),
+            requestType: d.requestType || 'เรียกพนักงาน',
+            note: d.note || '',
+            timestamp: d.timestamp || Date.now(),
+          });
+        } else if (
+          payload.type === 'ORDER_CREATED' ||
+          payload.type === 'ORDER_UPDATED' ||
+          payload.type === 'TABLE_UPDATED'
+        ) {
+          fetchData();
+        }
+      } catch (e) {}
+    });
 
     // Periodic polling fallback every 15s to guarantee tables & status are always fresh
     const pollInterval = setInterval(() => {
@@ -658,8 +647,8 @@ export default function PosTerminal({
     }, 15000);
 
     return () => {
+      unsubscribe();
       clearInterval(pollInterval);
-      eventSource?.close();
     };
   }, [slug]);
 
