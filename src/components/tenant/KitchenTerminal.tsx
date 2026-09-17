@@ -698,113 +698,166 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                     </div>
                   )}
 
-                  <div className="divide-y divide-slate-100 space-y-2">
-                    {order.items?.map((item: any) => {
-                      let parsedOptions: any[] = [];
-                      if (item.selectedOptions) {
-                        try {
-                          parsedOptions = JSON.parse(item.selectedOptions);
-                        } catch (e) {}
-                      }
+                  <div className="space-y-2">
+                    {(() => {
+                      const firstPendingIndex = order.items?.findIndex(
+                        (it: any) => it.status === 'PENDING' || !it.status
+                      );
+                      return order.items?.map((item: any, idx: number) => {
+                        let parsedOptions: any[] = [];
+                        if (item.selectedOptions) {
+                          try {
+                            parsedOptions = JSON.parse(item.selectedOptions);
+                          } catch (e) {}
+                        }
 
-                      const isItemReady = item.status === 'READY' || item.status === 'SERVED';
-                      const isItemCooking = item.status === 'COOKING';
+                        const itemIndex = idx + 1;
+                        const isItemReady = item.status === 'READY' || item.status === 'SERVED';
+                        const isItemCooking = item.status === 'COOKING';
+                        const isNextUp = idx === firstPendingIndex && !isItemCooking && !isItemReady;
 
-                      return (
-                        <div
-                          key={item.id}
-                          className={`pt-2.5 pb-1 first:pt-0 flex items-start justify-between gap-2 transition-all duration-200 ${
-                            isItemReady ? 'opacity-65' : 'opacity-100'
-                          }`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <span
-                                className={`w-5 h-5 rounded-md text-[11px] font-black flex items-center justify-center transition-colors ${
-                                  isItemReady
-                                    ? 'bg-emerald-600 text-white'
-                                    : isItemCooking
-                                    ? 'bg-amber-500 text-white'
-                                    : 'bg-slate-900 text-white'
-                                }`}
-                              >
-                                {item.quantity}
-                              </span>
-                              <span
-                                className={`font-extrabold text-sm transition-all ${
-                                  isItemReady
-                                    ? 'line-through text-slate-400 font-medium'
-                                    : 'text-slate-900'
-                                }`}
-                              >
-                                {item.name}
-                              </span>
-                            </div>
-
-                            {/* Options */}
-                            {parsedOptions.length > 0 && (
-                              <div className="ml-7 mt-1 flex flex-wrap gap-1">
-                                {parsedOptions.map((opt: any, oIdx: number) => (
-                                  <span
-                                    key={oIdx}
-                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                                      isItemReady ? 'bg-slate-100 text-slate-400' : 'bg-slate-100 text-slate-700'
-                                    }`}
-                                  >
-                                    {opt.choice || opt.name}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-
-                            {item.specialNote && (
-                              <div
-                                className={`ml-7 mt-1 text-[11px] font-bold ${
-                                  isItemReady ? 'text-amber-600/70' : 'text-amber-700'
-                                }`}
-                              >
-                                💬 {item.specialNote}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* 3-State item button: [รอทำ] -> [🔥 กำลังทำ] -> [✓ เสร็จแล้ว] */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextStatus =
-                                item.status === 'PENDING'
-                                  ? 'COOKING'
-                                  : item.status === 'COOKING'
-                                  ? 'READY'
-                                  : 'PENDING';
-                              updateItemStatus(order.id, item.id, nextStatus);
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border active:scale-90 transition-all duration-150 cursor-pointer shadow-2xs whitespace-nowrap flex items-center gap-1 ${
-                              isItemReady
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
-                                : isItemCooking
-                                ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100 animate-pulse'
-                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        return (
+                          <div
+                            key={item.id || idx}
+                            className={`p-2.5 rounded-xl border transition-all duration-200 ${
+                              isItemCooking
+                                ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400/80 shadow-xs'
+                                : isNextUp
+                                ? 'bg-sky-50/60 border-sky-200 ring-1 ring-sky-300/80'
+                                : isItemReady
+                                ? 'bg-emerald-50/40 border-emerald-200/60 opacity-65'
+                                : 'bg-white border-slate-200/80 hover:border-slate-300'
                             }`}
                           >
-                            {isItemReady ? (
-                              <>
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                <span>เสร็จแล้ว</span>
-                              </>
-                            ) : isItemCooking ? (
-                              <>
-                                <Flame className="w-3 h-3 text-amber-600" />
-                                <span>กำลังทำ</span>
-                              </>
-                            ) : (
-                              <span>รอทำ</span>
-                            )}
-                          </button>
-                        </div>
-                      );
-                    })}
+                            <div className="flex items-start justify-between gap-2.5">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center flex-wrap gap-1.5">
+                                  {/* Dish Sequence Number */}
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wider ${
+                                      isItemCooking
+                                        ? 'bg-amber-500 text-white shadow-2xs'
+                                        : isNextUp
+                                        ? 'bg-sky-500 text-white shadow-2xs'
+                                        : isItemReady
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : 'bg-slate-100 text-slate-600 border border-slate-200/60'
+                                    }`}
+                                  >
+                                    #{itemIndex}
+                                  </span>
+
+                                  {/* Quantity */}
+                                  <span
+                                    className={`w-5 h-5 rounded-md text-[11px] font-black flex items-center justify-center shrink-0 transition-colors ${
+                                      isItemReady
+                                        ? 'bg-emerald-600 text-white'
+                                        : isItemCooking
+                                        ? 'bg-amber-600 text-white'
+                                        : 'bg-slate-900 text-white'
+                                    }`}
+                                  >
+                                    {item.quantity}
+                                  </span>
+
+                                  {/* Dish Name */}
+                                  <span
+                                    className={`font-extrabold text-sm transition-all ${
+                                      isItemReady
+                                        ? 'line-through text-slate-400 font-medium'
+                                        : isItemCooking
+                                        ? 'text-amber-950 font-black'
+                                        : 'text-slate-900'
+                                    }`}
+                                  >
+                                    {item.name}
+                                  </span>
+
+                                  {/* Status Indicator Badges */}
+                                  {isItemCooking && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                                      <Flame className="w-3 h-3 text-amber-600" />
+                                      กำลังปรุง
+                                    </span>
+                                  )}
+                                  {isNextUp && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                                      👉 คิวถัดไป
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Options */}
+                                {parsedOptions.length > 0 && (
+                                  <div className="mt-1.5 pl-6 flex flex-wrap gap-1">
+                                    {parsedOptions.map((opt: any, oIdx: number) => (
+                                      <span
+                                        key={oIdx}
+                                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                          isItemReady
+                                            ? 'bg-slate-100 text-slate-400'
+                                            : 'bg-slate-100 text-slate-700 border border-slate-200/50'
+                                        }`}
+                                      >
+                                        {opt.group ? `${opt.group}: ` : ''}{opt.choice || opt.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Special Note */}
+                                {item.specialNote && (
+                                  <div
+                                    className={`mt-1.5 pl-6 text-[11px] font-bold flex items-center gap-1 ${
+                                      isItemReady ? 'text-amber-600/70' : 'text-amber-700'
+                                    }`}
+                                  >
+                                    <span>💬 {item.specialNote}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* 3-State item button: [รอทำ] -> [🔥 กำลังทำ] -> [✓ เสร็จแล้ว] */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextStatus =
+                                    item.status === 'PENDING'
+                                      ? 'COOKING'
+                                      : item.status === 'COOKING'
+                                      ? 'READY'
+                                      : 'PENDING';
+                                  updateItemStatus(order.id, item.id, nextStatus);
+                                }}
+                                className={`px-2.5 py-1.5 rounded-xl text-[10px] font-extrabold border active:scale-90 transition-all duration-150 cursor-pointer shadow-2xs whitespace-nowrap flex items-center gap-1 shrink-0 ${
+                                  isItemReady
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                                    : isItemCooking
+                                    ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600 shadow-xs'
+                                    : isNextUp
+                                    ? 'bg-sky-50 text-sky-700 border-sky-300 hover:bg-sky-100'
+                                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {isItemReady ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>เสร็จแล้ว</span>
+                                  </>
+                                ) : isItemCooking ? (
+                                  <>
+                                    <Flame className="w-3.5 h-3.5 text-white animate-pulse" />
+                                    <span>กำลังทำ</span>
+                                  </>
+                                ) : (
+                                  <span>รอทำ</span>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
 
