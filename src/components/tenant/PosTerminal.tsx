@@ -2432,17 +2432,17 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
             {/* Member Phone & Customer Name for Points Accumulation */}
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center justify-between">
+                  <label className="text-[11px] font-extrabold text-slate-700 mb-1.5 flex items-center justify-between h-5">
                     <span className="flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-orange-500" />
+                      <Phone className="w-3.5 h-3.5 text-orange-500 shrink-0" />
                       <span>เบอร์โทรสะสมแต้ม</span>
                     </span>
                     {isLookingUpMember && (
-                      <span className="flex items-center gap-1 text-[10px] text-orange-600 font-bold">
+                      <span className="flex items-center gap-1 text-[10px] text-orange-600 font-bold shrink-0">
                         <Loader2 className="w-3 h-3 animate-spin text-orange-500" />
-                        <span>กำลังค้นหา...</span>
+                        <span>ค้นหา...</span>
                       </span>
                     )}
                   </label>
@@ -2451,33 +2451,22 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                     placeholder="เช่น 0899998888"
                     value={memberPhone}
                     onChange={(e) => handleLookupMember(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full h-9 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center justify-between">
+                  <label className="text-[11px] font-extrabold text-slate-700 mb-1.5 flex items-center justify-between h-5">
                     <span className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-orange-500" />
-                      <span>ชื่อลูกค้า / สมาชิก</span>
+                      <User className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                      <span>ชื่อลูกค้า</span>
                     </span>
-                    {memberData ? (
-                      <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-100/80 px-1.5 py-0.2 rounded-full border border-emerald-300 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        สมาชิกเดิม
-                      </span>
-                    ) : isNewCustomer ? (
-                      <span className="text-[10px] text-blue-700 font-extrabold bg-blue-100/80 px-1.5 py-0.2 rounded-full border border-blue-300 flex items-center gap-1 animate-pulse">
-                        <Sparkles className="w-2.5 h-2.5 text-blue-600" />
-                        ลูกค้าใหม่
-                      </span>
-                    ) : null}
                   </label>
                   <input
                     type="text"
-                    placeholder={isNewCustomer ? "พิมพ์ชื่อลูกค้าใหม่ (เพื่อสะสมแต้ม)" : "ชื่อลูกค้า (เช่น คุณสมศรี)"}
+                    placeholder={isNewCustomer ? "พิมพ์ชื่อลูกค้าใหม่" : "ชื่อลูกค้า (เช่น คุณสมศรี)"}
                     value={customerNameInput}
                     onChange={(e) => setCustomerNameInput(e.target.value)}
-                    className={`w-full px-3 py-1.5 rounded-xl border text-xs font-bold bg-white focus:outline-none focus:ring-2 transition-all ${
+                    className={`w-full h-9 px-3 py-1.5 rounded-xl border text-xs font-bold bg-white focus:outline-none focus:ring-2 transition-all ${
                       isNewCustomer
                         ? 'border-blue-300 ring-2 ring-blue-500/20 focus:ring-blue-500'
                         : memberData
@@ -2490,21 +2479,28 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
 
               {/* Member Status Card */}
               {memberData ? (
-                <div className="p-3 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/60 border border-orange-200 shadow-sm text-xs flex items-center justify-between animate-in fade-in zoom-in-95 duration-150">
-                  <div className="space-y-0.5">
-                    <div className="font-black text-slate-900 flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 animate-pulse"></span>
-                      <span>สมาชิก: <span className="text-orange-600 font-black">{memberData.name || 'คุณลูกค้า'}</span></span>
-                      <span className="text-[10px] text-slate-400 font-medium">({memberData.phone})</span>
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/60 border border-orange-200 shadow-sm text-xs flex items-center justify-between gap-2 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-emerald-800 font-extrabold bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 shadow-xs shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        สมาชิกเดิม
+                      </span>
+                      <span className="font-black text-slate-900 text-xs truncate">
+                        {memberData.name || 'คุณลูกค้า'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                        ({memberData.phone})
+                      </span>
                     </div>
                     <div className="text-[11px] text-slate-600 flex items-center gap-1.5">
                       <span>บิลนี้ได้รับเพิ่ม:</span>
-                      <strong className="text-emerald-700 font-black bg-emerald-100/90 px-2 py-0.5 rounded-md">
+                      <strong className="text-emerald-700 font-black bg-emerald-100/90 px-2 py-0.5 rounded-md text-[11px]">
                         +{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม
                       </strong>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <span className="text-[10px] text-slate-500 font-bold block mb-0.5">คะแนนสะสมคงเหลือ</span>
                     <span className="text-xs font-black text-orange-600 bg-white border border-orange-200 px-2.5 py-1 rounded-xl shadow-sm inline-block">
                       ⭐ {memberData.points?.toLocaleString() || 0} แต้ม
@@ -2512,17 +2508,22 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   </div>
                 </div>
               ) : isNewCustomer || (memberPhone.replace(/\D/g, '').length >= 9 && !isLookingUpMember) ? (
-                <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50/50 to-blue-50 border border-blue-200 text-xs flex items-center justify-between text-blue-900 shadow-sm animate-in fade-in zoom-in-95 duration-150">
-                  <div className="space-y-0.5">
-                    <div className="font-black flex items-center gap-1.5 text-blue-800">
-                      <Sparkles className="w-4 h-4 text-blue-600 animate-bounce" />
-                      <span className="text-xs font-black">ลูกค้าใหม่ (ยังไม่มีประวัติสมาชิก)</span>
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50/50 to-blue-50 border border-blue-200 text-xs flex items-center justify-between gap-2 text-blue-900 shadow-sm animate-in fade-in zoom-in-95 duration-150">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-blue-800 font-extrabold bg-blue-100/90 px-2 py-0.5 rounded-full border border-blue-300 flex items-center gap-1 shadow-xs shrink-0">
+                        <Sparkles className="w-3 h-3 text-blue-600" />
+                        ลูกค้าใหม่
+                      </span>
+                      <span className="text-xs font-bold text-slate-700 truncate">
+                        {customerNameInput.trim() ? `คุณ${customerNameInput.trim()}` : '(ยังไม่ระบุชื่อ)'}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-slate-600">
+                    <div className="text-[11px] text-slate-500">
                       กรอกชื่อลูกค้าเพื่อเริ่มสะสมแต้ม • บิลนี้จะได้รับสะสมทันที
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <span className="text-[10px] text-slate-500 font-bold block mb-0.5">แต้มที่จะได้รับ</span>
                     <span className="text-xs font-black text-blue-700 bg-white border border-blue-200 px-2.5 py-1 rounded-xl shadow-sm inline-block">
                       +{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม
