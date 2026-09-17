@@ -32,7 +32,26 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await req.json();
-    const { status, itemStatusUpdates, discountAmount } = body;
+    const { status, itemId, itemStatus, itemStatusUpdates, discountAmount } = body;
+
+    // 1. Update individual item statuses first
+    if (itemId && itemStatus) {
+      await prisma.orderItem.update({
+        where: { id: itemId },
+        data: { status: itemStatus },
+      });
+    }
+
+    if (itemStatusUpdates && Array.isArray(itemStatusUpdates)) {
+      for (const itemUpdate of itemStatusUpdates) {
+        if (itemUpdate.id && itemUpdate.status) {
+          await prisma.orderItem.update({
+            where: { id: itemUpdate.id },
+            data: { status: itemUpdate.status },
+          });
+        }
+      }
+    }
 
     let updateData: any = {};
 
@@ -51,9 +70,34 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         });
       } else if (status === 'COOKING') {
         await prisma.orderItem.updateMany({
-          where: { orderId: params.id, status: 'PENDING' },
+          where: { orderId: params.id, status: { in: ['PENDING', 'READY'] } },
           data: { status: 'COOKING' },
         });
+      } else if (status === 'PENDING') {
+        await prisma.orderItem.updateMany({
+          where: { orderId: params.id, status: { in: ['COOKING', 'READY'] } },
+          data: { status: 'PENDING' },
+        });
+      }
+    } else if (itemId || (itemStatusUpdates && itemStatusUpdates.length > 0)) {
+      const currentItems = await prisma.orderItem.findMany({
+        where: { orderId: params.id },
+      });
+      if (currentItems.length > 0) {
+        const allServed = currentItems.every((it) => it.status === 'SERVED');
+        const allReady = currentItems.every((it) => it.status === 'READY' || it.status === 'SERVED');
+        const anyCookingOrReady = currentItems.some((it) => it.status === 'COOKING' || it.status === 'READY');
+
+        if (allServed) {
+          updateData.status = 'SERVED';
+        } else if (allReady) {
+          updateData.status = 'READY';
+        } else if (anyCookingOrReady) {
+          const current = await prisma.order.findUnique({ where: { id: params.id }, select: { status: true } });
+          if (current?.status === 'PENDING') {
+            updateData.status = 'COOKING';
+          }
+        }
       }
     }
 
@@ -78,18 +122,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         },
       },
     });
-
-    // Update individual item statuses if requested
-    if (itemStatusUpdates && Array.isArray(itemStatusUpdates)) {
-      for (const itemUpdate of itemStatusUpdates) {
-        if (itemUpdate.id && itemUpdate.status) {
-          await prisma.orderItem.update({
-            where: { id: itemUpdate.id },
-            data: { status: itemUpdate.status },
-          });
-        }
-      }
-    }
 
     broadcastEvent('ORDER_UPDATED', updatedOrder);
 

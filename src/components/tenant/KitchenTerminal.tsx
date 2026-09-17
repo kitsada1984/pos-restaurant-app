@@ -31,17 +31,64 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   const [confirmingServeOrder, setConfirmingServeOrder] = useState<any | null>(null);
   const [printingOrder, setPrintingOrder] = useState<any | null>(null);
   const servedOrderIdsRef = useRef<Set<string>>(new Set());
+  const pendingUpdatesRef = useRef<Map<string, {
+    orderStatus?: string;
+    itemStatuses: Record<string, string>;
+    updatedAt: number;
+  }>>(new Map());
 
   const fetchOrders = async () => {
     try {
       const res = await fetch(`/api/r/${slug}/orders`);
       const data = await res.json();
       const raw = Array.isArray(data) ? data : [];
-      // ป้องกัน Race Condition: ออเดอร์ที่กดยืนยันเสิร์ฟแล้วบนหน้านี้ จะไม่ถูกดึงกลับมาแสดงผลซ้ำ
-      setOrders(raw.filter((o: any) => !servedOrderIdsRef.current.has(o.id)));
+      const now = Date.now();
+
+      // Clear stale pending updates (> 10 seconds)
+      pendingUpdatesRef.current.forEach((update, oId) => {
+        if (now - update.updatedAt > 10000) {
+          pendingUpdatesRef.current.delete(oId);
+        }
+      });
+
+      // Merge server orders with pending optimistic updates to avoid rebound
+      const merged = raw
+        .filter((o: any) => !servedOrderIdsRef.current.has(o.id))
+        .map((o: any) => {
+          const pending = pendingUpdatesRef.current.get(o.id);
+          if (!pending) return o;
+
+          let hasDivergence = false;
+          const mergedItems = o.items?.map((it: any) => {
+            const pendingStatus = pending.itemStatuses?.[it.id];
+            if (pendingStatus && it.status !== pendingStatus) {
+              hasDivergence = true;
+              return { ...it, status: pendingStatus };
+            }
+            return it;
+          });
+
+          let mergedOrderStatus = o.status;
+          if (pending.orderStatus && o.status !== pending.orderStatus) {
+            hasDivergence = true;
+            mergedOrderStatus = pending.orderStatus;
+          }
+
+          // If server data has fully caught up with our local optimistic state, clear pending
+          if (!hasDivergence) {
+            pendingUpdatesRef.current.delete(o.id);
+          }
+
+          return {
+            ...o,
+            status: mergedOrderStatus,
+            items: mergedItems || o.items,
+          };
+        });
+
+      setOrders(merged);
     } catch (err) {
       console.error('Error fetching kitchen orders:', err);
-      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -117,6 +164,8 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   }, [slug, soundEnabled]);
 
   const updateItemStatus = (orderId: string, itemId: string, newStatus: string) => {
+    let nextOrderStatus = 'PENDING';
+
     // ⚡ Optimistic UI Update: เปลี่ยนสถานะบนหน้าจอทันที 0ms ไม่หน่วงเวลา
     setOrders((prev) =>
       prev.map((o) => {
@@ -124,7 +173,7 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
         const nextItems = o.items?.map((it: any) =>
           it.id === itemId ? { ...it, status: newStatus } : it
         );
-        let nextOrderStatus = o.status;
+        nextOrderStatus = o.status;
         if (nextItems && nextItems.length > 0) {
           const allReady = nextItems.every((it: any) => it.status === 'READY' || it.status === 'SERVED');
           const allServed = nextItems.every((it: any) => it.status === 'SERVED');
@@ -136,6 +185,17 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
       })
     );
 
+    // บันทึกเข้า pendingUpdatesRef เพื่อป้องกัน Race Condition จาก SSE และ Polling ดึงข้อมูลเก่ามาทับ
+    const currentPending = pendingUpdatesRef.current.get(orderId) || { itemStatuses: {}, updatedAt: Date.now() };
+    pendingUpdatesRef.current.set(orderId, {
+      orderStatus: nextOrderStatus,
+      itemStatuses: {
+        ...currentPending.itemStatuses,
+        [itemId]: newStatus,
+      },
+      updatedAt: Date.now(),
+    });
+
     // เสียงแจ้งเตือนและข้อความ Toast แจ้งเตือนทันที
     if (newStatus === 'READY') {
       playSuccessChime();
@@ -146,39 +206,58 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
       showInfo('เริ่มทำรายการ 👨‍🍳');
     }
 
-    // ส่งบันทึกลง Database ใน Background ไม่บล็อก UI
+    // ส่งบันทึกลง Database ใน Background ไม่บล็อก UI (ส่งทั้ง itemId, itemStatus และ order status)
     fetch(`/api/r/${slug}/orders/${orderId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId, itemStatus: newStatus }),
+      body: JSON.stringify({ itemId, itemStatus: newStatus, status: nextOrderStatus }),
     })
       .then((res) => {
         if (!res.ok) {
+          const p = pendingUpdatesRef.current.get(orderId);
+          if (p?.itemStatuses) {
+            delete p.itemStatuses[itemId];
+          }
           fetchOrders();
           showError('ไม่สามารถอัปเดตสถานะได้');
         }
       })
       .catch((err) => {
         console.error('Error updating item status:', err);
+        const p = pendingUpdatesRef.current.get(orderId);
+        if (p?.itemStatuses) {
+          delete p.itemStatuses[itemId];
+        }
         fetchOrders();
         showError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
       });
   };
 
   const updateOrderStatus = (orderId: string, newStatus: string) => {
+    const itemStatuses: Record<string, string> = {};
+
     // ⚡ Optimistic UI Update: เปลี่ยนสถานะและเคลียร์บิลบนหน้าจอทันที 0ms
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id !== orderId) return o;
         const nextItems = o.items?.map((it: any) => {
-          if (newStatus === 'READY') return { ...it, status: 'READY' };
-          if (newStatus === 'SERVED') return { ...it, status: 'SERVED' };
-          if (newStatus === 'COOKING' && it.status === 'PENDING') return { ...it, status: 'COOKING' };
-          return it;
+          let itemSt = it.status;
+          if (newStatus === 'READY') itemSt = it.status === 'SERVED' ? 'SERVED' : 'READY';
+          else if (newStatus === 'SERVED') itemSt = 'SERVED';
+          else if (newStatus === 'COOKING' && it.status === 'PENDING') itemSt = 'COOKING';
+          itemStatuses[it.id] = itemSt;
+          return { ...it, status: itemSt };
         });
         return { ...o, status: newStatus, items: nextItems };
       })
     );
+
+    // บันทึกเข้า pendingUpdatesRef
+    pendingUpdatesRef.current.set(orderId, {
+      orderStatus: newStatus,
+      itemStatuses,
+      updatedAt: Date.now(),
+    });
 
     // เสียงแจ้งเตือนและข้อความ Toast แสดงทันที
     if (newStatus === 'READY') {
@@ -199,12 +278,14 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
     })
       .then((res) => {
         if (!res.ok) {
+          pendingUpdatesRef.current.delete(orderId);
           fetchOrders();
           showError('ไม่สามารถอัปเดตสถานะได้');
         }
       })
       .catch((err) => {
         console.error('Error updating order status:', err);
+        pendingUpdatesRef.current.delete(orderId);
         fetchOrders();
         showError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
       });
@@ -224,22 +305,31 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
       return;
     }
 
+    const itemStatuses: Record<string, string> = {};
+
     // ⚡ Optimistic UI Revert ทันที 0ms
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id !== orderId) return o;
         const nextItems = o.items?.map((it: any) => {
+          let itemSt = it.status;
           if (prevStatus === 'COOKING' && (it.status === 'READY' || it.status === 'SERVED')) {
-            return { ...it, status: 'COOKING' };
+            itemSt = 'COOKING';
+          } else if (prevStatus === 'PENDING') {
+            itemSt = 'PENDING';
           }
-          if (prevStatus === 'PENDING') {
-            return { ...it, status: 'PENDING' };
-          }
-          return it;
+          itemStatuses[it.id] = itemSt;
+          return { ...it, status: itemSt };
         });
         return { ...o, status: prevStatus, items: nextItems };
       })
     );
+
+    pendingUpdatesRef.current.set(orderId, {
+      orderStatus: prevStatus,
+      itemStatuses,
+      updatedAt: Date.now(),
+    });
 
     const title = prevStatus === 'COOKING' ? 'ย้อนสถานะเป็นกำลังปรุง 👨‍🍳' : 'ย้อนสถานะเป็นรอทำ ⏳';
     const sub = order.table?.name || (order.tableNo ? `โต๊ะ ${order.tableNo}` : '');
@@ -252,12 +342,14 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
     })
       .then((res) => {
         if (!res.ok) {
+          pendingUpdatesRef.current.delete(orderId);
           fetchOrders();
           showError('ไม่สามารถย้อนสถานะได้');
         }
       })
       .catch((err) => {
         console.error('Error undoing status:', err);
+        pendingUpdatesRef.current.delete(orderId);
         fetchOrders();
         showError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
       });
@@ -267,6 +359,7 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   const confirmServeOrder = (orderId: string) => {
     // 1. เพิ่มเข้า servedOrderIdsRef ป้องกันการเด้งกลับจากการ fetch ข้อมูล
     servedOrderIdsRef.current.add(orderId);
+    pendingUpdatesRef.current.delete(orderId);
 
     // 2. ปิดโมดอลยืนยัน
     setConfirmingServeOrder(null);

@@ -29,16 +29,63 @@ export default function KitchenPage() {
   const [confirmingServeOrder, setConfirmingServeOrder] = useState<any | null>(null);
   const [printingOrder, setPrintingOrder] = useState<any | null>(null);
   const servedOrderIdsRef = useRef<Set<string>>(new Set());
+  const pendingUpdatesRef = useRef<Map<string, {
+    orderStatus?: string;
+    itemStatuses: Record<string, string>;
+    updatedAt: number;
+  }>>(new Map());
 
   const fetchOrders = async () => {
     try {
       const res = await fetch('/api/orders?status=kitchen');
       const data = await res.json();
       const raw = Array.isArray(data) ? data : [];
-      setOrders(raw.filter((o: any) => !servedOrderIdsRef.current.has(o.id)));
+      const now = Date.now();
+
+      // Clear stale pending updates (> 10s)
+      pendingUpdatesRef.current.forEach((update, oId) => {
+        if (now - update.updatedAt > 10000) {
+          pendingUpdatesRef.current.delete(oId);
+        }
+      });
+
+      // Merge server orders with pending optimistic updates
+      const merged = raw
+        .filter((o: any) => !servedOrderIdsRef.current.has(o.id))
+        .map((o: any) => {
+          const pending = pendingUpdatesRef.current.get(o.id);
+          if (!pending) return o;
+
+          let hasDivergence = false;
+          const mergedItems = o.items?.map((it: any) => {
+            const pendingStatus = pending.itemStatuses?.[it.id];
+            if (pendingStatus && it.status !== pendingStatus) {
+              hasDivergence = true;
+              return { ...it, status: pendingStatus };
+            }
+            return it;
+          });
+
+          let mergedOrderStatus = o.status;
+          if (pending.orderStatus && o.status !== pending.orderStatus) {
+            hasDivergence = true;
+            mergedOrderStatus = pending.orderStatus;
+          }
+
+          if (!hasDivergence) {
+            pendingUpdatesRef.current.delete(o.id);
+          }
+
+          return {
+            ...o,
+            status: mergedOrderStatus,
+            items: mergedItems || o.items,
+          };
+        });
+
+      setOrders(merged);
     } catch (err) {
       console.error('Error fetching kitchen orders:', err);
-      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -110,19 +157,29 @@ export default function KitchenPage() {
 
   // Update order status
   const handleUpdateStatus = (orderId: string, nextStatus: string) => {
+    const itemStatuses: Record<string, string> = {};
+
     // ⚡ Optimistic UI Update: เปลี่ยนสถานะทันที 0ms ไม่หน่วงเวลา
     setOrders((prev) =>
       prev.map((o) => {
         if (o?.id !== orderId) return o;
         const nextItems = o.items?.map((it: any) => {
-          if (nextStatus === 'READY') return { ...it, status: 'READY' };
-          if (nextStatus === 'SERVED') return { ...it, status: 'SERVED' };
-          if (nextStatus === 'COOKING' && it.status === 'PENDING') return { ...it, status: 'COOKING' };
-          return it;
+          let itemSt = it.status;
+          if (nextStatus === 'READY') itemSt = it.status === 'SERVED' ? 'SERVED' : 'READY';
+          else if (nextStatus === 'SERVED') itemSt = 'SERVED';
+          else if (nextStatus === 'COOKING' && it.status === 'PENDING') itemSt = 'COOKING';
+          itemStatuses[it.id] = itemSt;
+          return { ...it, status: itemSt };
         });
         return { ...o, status: nextStatus, items: nextItems };
       })
     );
+
+    pendingUpdatesRef.current.set(orderId, {
+      orderStatus: nextStatus,
+      itemStatuses,
+      updatedAt: Date.now(),
+    });
 
     playSuccessChime();
 
@@ -133,11 +190,13 @@ export default function KitchenPage() {
     })
       .then((res) => {
         if (!res.ok) {
+          pendingUpdatesRef.current.delete(orderId);
           fetchOrders();
         }
       })
       .catch((err) => {
         console.error('Error updating status:', err);
+        pendingUpdatesRef.current.delete(orderId);
         fetchOrders();
       });
   };
@@ -156,21 +215,30 @@ export default function KitchenPage() {
       return;
     }
 
+    const itemStatuses: Record<string, string> = {};
+
     setOrders((prev) =>
       prev.map((o) => {
         if (o?.id !== orderId) return o;
         const nextItems = o.items?.map((it: any) => {
+          let itemSt = it.status;
           if (prevStatus === 'COOKING' && (it.status === 'READY' || it.status === 'SERVED')) {
-            return { ...it, status: 'COOKING' };
+            itemSt = 'COOKING';
+          } else if (prevStatus === 'PENDING') {
+            itemSt = 'PENDING';
           }
-          if (prevStatus === 'PENDING') {
-            return { ...it, status: 'PENDING' };
-          }
-          return it;
+          itemStatuses[it.id] = itemSt;
+          return { ...it, status: itemSt };
         });
         return { ...o, status: prevStatus, items: nextItems };
       })
     );
+
+    pendingUpdatesRef.current.set(orderId, {
+      orderStatus: prevStatus,
+      itemStatuses,
+      updatedAt: Date.now(),
+    });
 
     fetch(`/api/orders/${orderId}`, {
       method: 'PATCH',
@@ -179,11 +247,13 @@ export default function KitchenPage() {
     })
       .then((res) => {
         if (!res.ok) {
+          pendingUpdatesRef.current.delete(orderId);
           fetchOrders();
         }
       })
       .catch((err) => {
         console.error('Error undoing status:', err);
+        pendingUpdatesRef.current.delete(orderId);
         fetchOrders();
       });
   };
@@ -192,6 +262,7 @@ export default function KitchenPage() {
   const confirmServeOrder = (orderId: string) => {
     // 1. เพิ่มเข้า servedOrderIdsRef ป้องกันการเด้งกลับจากการ fetch ข้อมูล
     servedOrderIdsRef.current.add(orderId);
+    pendingUpdatesRef.current.delete(orderId);
 
     // 2. ปิดโมดอลยืนยัน
     setConfirmingServeOrder(null);

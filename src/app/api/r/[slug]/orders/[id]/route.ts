@@ -98,9 +98,17 @@ export async function PATCH(
         await prisma.orderItem.updateMany({
           where: {
             orderId: params.id,
-            status: 'PENDING',
+            status: { in: ['PENDING', 'READY'] },
           },
           data: { status: 'COOKING' },
+        });
+      } else if (status === 'PENDING') {
+        await prisma.orderItem.updateMany({
+          where: {
+            orderId: params.id,
+            status: { in: ['COOKING', 'READY'] },
+          },
+          data: { status: 'PENDING' },
         });
       } else if (status === 'CANCELLED' && existingOrder.status !== 'CANCELLED') {
         // Bug #12: Restock ingredients and release table when order is cancelled
@@ -161,6 +169,23 @@ export async function PATCH(
             });
             broadcastEvent('TABLE_UPDATED', { tableNo: existingOrder.tableNo, status: 'AVAILABLE' }, store.id);
           }
+        }
+      }
+    } else if (itemId && itemStatus) {
+      const currentItems = await prisma.orderItem.findMany({
+        where: { orderId: params.id },
+      });
+      if (currentItems.length > 0) {
+        const allServed = currentItems.every((it) => it.status === 'SERVED');
+        const allReady = currentItems.every((it) => it.status === 'READY' || it.status === 'SERVED');
+        const anyCookingOrReady = currentItems.some((it) => it.status === 'COOKING' || it.status === 'READY');
+
+        if (allServed) {
+          updateData.status = 'SERVED';
+        } else if (allReady) {
+          updateData.status = 'READY';
+        } else if (anyCookingOrReady && existingOrder.status === 'PENDING') {
+          updateData.status = 'COOKING';
         }
       }
     }
