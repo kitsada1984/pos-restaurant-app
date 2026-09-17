@@ -13,10 +13,12 @@ import {
   RefreshCw,
   Utensils,
   BellRing,
+  RotateCcw,
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
 import { useToast } from '@/context/ToastContext';
+import KitchenTicketPrintModal from '@/components/KitchenTicketPrintModal';
 
 export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const { showSuccess, showInfo, showWarning, showError } = useToast();
@@ -25,6 +27,8 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   const [filterStatus, setFilterStatus] = useState<string>('ACTIVE'); // 'ACTIVE' | 'PENDING' | 'COOKING' | 'READY' | 'DELIVERY'
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showBatchBar, setShowBatchBar] = useState(true);
+  const [exitingOrderIds, setExitingOrderIds] = useState<Set<string>>(new Set());
+  const [printingOrder, setPrintingOrder] = useState<any | null>(null);
 
   const fetchOrders = async () => {
     try {
@@ -200,6 +204,75 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
         fetchOrders();
         showError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
       });
+  };
+
+  // ↩️ ฟังก์ชันย้อนสถานะ (Undo / Rollback) เผื่อแม่ครัวหรือพนักงานกดผิด
+  const undoOrderStatus = (orderId: string) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    let prevStatus = 'PENDING';
+    if (order.status === 'READY') {
+      prevStatus = 'COOKING';
+    } else if (order.status === 'COOKING') {
+      prevStatus = 'PENDING';
+    } else {
+      return;
+    }
+
+    // ⚡ Optimistic UI Revert ทันที 0ms
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        const nextItems = o.items?.map((it: any) => {
+          if (prevStatus === 'COOKING' && (it.status === 'READY' || it.status === 'SERVED')) {
+            return { ...it, status: 'COOKING' };
+          }
+          if (prevStatus === 'PENDING') {
+            return { ...it, status: 'PENDING' };
+          }
+          return it;
+        });
+        return { ...o, status: prevStatus, items: nextItems };
+      })
+    );
+
+    const title = prevStatus === 'COOKING' ? 'ย้อนสถานะเป็นกำลังปรุง 👨‍🍳' : 'ย้อนสถานะเป็นรอทำ ⏳';
+    const sub = order.table?.name || (order.tableNo ? `โต๊ะ ${order.tableNo}` : '');
+    showInfo(title, sub);
+
+    fetch(`/api/r/${slug}/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: prevStatus }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          fetchOrders();
+          showError('ไม่สามารถย้อนสถานะได้');
+        }
+      })
+      .catch((err) => {
+        console.error('Error undoing status:', err);
+        fetchOrders();
+        showError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      });
+  };
+
+  // ✨ จัดการแอนิเมชันเสิร์ฟออเดอร์นุ่มนวล (350ms Slide-up & Fade-out)
+  const handleServeOrder = (orderId: string) => {
+    setExitingOrderIds((prev) => new Set(prev).add(orderId));
+    playSuccessChime();
+    showSuccess('เสิร์ฟออเดอร์ครบถ้วน ✨');
+
+    setTimeout(() => {
+      updateOrderStatus(orderId, 'SERVED');
+      setExitingOrderIds((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
+    }, 350);
   };
 
   const deliveryOrdersCount = orders.filter(
@@ -385,6 +458,18 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
             const isCooking = order.status === 'COOKING';
             const isReady = order.status === 'READY';
             const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(order.orderChannel);
+            const isExiting = exitingOrderIds.has(order.id);
+
+            // Progress Bar Calculation
+            const totalItems = order.items?.reduce((sum: number, it: any) => sum + (it.quantity || 1), 0) || 0;
+            const completedItems =
+              order.items?.reduce((sum: number, it: any) => {
+                if (it.status === 'READY' || it.status === 'SERVED') {
+                  return sum + (it.quantity || 1);
+                }
+                return sum;
+              }, 0) || 0;
+            const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
             // Channel Theme
             let headerBg = isPending ? 'bg-rose-600' : isCooking ? 'bg-amber-600' : 'bg-emerald-600';
@@ -414,7 +499,11 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
             return (
               <div
                 key={order.id}
-                className={`rounded-3xl border shadow-sm flex flex-col justify-between overflow-hidden transition-all bg-white ${
+                className={`relative rounded-3xl border shadow-sm flex flex-col justify-between overflow-hidden bg-white transition-all duration-350 ease-out transform ${
+                  isExiting
+                    ? '-translate-y-3 scale-95 opacity-0 pointer-events-none'
+                    : 'translate-y-0 scale-100 opacity-100'
+                } ${
                   isDelivery
                     ? 'border-emerald-300 ring-2 ring-emerald-500/30'
                     : isPending
@@ -424,6 +513,17 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                     : 'border-emerald-300 ring-2 ring-emerald-500/20'
                 }`}
               >
+                {/* ✨ Smooth Exit Overlay (แสดงเมื่อกดเสิร์ฟเรียบร้อย) */}
+                {isExiting && (
+                  <div className="absolute inset-0 z-30 bg-emerald-500/95 backdrop-blur-xs flex flex-col items-center justify-center text-white p-4 text-center animate-in fade-in zoom-in-95 duration-200">
+                    <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mb-2 shadow-inner">
+                      <CheckCircle2 className="w-8 h-8 text-white animate-bounce" />
+                    </div>
+                    <span className="text-base font-black tracking-wide">เสิร์ฟเรียบร้อยแล้ว ✨</span>
+                    <span className="text-xs text-emerald-100 mt-0.5">เคลียร์รายการออกจากหน้าจอ</span>
+                  </div>
+                )}
+
                 {/* Ticket Header */}
                 <div className={`p-4 text-white flex items-center justify-between ${headerBg}`}>
                   <div>
@@ -468,6 +568,27 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                   })()}
                 </div>
 
+                {/* 📊 แถบความคืบหน้า (Item Progress Bar) */}
+                <div className="bg-slate-50/95 border-b border-slate-100 px-4 py-1.5 flex items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center space-x-1.5 font-bold text-slate-600">
+                    <Utensils className="w-3.5 h-3.5 text-amber-600" />
+                    <span>ความคืบหน้า {completedItems}/{totalItems} จาน</span>
+                  </div>
+                  <span className={`font-black ${progressPercent === 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {progressPercent}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 h-1.5 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      progressPercent === 100
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                        : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                    }`}
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+
                 {/* Ticket Items */}
                 <div className="p-4 space-y-3 flex-1 overflow-y-auto max-h-[360px]">
                   {order.note && (
@@ -485,14 +606,38 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                         } catch (e) {}
                       }
 
+                      const isItemReady = item.status === 'READY' || item.status === 'SERVED';
+                      const isItemCooking = item.status === 'COOKING';
+
                       return (
-                        <div key={item.id} className="pt-2 first:pt-0 flex items-start justify-between gap-2">
-                          <div>
+                        <div
+                          key={item.id}
+                          className={`pt-2.5 pb-1 first:pt-0 flex items-start justify-between gap-2 transition-all duration-200 ${
+                            isItemReady ? 'opacity-65' : 'opacity-100'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
-                              <span className="w-5 h-5 rounded-md bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">
+                              <span
+                                className={`w-5 h-5 rounded-md text-[11px] font-black flex items-center justify-center transition-colors ${
+                                  isItemReady
+                                    ? 'bg-emerald-600 text-white'
+                                    : isItemCooking
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-slate-900 text-white'
+                                }`}
+                              >
                                 {item.quantity}
                               </span>
-                              <span className="font-extrabold text-sm text-slate-900">{item.name}</span>
+                              <span
+                                className={`font-extrabold text-sm transition-all ${
+                                  isItemReady
+                                    ? 'line-through text-slate-400 font-medium'
+                                    : 'text-slate-900'
+                                }`}
+                              >
+                                {item.name}
+                              </span>
                             </div>
 
                             {/* Options */}
@@ -501,7 +646,9 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                                 {parsedOptions.map((opt: any, oIdx: number) => (
                                   <span
                                     key={oIdx}
-                                    className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700"
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                      isItemReady ? 'bg-slate-100 text-slate-400' : 'bg-slate-100 text-slate-700'
+                                    }`}
                                   >
                                     {opt.choice || opt.name}
                                   </span>
@@ -510,28 +657,49 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
                             )}
 
                             {item.specialNote && (
-                              <div className="ml-7 mt-1 text-[11px] text-amber-700 font-bold">
+                              <div
+                                className={`ml-7 mt-1 text-[11px] font-bold ${
+                                  isItemReady ? 'text-amber-600/70' : 'text-amber-700'
+                                }`}
+                              >
                                 💬 {item.specialNote}
                               </div>
                             )}
                           </div>
 
-                          {/* Quick item state toggle */}
+                          {/* 3-State item button: [รอทำ] -> [🔥 กำลังทำ] -> [✓ เสร็จแล้ว] */}
                           <button
+                            type="button"
                             onClick={() => {
                               const nextStatus =
-                                item.status === 'PENDING' ? 'COOKING' : item.status === 'COOKING' ? 'READY' : 'SERVED';
+                                item.status === 'PENDING'
+                                  ? 'COOKING'
+                                  : item.status === 'COOKING'
+                                  ? 'READY'
+                                  : 'PENDING';
                               updateItemStatus(order.id, item.id, nextStatus);
                             }}
-                            className={`px-2 py-1 rounded-lg text-[10px] font-black border transition-all ${
-                              item.status === 'READY'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                : item.status === 'COOKING'
-                                ? 'bg-amber-50 text-amber-700 border-amber-300'
-                                : 'bg-slate-50 text-slate-600 border-slate-200'
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border active:scale-90 transition-all duration-150 cursor-pointer shadow-2xs whitespace-nowrap flex items-center gap-1 ${
+                              isItemReady
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                                : isItemCooking
+                                ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100 animate-pulse'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                             }`}
                           >
-                            {item.status === 'READY' ? '✓ พร้อม' : item.status === 'COOKING' ? '🔥 ทำอยู่' : 'รอดำเนินการ'}
+                            {isItemReady ? (
+                              <>
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>เสร็จแล้ว</span>
+                              </>
+                            ) : isItemCooking ? (
+                              <>
+                                <Flame className="w-3 h-3 text-amber-600" />
+                                <span>กำลังทำ</span>
+                              </>
+                            ) : (
+                              <span>รอทำ</span>
+                            )}
                           </button>
                         </div>
                       );
@@ -541,40 +709,74 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
 
                 {/* Ticket Actions */}
                 <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
+                  {/* Main Action Button */}
                   {isPending && (
                     <button
+                      type="button"
                       onClick={() => updateOrderStatus(order.id, 'COOKING')}
-                      className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-md shadow-amber-500/20 flex items-center justify-center space-x-1 transition-all"
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 active:scale-[0.98] text-white font-extrabold text-xs shadow-md shadow-amber-500/20 flex items-center justify-center space-x-1.5 transition-all duration-150 cursor-pointer"
                     >
-                      <Flame className="w-3.5 h-3.5" />
+                      <Flame className="w-4 h-4" />
                       <span>เริ่มปรุง</span>
                     </button>
                   )}
 
                   {isCooking && (
                     <button
+                      type="button"
                       onClick={() => updateOrderStatus(order.id, 'READY')}
-                      className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center space-x-1 transition-all"
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.98] text-white font-extrabold text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center space-x-1.5 transition-all duration-150 cursor-pointer"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <CheckCircle2 className="w-4 h-4" />
                       <span>ปรุงเสร็จแล้ว</span>
                     </button>
                   )}
 
                   {isReady && (
                     <button
-                      onClick={() => updateOrderStatus(order.id, 'SERVED')}
-                      className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-md transition-all"
+                      type="button"
+                      onClick={() => handleServeOrder(order.id)}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-extrabold text-xs shadow-md flex items-center justify-center space-x-1.5 transition-all duration-150 cursor-pointer"
                     >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                       <span>เสิร์ฟแล้ว (เรียบร้อย)</span>
                     </button>
                   )}
+
+                  {/* ↩️ Undo Button (Visible if COOKING or READY) */}
+                  {(isCooking || isReady) && (
+                    <button
+                      type="button"
+                      onClick={() => undoOrderStatus(order.id)}
+                      title={isReady ? 'ย้อนกลับเป็นกำลังปรุง' : 'ย้อนกลับเป็นรอทำ'}
+                      className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 active:scale-90 text-slate-600 hover:text-slate-900 shadow-2xs transition-all duration-150 cursor-pointer flex items-center justify-center"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {/* 🖨️ Print Kitchen Ticket Button */}
+                  <button
+                    type="button"
+                    onClick={() => setPrintingOrder(order)}
+                    title="พิมพ์ใบสั่งอาหารห้องครัว (KOT)"
+                    className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 active:scale-90 text-slate-600 hover:text-slate-900 shadow-2xs transition-all duration-150 cursor-pointer flex items-center justify-center"
+                  >
+                    <Printer className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Modal พิมพ์ใบสั่งอาหารห้องครัว (KOT) */}
+      <KitchenTicketPrintModal
+        isOpen={!!printingOrder}
+        onClose={() => setPrintingOrder(null)}
+        order={printingOrder}
+      />
     </div>
   );
 }

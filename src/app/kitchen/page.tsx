@@ -14,15 +14,19 @@ import {
   RefreshCw,
   Utensils,
   BellRing,
+  RotateCcw,
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
+import KitchenTicketPrintModal from '@/components/KitchenTicketPrintModal';
 
 export default function KitchenPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('ACTIVE'); // 'ACTIVE' | 'PENDING' | 'COOKING' | 'READY' | 'DELIVERY'
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [exitingOrderIds, setExitingOrderIds] = useState<Set<string>>(new Set());
+  const [printingOrder, setPrintingOrder] = useState<any | null>(null);
 
   const fetchOrders = async () => {
     try {
@@ -133,6 +137,67 @@ export default function KitchenPage() {
         console.error('Error updating status:', err);
         fetchOrders();
       });
+  };
+
+  // ↩️ ฟังก์ชันย้อนสถานะ (Undo / Rollback) เผื่อกดผิด
+  const undoOrderStatus = (orderId: string) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    let prevStatus = 'PENDING';
+    if (order.status === 'READY') {
+      prevStatus = 'COOKING';
+    } else if (order.status === 'COOKING') {
+      prevStatus = 'PENDING';
+    } else {
+      return;
+    }
+
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o?.id !== orderId) return o;
+        const nextItems = o.items?.map((it: any) => {
+          if (prevStatus === 'COOKING' && (it.status === 'READY' || it.status === 'SERVED')) {
+            return { ...it, status: 'COOKING' };
+          }
+          if (prevStatus === 'PENDING') {
+            return { ...it, status: 'PENDING' };
+          }
+          return it;
+        });
+        return { ...o, status: prevStatus, items: nextItems };
+      })
+    );
+
+    fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: prevStatus }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          fetchOrders();
+        }
+      })
+      .catch((err) => {
+        console.error('Error undoing status:', err);
+        fetchOrders();
+      });
+  };
+
+  // ✨ เล่นแอนิเมชันเสิร์ฟนุ่มนวล 350ms
+  const handleServeOrder = (orderId: string) => {
+    setExitingOrderIds((prev) => new Set(prev).add(orderId));
+    playSuccessChime();
+
+    setTimeout(() => {
+      handleUpdateStatus(orderId, 'SERVED');
+      setExitingOrderIds((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
+    }, 350);
   };
 
   const deliveryOrdersCount = useMemo(() => {
@@ -300,6 +365,18 @@ export default function KitchenPage() {
               const isCooking = order.status === 'COOKING';
               const isReady = order.status === 'READY';
               const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(order.orderChannel);
+              const isExiting = exitingOrderIds.has(order.id);
+
+              // Progress Bar Calculation
+              const totalItems = order.items?.reduce((sum: number, it: any) => sum + (it.quantity || 1), 0) || 0;
+              const completedItems =
+                order.items?.reduce((sum: number, it: any) => {
+                  if (it.status === 'READY' || it.status === 'SERVED') {
+                    return sum + (it.quantity || 1);
+                  }
+                  return sum;
+                }, 0) || 0;
+              const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
               let headerBg = isPending
                 ? 'bg-rose-50/80 border-b border-rose-100'
@@ -331,8 +408,23 @@ export default function KitchenPage() {
               return (
                 <div
                   key={order.id}
-                  className={`rounded-3xl border flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md transition-all bg-white ${borderStyle}`}
+                  className={`relative rounded-3xl border flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md transition-all duration-350 ease-out transform bg-white ${borderStyle} ${
+                    isExiting
+                      ? '-translate-y-3 scale-95 opacity-0 pointer-events-none'
+                      : 'translate-y-0 scale-100 opacity-100'
+                  }`}
                 >
+                  {/* ✨ Smooth Exit Overlay */}
+                  {isExiting && (
+                    <div className="absolute inset-0 z-30 bg-emerald-500/95 backdrop-blur-xs flex flex-col items-center justify-center text-white p-4 text-center animate-in fade-in zoom-in-95 duration-200">
+                      <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mb-2 shadow-inner">
+                        <CheckCircle2 className="w-8 h-8 text-white animate-bounce" />
+                      </div>
+                      <span className="text-base font-black tracking-wide">เสิร์ฟเรียบร้อยแล้ว ✨</span>
+                      <span className="text-xs text-emerald-100 mt-0.5">เคลียร์รายการออกจากหน้าจอ</span>
+                    </div>
+                  )}
+
                   {/* Ticket Header */}
                   <div className={`p-4 flex items-center justify-between ${headerBg}`}>
                     <div className="flex items-center space-x-2.5">
@@ -369,6 +461,27 @@ export default function KitchenPage() {
                       <Clock className="w-3.5 h-3.5" />
                       <span>{minsAgo} นาทีที่แล้ว</span>
                     </div>
+                  </div>
+
+                  {/* 📊 Progress Bar */}
+                  <div className="bg-slate-50/95 border-b border-slate-100 px-4 py-1.5 flex items-center justify-between gap-2 text-[11px]">
+                    <div className="flex items-center space-x-1.5 font-bold text-slate-600">
+                      <Utensils className="w-3.5 h-3.5 text-amber-600" />
+                      <span>ความคืบหน้า {completedItems}/{totalItems} จาน</span>
+                    </div>
+                    <span className={`font-black ${progressPercent === 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      {progressPercent}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 h-1.5 overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        progressPercent === 100
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                      }`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
                   </div>
 
                   {/* Special Note if any */}
@@ -428,35 +541,61 @@ export default function KitchenPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="p-4 border-t border-slate-100 bg-slate-50/80 space-y-2">
+                  <div className="p-3 border-t border-slate-100 bg-slate-50/80 flex items-center gap-2">
                     {order.status === 'PENDING' && (
                       <button
+                        type="button"
                         onClick={() => handleUpdateStatus(order.id, 'COOKING')}
-                        className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm flex items-center justify-center space-x-2 shadow-md shadow-orange-500/20 active:scale-[0.99] transition-all cursor-pointer"
+                        className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-orange-500/20 active:scale-[0.98] transition-all cursor-pointer"
                       >
                         <Flame className="w-4 h-4" />
-                        <span>🍳 เริ่มทำอาหาร</span>
+                        <span>เริ่มทำอาหาร</span>
                       </button>
                     )}
 
                     {order.status === 'COOKING' && (
                       <button
+                        type="button"
                         onClick={() => handleUpdateStatus(order.id, 'READY')}
-                        className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-sm flex items-center justify-center space-x-2 shadow-md shadow-emerald-500/20 active:scale-[0.99] transition-all cursor-pointer"
+                        className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
                       >
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>🥗 ปรุงเสร็จแล้ว (พร้อมเสิร์ฟ)</span>
+                        <span>ปรุงเสร็จแล้ว</span>
                       </button>
                     )}
 
                     {order.status === 'READY' && (
                       <button
-                        onClick={() => handleUpdateStatus(order.id, 'SERVED')}
-                        className="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm flex items-center justify-center space-x-2 active:scale-[0.99] transition-all shadow-sm cursor-pointer"
+                        type="button"
+                        onClick={() => handleServeOrder(order.id)}
+                        className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
                       >
-                        <span>✅ เสิร์ฟให้ลูกค้าเรียบร้อย</span>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>เสิร์ฟเรียบร้อย</span>
                       </button>
                     )}
+
+                    {/* ↩️ Undo Button */}
+                    {(isCooking || isReady) && (
+                      <button
+                        type="button"
+                        onClick={() => undoOrderStatus(order.id)}
+                        title={isReady ? 'ย้อนกลับเป็นกำลังปรุง' : 'ย้อนกลับเป็นรอทำ'}
+                        className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 active:scale-90 text-slate-600 hover:text-slate-900 shadow-2xs transition-all duration-150 cursor-pointer flex items-center justify-center"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {/* 🖨️ Print Button */}
+                    <button
+                      type="button"
+                      onClick={() => setPrintingOrder(order)}
+                      title="พิมพ์ใบสั่งอาหารห้องครัว (KOT)"
+                      className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 active:scale-90 text-slate-600 hover:text-slate-900 shadow-2xs transition-all duration-150 cursor-pointer flex items-center justify-center"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
@@ -464,6 +603,13 @@ export default function KitchenPage() {
           </div>
         )}
       </main>
+
+      {/* Modal พิมพ์ใบสั่งอาหารห้องครัว (KOT) */}
+      <KitchenTicketPrintModal
+        isOpen={!!printingOrder}
+        onClose={() => setPrintingOrder(null)}
+        order={printingOrder}
+      />
     </div>
   );
 }
