@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { formatPrice, formatDateTime } from '@/lib/utils';
 import { Printer, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { generatePromptPayPayload } from '@/lib/promptpay';
+import { printThermalElement } from '@/lib/thermalPrinter';
 
 interface ReceiptPrintModalProps {
   isOpen: boolean;
@@ -16,9 +17,18 @@ interface ReceiptPrintModalProps {
 export default function ReceiptPrintModal({ isOpen, onClose, order, store }: ReceiptPrintModalProps) {
   if (!isOpen || !order) return null;
 
-  const handlePrint = () => {
-    if (typeof window !== 'undefined') {
-      window.print();
+  const [copies, setCopies] = useState<number>(1);
+  const [isPrinting, setIsPrinting] = useState<boolean>(false);
+
+  const handlePrint = async () => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    try {
+      await printThermalElement('printable-receipt', { copies, width: '80mm' });
+    } finally {
+      setTimeout(() => {
+        setIsPrinting(false);
+      }, 1500);
     }
   };
 
@@ -53,7 +63,19 @@ export default function ReceiptPrintModal({ isOpen, onClose, order, store }: Rec
       <style
         dangerouslySetInnerHTML={{
           __html: `
+          @page {
+            size: 80mm auto;
+            margin: 0mm !important;
+          }
           @media print {
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              height: auto !important;
+              min-height: 0 !important;
+              background: white !important;
+              overflow: visible !important;
+            }
             body * {
               visibility: hidden !important;
             }
@@ -61,7 +83,7 @@ export default function ReceiptPrintModal({ isOpen, onClose, order, store }: Rec
               visibility: visible !important;
             }
             #printable-receipt {
-              position: fixed !important;
+              position: absolute !important;
               left: 0 !important;
               top: 0 !important;
               width: 100% !important;
@@ -75,6 +97,8 @@ export default function ReceiptPrintModal({ isOpen, onClose, order, store }: Rec
               font-family: monospace, Courier, sans-serif !important;
               font-size: 11px !important;
               line-height: 1.25 !important;
+              page-break-after: avoid !important;
+              break-after: avoid !important;
             }
             .no-print {
               display: none !important;
@@ -285,6 +309,35 @@ export default function ReceiptPrintModal({ isOpen, onClose, order, store }: Rec
           </div>
         </div>
 
+        {/* Print Copy Selector (No Print) */}
+        <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs no-print">
+          <span className="font-semibold text-slate-600">จำนวนสำเนา:</span>
+          <div className="flex space-x-1.5">
+            <button
+              type="button"
+              onClick={() => setCopies(1)}
+              className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer text-xs ${
+                copies === 1
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              1 ใบ (ปกติ)
+            </button>
+            <button
+              type="button"
+              onClick={() => setCopies(2)}
+              className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer text-xs ${
+                copies === 2
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              2 ใบ (ลูกค้า+ร้าน)
+            </button>
+          </div>
+        </div>
+
         {/* Action Buttons (No Print) */}
         <div className="p-3.5 bg-slate-50 border-t border-slate-100 flex space-x-2.5 no-print">
           <button
@@ -297,10 +350,15 @@ export default function ReceiptPrintModal({ isOpen, onClose, order, store }: Rec
           <button
             type="button"
             onClick={handlePrint}
-            className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs shadow-md transition-colors flex items-center justify-center space-x-1.5 cursor-pointer"
+            disabled={isPrinting}
+            className={`flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs shadow-md transition-colors flex items-center justify-center space-x-1.5 ${
+              isPrinting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+            }`}
           >
             <Printer className="w-4 h-4 text-amber-400" />
-            <span>พิมพ์บิล / ใบเสร็จ</span>
+            <span>
+              {isPrinting ? 'กำลังส่งพิมพ์...' : copies === 2 ? 'พิมพ์บิล (2 ใบ)' : 'พิมพ์บิล / ใบเสร็จ'}
+            </span>
           </button>
         </div>
       </div>

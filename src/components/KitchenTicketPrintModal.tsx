@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Printer, X, ChefHat, Clock } from 'lucide-react';
 import { formatTime, formatDateTime } from '@/lib/utils';
+import { printThermalElement } from '@/lib/thermalPrinter';
 
 interface KitchenTicketPrintModalProps {
   isOpen: boolean;
@@ -19,9 +20,17 @@ export default function KitchenTicketPrintModal({
 }: KitchenTicketPrintModalProps) {
   if (!isOpen || !order) return null;
 
-  const handlePrint = () => {
-    if (typeof window !== 'undefined') {
-      window.print();
+  const [isPrinting, setIsPrinting] = useState<boolean>(false);
+
+  const handlePrint = async () => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    try {
+      await printThermalElement('printable-kitchen-ticket', { copies: 1, width: '80mm' });
+    } finally {
+      setTimeout(() => {
+        setIsPrinting(false);
+      }, 1500);
     }
   };
 
@@ -52,7 +61,19 @@ export default function KitchenTicketPrintModal({
       <style
         dangerouslySetInnerHTML={{
           __html: `
+          @page {
+            size: 80mm auto;
+            margin: 0mm !important;
+          }
           @media print {
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              height: auto !important;
+              min-height: 0 !important;
+              background: white !important;
+              overflow: visible !important;
+            }
             body * {
               visibility: hidden !important;
             }
@@ -60,7 +81,7 @@ export default function KitchenTicketPrintModal({
               visibility: visible !important;
             }
             #printable-kitchen-ticket {
-              position: fixed !important;
+              position: absolute !important;
               left: 0 !important;
               top: 0 !important;
               width: 100% !important;
@@ -74,6 +95,8 @@ export default function KitchenTicketPrintModal({
               font-family: monospace, -apple-system, sans-serif !important;
               font-size: 13px !important;
               line-height: 1.3 !important;
+              page-break-after: avoid !important;
+              break-after: avoid !important;
             }
             .no-print {
               display: none !important;
@@ -212,10 +235,13 @@ export default function KitchenTicketPrintModal({
           <button
             type="button"
             onClick={handlePrint}
-            className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+            disabled={isPrinting}
+            className={`flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-amber-500/20 transition-all ${
+              isPrinting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+            }`}
           >
             <Printer className="w-4 h-4" />
-            <span>พิมพ์สลิปครัว</span>
+            <span>{isPrinting ? 'กำลังส่งพิมพ์...' : 'พิมพ์สลิปครัว'}</span>
           </button>
         </div>
       </div>

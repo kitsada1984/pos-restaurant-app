@@ -86,25 +86,42 @@
 }
 
 /* Print Styles */
+@page {
+  size: auto;
+  margin: 0mm;
+}
+
 @media print {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: #fff !important;
+  }
   body * {
     visibility: hidden;
   }
   #printable-receipt, #printable-receipt *,
+  #printable-kitchen-ticket, #printable-kitchen-ticket *,
   #printable-qr-sheet, #printable-qr-sheet *,
   #printable-report, #printable-report * {
     visibility: visible;
   }
-  #printable-receipt {
+  #printable-receipt,
+  #printable-kitchen-ticket {
     position: absolute;
     left: 0;
     top: 0;
     width: 80mm;
+    max-width: 80mm;
     margin: 0;
-    padding: 12px;
+    padding: 10px;
     font-size: 12px;
     color: #000;
     background: #fff;
+    page-break-after: avoid;
+    break-after: avoid;
   }
   #printable-qr-sheet,
   #printable-report {
