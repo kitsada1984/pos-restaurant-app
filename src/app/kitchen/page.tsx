@@ -157,22 +157,22 @@ export default function KitchenPage() {
 
   // Update order status
   const handleUpdateStatus = (orderId: string, nextStatus: string) => {
+    const targetOrder = orders.find((o) => o?.id === orderId);
+    if (!targetOrder) return;
+
     const itemStatuses: Record<string, string> = {};
+    const nextItems = targetOrder.items?.map((it: any) => {
+      let itemSt = it.status;
+      if (nextStatus === 'READY') itemSt = it.status === 'SERVED' ? 'SERVED' : 'READY';
+      else if (nextStatus === 'SERVED') itemSt = 'SERVED';
+      else if (nextStatus === 'COOKING' && it.status === 'PENDING') itemSt = 'COOKING';
+      itemStatuses[it.id] = itemSt;
+      return { ...it, status: itemSt };
+    }) || [];
 
     // ⚡ Optimistic UI Update: เปลี่ยนสถานะทันที 0ms ไม่หน่วงเวลา
     setOrders((prev) =>
-      prev.map((o) => {
-        if (o?.id !== orderId) return o;
-        const nextItems = o.items?.map((it: any) => {
-          let itemSt = it.status;
-          if (nextStatus === 'READY') itemSt = it.status === 'SERVED' ? 'SERVED' : 'READY';
-          else if (nextStatus === 'SERVED') itemSt = 'SERVED';
-          else if (nextStatus === 'COOKING' && it.status === 'PENDING') itemSt = 'COOKING';
-          itemStatuses[it.id] = itemSt;
-          return { ...it, status: itemSt };
-        });
-        return { ...o, status: nextStatus, items: nextItems };
-      })
+      prev.map((o) => (o?.id === orderId ? { ...o, status: nextStatus, items: nextItems } : o))
     );
 
     pendingUpdatesRef.current.set(orderId, {
@@ -203,35 +203,32 @@ export default function KitchenPage() {
 
   // ↩️ ฟังก์ชันย้อนสถานะ (Undo / Rollback) เผื่อกดผิด
   const undoOrderStatus = (orderId: string) => {
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return;
+    const targetOrder = orders.find((o) => o?.id === orderId);
+    if (!targetOrder) return;
 
     let prevStatus = 'PENDING';
-    if (order.status === 'READY') {
+    if (targetOrder.status === 'READY') {
       prevStatus = 'COOKING';
-    } else if (order.status === 'COOKING') {
+    } else if (targetOrder.status === 'COOKING') {
       prevStatus = 'PENDING';
     } else {
       return;
     }
 
     const itemStatuses: Record<string, string> = {};
+    const nextItems = targetOrder.items?.map((it: any) => {
+      let itemSt = it.status;
+      if (prevStatus === 'COOKING' && (it.status === 'READY' || it.status === 'SERVED')) {
+        itemSt = 'COOKING';
+      } else if (prevStatus === 'PENDING') {
+        itemSt = 'PENDING';
+      }
+      itemStatuses[it.id] = itemSt;
+      return { ...it, status: itemSt };
+    }) || [];
 
     setOrders((prev) =>
-      prev.map((o) => {
-        if (o?.id !== orderId) return o;
-        const nextItems = o.items?.map((it: any) => {
-          let itemSt = it.status;
-          if (prevStatus === 'COOKING' && (it.status === 'READY' || it.status === 'SERVED')) {
-            itemSt = 'COOKING';
-          } else if (prevStatus === 'PENDING') {
-            itemSt = 'PENDING';
-          }
-          itemStatuses[it.id] = itemSt;
-          return { ...it, status: itemSt };
-        });
-        return { ...o, status: prevStatus, items: nextItems };
-      })
+      prev.map((o) => (o?.id === orderId ? { ...o, status: prevStatus, items: nextItems } : o))
     );
 
     pendingUpdatesRef.current.set(orderId, {

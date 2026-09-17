@@ -164,25 +164,26 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   }, [slug, soundEnabled]);
 
   const updateItemStatus = (orderId: string, itemId: string, newStatus: string) => {
-    let nextOrderStatus = 'PENDING';
+    const targetOrder = orders.find((o) => o.id === orderId);
+    if (!targetOrder) return;
+
+    // คำนวณสถานะใหม่ของรายการและออเดอร์แบบ Synchronous ทันที ไม่รอ React batching
+    const nextItems = targetOrder.items?.map((it: any) =>
+      it.id === itemId ? { ...it, status: newStatus } : it
+    ) || [];
+
+    let nextOrderStatus = targetOrder.status;
+    if (nextItems.length > 0) {
+      const allServed = nextItems.every((it: any) => it.status === 'SERVED');
+      const allReady = nextItems.every((it: any) => it.status === 'READY' || it.status === 'SERVED');
+      if (allServed) nextOrderStatus = 'SERVED';
+      else if (allReady) nextOrderStatus = 'READY';
+      else if (newStatus === 'COOKING' && targetOrder.status === 'PENDING') nextOrderStatus = 'COOKING';
+    }
 
     // ⚡ Optimistic UI Update: เปลี่ยนสถานะบนหน้าจอทันที 0ms ไม่หน่วงเวลา
     setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        const nextItems = o.items?.map((it: any) =>
-          it.id === itemId ? { ...it, status: newStatus } : it
-        );
-        nextOrderStatus = o.status;
-        if (nextItems && nextItems.length > 0) {
-          const allReady = nextItems.every((it: any) => it.status === 'READY' || it.status === 'SERVED');
-          const allServed = nextItems.every((it: any) => it.status === 'SERVED');
-          if (allServed) nextOrderStatus = 'SERVED';
-          else if (allReady) nextOrderStatus = 'READY';
-          else if (newStatus === 'COOKING' && o.status === 'PENDING') nextOrderStatus = 'COOKING';
-        }
-        return { ...o, status: nextOrderStatus, items: nextItems };
-      })
+      prev.map((o) => (o.id === orderId ? { ...o, status: nextOrderStatus, items: nextItems } : o))
     );
 
     // บันทึกเข้า pendingUpdatesRef เพื่อป้องกัน Race Condition จาก SSE และ Polling ดึงข้อมูลเก่ามาทับ
@@ -234,22 +235,23 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
   };
 
   const updateOrderStatus = (orderId: string, newStatus: string) => {
+    const targetOrder = orders.find((o) => o.id === orderId);
+    if (!targetOrder) return;
+
+    // คำนวณสถานะทุกจานแบบ Synchronous ทันที
     const itemStatuses: Record<string, string> = {};
+    const nextItems = targetOrder.items?.map((it: any) => {
+      let itemSt = it.status;
+      if (newStatus === 'READY') itemSt = it.status === 'SERVED' ? 'SERVED' : 'READY';
+      else if (newStatus === 'SERVED') itemSt = 'SERVED';
+      else if (newStatus === 'COOKING' && it.status === 'PENDING') itemSt = 'COOKING';
+      itemStatuses[it.id] = itemSt;
+      return { ...it, status: itemSt };
+    }) || [];
 
     // ⚡ Optimistic UI Update: เปลี่ยนสถานะและเคลียร์บิลบนหน้าจอทันที 0ms
     setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        const nextItems = o.items?.map((it: any) => {
-          let itemSt = it.status;
-          if (newStatus === 'READY') itemSt = it.status === 'SERVED' ? 'SERVED' : 'READY';
-          else if (newStatus === 'SERVED') itemSt = 'SERVED';
-          else if (newStatus === 'COOKING' && it.status === 'PENDING') itemSt = 'COOKING';
-          itemStatuses[it.id] = itemSt;
-          return { ...it, status: itemSt };
-        });
-        return { ...o, status: newStatus, items: nextItems };
-      })
+      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus, items: nextItems } : o))
     );
 
     // บันทึกเข้า pendingUpdatesRef
@@ -293,36 +295,33 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
 
   // ↩️ ฟังก์ชันย้อนสถานะ (Undo / Rollback) เผื่อแม่ครัวหรือพนักงานกดผิด
   const undoOrderStatus = (orderId: string) => {
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return;
+    const targetOrder = orders.find((o) => o.id === orderId);
+    if (!targetOrder) return;
 
     let prevStatus = 'PENDING';
-    if (order.status === 'READY') {
+    if (targetOrder.status === 'READY') {
       prevStatus = 'COOKING';
-    } else if (order.status === 'COOKING') {
+    } else if (targetOrder.status === 'COOKING') {
       prevStatus = 'PENDING';
     } else {
       return;
     }
 
     const itemStatuses: Record<string, string> = {};
+    const nextItems = targetOrder.items?.map((it: any) => {
+      let itemSt = it.status;
+      if (prevStatus === 'COOKING' && (it.status === 'READY' || it.status === 'SERVED')) {
+        itemSt = 'COOKING';
+      } else if (prevStatus === 'PENDING') {
+        itemSt = 'PENDING';
+      }
+      itemStatuses[it.id] = itemSt;
+      return { ...it, status: itemSt };
+    }) || [];
 
     // ⚡ Optimistic UI Revert ทันที 0ms
     setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        const nextItems = o.items?.map((it: any) => {
-          let itemSt = it.status;
-          if (prevStatus === 'COOKING' && (it.status === 'READY' || it.status === 'SERVED')) {
-            itemSt = 'COOKING';
-          } else if (prevStatus === 'PENDING') {
-            itemSt = 'PENDING';
-          }
-          itemStatuses[it.id] = itemSt;
-          return { ...it, status: itemSt };
-        });
-        return { ...o, status: prevStatus, items: nextItems };
-      })
+      prev.map((o) => (o.id === orderId ? { ...o, status: prevStatus, items: nextItems } : o))
     );
 
     pendingUpdatesRef.current.set(orderId, {
@@ -332,7 +331,7 @@ export default function KitchenTerminal({ slug = 'lung-pa' }: { slug?: string })
     });
 
     const title = prevStatus === 'COOKING' ? 'ย้อนสถานะเป็นกำลังปรุง 👨‍🍳' : 'ย้อนสถานะเป็นรอทำ ⏳';
-    const sub = order.table?.name || (order.tableNo ? `โต๊ะ ${order.tableNo}` : '');
+    const sub = targetOrder.table?.name || (targetOrder.tableNo ? `โต๊ะ ${targetOrder.tableNo}` : '');
     showInfo(title, sub);
 
     fetch(`/api/r/${slug}/orders/${orderId}`, {
