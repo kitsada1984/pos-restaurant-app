@@ -46,6 +46,7 @@ import {
   Mail,
   BellRing,
   Globe,
+  Loader2,
 } from 'lucide-react';
 import { formatPrice, formatDateTime, formatTime, formatImageUrl } from '@/lib/utils';
 import {
@@ -122,6 +123,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
   const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [isLookingUpMember, setIsLookingUpMember] = useState(false);
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
 
   // Print Receipt Modal
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
@@ -912,12 +915,14 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
     setSelectedReward(null);
     const clean = phone.replace(/\D/g, '');
     if (clean.length >= 9) {
+      setIsLookingUpMember(true);
       try {
         const res = await fetch(`/api/r/${slug}/members?phone=${clean}`);
         const data = await res.json();
         if (data.member) {
           setMemberData(data.member);
           setMemberRewards(data.rewards || []);
+          setIsNewCustomer(false);
           if (data.member.name) {
             setCustomerNameInput(data.member.name);
           }
@@ -925,16 +930,23 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
         } else {
           setMemberData(null);
           setMemberRewards(data.rewards || []);
+          setIsNewCustomer(true);
+          setCustomerNameInput('');
         }
       } catch (e) {
         setMemberData(null);
         setMemberRewards([]);
+        setIsNewCustomer(true);
+      } finally {
+        setIsLookingUpMember(false);
       }
     } else {
       setMemberData(null);
       setMemberRewards([]);
       setPointsToRedeem(0);
       setSelectedReward(null);
+      setIsNewCustomer(false);
+      setIsLookingUpMember(false);
     }
   };
 
@@ -952,20 +964,36 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       }
       setPaymentMethod('PROMPTPAY');
     }
+
     // Pre-fill existing member phone & customer name if any active order on table has it
     const existingPhone = table.activeOrders?.find((o: any) => o.memberPhone)?.memberPhone;
     const existingName = table.activeOrders?.find((o: any) => o.customerName)?.customerName;
+
+    // Check if existingName is actually a phone number (e.g. '0925470359' or 9-10 digits)
+    const isNameActuallyPhone = existingName && /^\d{9,10}$/.test(existingName.replace(/\D/g, ''));
+
     if (existingPhone) {
       handleLookupMember(existingPhone);
+      if (existingName && !/^\d{9,10}$/.test(existingName.replace(/\D/g, ''))) {
+        setCustomerNameInput(existingName);
+      }
+    } else if (isNameActuallyPhone) {
+      // Auto-detect phone number that was stored in customerName field
+      const detectedPhone = existingName.trim();
+      setMemberPhone(detectedPhone);
+      setCustomerNameInput('');
+      handleLookupMember(detectedPhone);
     } else {
       setMemberPhone('');
       setMemberData(null);
       setMemberRewards([]);
-    }
-    if (existingName) {
-      setCustomerNameInput(existingName);
-    } else if (!existingPhone) {
-      setCustomerNameInput('');
+      setIsNewCustomer(false);
+      setIsLookingUpMember(false);
+      if (existingName) {
+        setCustomerNameInput(existingName);
+      } else {
+        setCustomerNameInput('');
+      }
     }
     setIsPayModalOpen(true);
   };
@@ -1080,6 +1108,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
       setMemberPhone('');
       setCustomerNameInput('');
       setMemberData(null);
+      setIsNewCustomer(false);
+      setIsLookingUpMember(false);
       setPointsToRedeem(0);
       setPromoCodeInput('');
       setAppliedPromo(null);
@@ -2312,6 +2342,8 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   setMemberPhone('');
                   setCustomerNameInput('');
                   setMemberData(null);
+                  setIsNewCustomer(false);
+                  setIsLookingUpMember(false);
                   setMemberRewards([]);
                 }}
                 className="text-slate-400 hover:text-slate-600"
@@ -2324,9 +2356,17 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-orange-500" />
-                    <span>เบอร์โทรสะสมแต้ม</span>
+                  <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-orange-500" />
+                      <span>เบอร์โทรสะสมแต้ม</span>
+                    </span>
+                    {isLookingUpMember && (
+                      <span className="flex items-center gap-1 text-[10px] text-orange-600 font-bold">
+                        <Loader2 className="w-3 h-3 animate-spin text-orange-500" />
+                        <span>กำลังค้นหา...</span>
+                      </span>
+                    )}
                   </label>
                   <input
                     type="tel"
@@ -2337,42 +2377,79 @@ export default function PosTerminal({ slug = 'lung-pa' }: { slug?: string }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-orange-500" />
-                    <span>ชื่อลูกค้า / สมาชิก</span>
+                  <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-orange-500" />
+                      <span>ชื่อลูกค้า / สมาชิก</span>
+                    </span>
+                    {memberData ? (
+                      <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-100/80 px-1.5 py-0.2 rounded-full border border-emerald-300 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        สมาชิกเดิม
+                      </span>
+                    ) : isNewCustomer ? (
+                      <span className="text-[10px] text-blue-700 font-extrabold bg-blue-100/80 px-1.5 py-0.2 rounded-full border border-blue-300 flex items-center gap-1 animate-pulse">
+                        <Sparkles className="w-2.5 h-2.5 text-blue-600" />
+                        ลูกค้าใหม่
+                      </span>
+                    ) : null}
                   </label>
                   <input
                     type="text"
-                    placeholder="ชื่อลูกค้า (เช่น คุณสมศรี)"
+                    placeholder={isNewCustomer ? "พิมพ์ชื่อลูกค้าใหม่ (เพื่อสะสมแต้ม)" : "ชื่อลูกค้า (เช่น คุณสมศรี)"}
                     value={customerNameInput}
                     onChange={(e) => setCustomerNameInput(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className={`w-full px-3 py-1.5 rounded-xl border text-xs font-bold bg-white focus:outline-none focus:ring-2 transition-all ${
+                      isNewCustomer
+                        ? 'border-blue-300 ring-2 ring-blue-500/20 focus:ring-blue-500'
+                        : memberData
+                        ? 'border-emerald-300 focus:ring-emerald-500'
+                        : 'border-slate-200 focus:ring-orange-500'
+                    }`}
                   />
                 </div>
               </div>
 
               {/* Member Status Card */}
               {memberData ? (
-                <div className="p-2.5 rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200/80 text-xs flex items-center justify-between">
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/60 border border-orange-200 shadow-sm text-xs flex items-center justify-between animate-in fade-in zoom-in-95 duration-150">
                   <div className="space-y-0.5">
                     <div className="font-black text-slate-900 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                      <span>สมาชิก: <span className="text-orange-600 font-extrabold">{memberData.name || 'คุณลูกค้า'}</span></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 animate-pulse"></span>
+                      <span>สมาชิก: <span className="text-orange-600 font-black">{memberData.name || 'คุณลูกค้า'}</span></span>
+                      <span className="text-[10px] text-slate-400 font-medium">({memberData.phone})</span>
                     </div>
-                    <div className="text-[11px] text-slate-500">
-                      บิลนี้ได้รับเพิ่ม <strong className="text-emerald-600 font-black">+{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม</strong>
+                    <div className="text-[11px] text-slate-600 flex items-center gap-1.5">
+                      <span>บิลนี้ได้รับเพิ่ม:</span>
+                      <strong className="text-emerald-700 font-black bg-emerald-100/90 px-2 py-0.5 rounded-md">
+                        +{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม
+                      </strong>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-black text-orange-600 bg-white border border-orange-200 px-2.5 py-1 rounded-lg shadow-sm block">
-                      ⭐ {memberData.points} แต้ม
+                    <span className="text-[10px] text-slate-500 font-bold block mb-0.5">คะแนนสะสมคงเหลือ</span>
+                    <span className="text-xs font-black text-orange-600 bg-white border border-orange-200 px-2.5 py-1 rounded-xl shadow-sm inline-block">
+                      ⭐ {memberData.points?.toLocaleString() || 0} แต้ม
                     </span>
                   </div>
                 </div>
-              ) : memberPhone.replace(/\D/g, '').length >= 9 ? (
-                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs flex items-center justify-between text-emerald-800 font-bold">
-                  <span>✨ ลูกค้าใหม่: จะบันทึกชื่อ &amp; สะสมแต้มทันที</span>
-                  <span className="text-emerald-600 font-black">+{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม</span>
+              ) : isNewCustomer || (memberPhone.replace(/\D/g, '').length >= 9 && !isLookingUpMember) ? (
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50/50 to-blue-50 border border-blue-200 text-xs flex items-center justify-between text-blue-900 shadow-sm animate-in fade-in zoom-in-95 duration-150">
+                  <div className="space-y-0.5">
+                    <div className="font-black flex items-center gap-1.5 text-blue-800">
+                      <Sparkles className="w-4 h-4 text-blue-600 animate-bounce" />
+                      <span className="text-xs font-black">ลูกค้าใหม่ (ยังไม่มีประวัติสมาชิก)</span>
+                    </div>
+                    <div className="text-[11px] text-slate-600">
+                      กรอกชื่อลูกค้าเพื่อเริ่มสะสมแต้ม • บิลนี้จะได้รับสะสมทันที
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-500 font-bold block mb-0.5">แต้มที่จะได้รับ</span>
+                    <span className="text-xs font-black text-blue-700 bg-white border border-blue-200 px-2.5 py-1 rounded-xl shadow-sm inline-block">
+                      +{Math.floor(finalNetAmount / (store?.pointsRate || 25))} แต้ม
+                    </span>
+                  </div>
                 </div>
               ) : null}
             </div>
