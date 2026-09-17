@@ -17,7 +17,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { tableId, tableNo, amount, orderIds, memberPhone, customerName } = body;
+    const { tableId, tableNo, amount, orderIds, memberPhone, customerName, pointsRedeemed, discountAmount } = body;
 
     const parsedTableNo = tableNo !== undefined && tableNo !== null && !isNaN(parseInt(String(tableNo), 10))
       ? parseInt(String(tableNo), 10)
@@ -75,6 +75,7 @@ export async function POST(
           paymentStatus: 'PENDING_CONFIRMATION',
           ...(cleanPhone ? { memberPhone: cleanPhone } : {}),
           ...(cleanName ? { customerName: cleanName } : {}),
+          ...(discountAmount && Number(discountAmount) > 0 ? { discountAmount: Number(discountAmount) } : {}),
         },
       });
     }
@@ -94,6 +95,8 @@ export async function POST(
         orderIds: activeOrderIds,
         memberPhone: cleanPhone,
         customerName: cleanName,
+        pointsRedeemed: Number(pointsRedeemed) || 0,
+        discountAmount: Number(discountAmount) || 0,
         timestamp: Date.now(),
       },
       store.id

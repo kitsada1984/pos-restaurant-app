@@ -149,6 +149,8 @@ export default function CustomerOrderingView({
           amount: totalAmountToPay,
           memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : undefined,
           customerName: customerName.trim() || undefined,
+          pointsRedeemed: selectedReward ? selectedReward.pointsRequired : 0,
+          discountAmount: rewardMilestoneDiscount,
         }),
       });
 
@@ -192,6 +194,8 @@ export default function CustomerOrderingView({
           manualConfirm: false,
           memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : undefined,
           customerName: customerName.trim() || undefined,
+          pointsRedeemed: selectedReward ? selectedReward.pointsRequired : 0,
+          discountAmount: rewardMilestoneDiscount,
         }),
       });
 
@@ -395,9 +399,17 @@ export default function CustomerOrderingView({
     }
   }, [slug, tableId, activeOrders.length]);
 
-  const totalAmountToPay = useMemo(() => {
+  const rawTotalAmountToPay = useMemo(() => {
     return activeOrders.reduce((sum: number, o: any) => sum + (o.netAmount || 0), 0);
   }, [activeOrders]);
+
+  const rewardMilestoneDiscount = useMemo(() => {
+    return selectedReward && selectedReward.rewardType === 'DISCOUNT' ? selectedReward.discountAmount : 0;
+  }, [selectedReward]);
+
+  const totalAmountToPay = useMemo(() => {
+    return Math.max(0, rawTotalAmountToPay - rewardMilestoneDiscount);
+  }, [rawTotalAmountToPay, rewardMilestoneDiscount]);
 
   // Overall primary stage of table orders: 1 (Received), 2 (Cooking), 3 (Ready), 4 (Served)
   const currentStep = useMemo(() => {
@@ -542,10 +554,7 @@ export default function CustomerOrderingView({
     }
   };
 
-  const rawCartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const rewardMilestoneDiscount = selectedReward && selectedReward.rewardType === 'DISCOUNT' ? selectedReward.discountAmount : 0;
-  const cartTotalAmount = Math.max(0, rawCartTotal - rewardMilestoneDiscount);
-  const estimatedPointsEarned = Math.floor(cartTotalAmount / (store?.pointsRate || 25));
+  const cartTotalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handleSendOrderToKitchen = async () => {
     if (cart.length === 0) return;
@@ -556,10 +565,6 @@ export default function CustomerOrderingView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tableId,
-          customerName: customerName.trim() || undefined,
-          memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : undefined,
-          pointsRedeemed: selectedReward ? selectedReward.pointsRequired : 0,
-          discountAmount: rewardMilestoneDiscount,
           orderType: 'DINE_IN',
           items: cart,
         }),
@@ -568,7 +573,6 @@ export default function CustomerOrderingView({
       if (res.ok) {
         showSuccess('ส่งรายการอาหารเข้าครัวแล้ว! 🍳', `โต๊ะ ${tableId} • ส่งรายการเรียบร้อย`);
         setCart([]);
-        setSelectedReward(null);
         setIsCartOpen(false);
         setActiveTab('status');
         playSuccessChime();
@@ -1186,101 +1190,6 @@ export default function CustomerOrderingView({
                 </button>
               </div>
 
-              {/* Customer Name & Member Loyalty Phone */}
-              <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-2.5">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
-                      <User className="w-3 h-3 text-orange-400" />
-                      ชื่อผู้สั่ง (ถ้ามี)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="เช่น คุณกานต์"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center justify-between">
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-orange-400" />
-                        เบอร์สะสมแต้ม
-                      </span>
-                      {isMemberLoading && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
-                    </label>
-                    <input
-                      type="tel"
-                      placeholder="เช่น 0899998888"
-                      value={memberPhone}
-                      onChange={(e) => handleMemberLookup(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Member Points & Rewards Banner */}
-                {memberPhone.replace(/\D/g, '').length >= 9 && (
-                  <div className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 text-xs space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-orange-400 flex items-center gap-1">
-                        <Gift className="w-3.5 h-3.5 text-orange-400" />
-                        {memberData ? `คุณ ${memberData.name || 'สมาชิก'}` : 'ลูกค้าใหม่ (สมัครอัตโนมัติ)'}
-                      </span>
-                      <span className="text-[11px] font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-md">
-                        {memberData ? `${memberData.points} แต้ม` : '0 แต้ม'}
-                      </span>
-                    </div>
-
-                    <div className="text-[10px] text-slate-300">
-                      สั่งออเดอร์นี้จะได้รับสะสมเพิ่ม <strong className="text-emerald-400">+{estimatedPointsEarned} แต้ม</strong>
-                    </div>
-
-                    {/* Reward Milestones */}
-                    {memberRewards.length > 0 && (
-                      <div className="pt-1.5 border-t border-slate-800 space-y-1">
-                        <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                          <Award className="w-3 h-3 text-orange-400" />
-                          ของรางวัลแลกแต้ม:
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {memberRewards.map((r) => {
-                            const isEnough = memberData && memberData.points >= r.pointsRequired;
-                            const isSelected = selectedReward?.id === r.id;
-                            return (
-                              <button
-                                key={r.id}
-                                type="button"
-                                disabled={!isEnough}
-                                onClick={() => {
-                                  if (isSelected) {
-                                    setSelectedReward(null);
-                                  } else {
-                                    setSelectedReward(r);
-                                  }
-                                }}
-                                className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all flex items-center gap-1 ${
-                                  isSelected
-                                    ? 'bg-orange-500 text-white shadow-md ring-1 ring-white/50'
-                                    : isEnough
-                                    ? 'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 border border-orange-500/40'
-                                    : 'bg-slate-900 text-slate-600 border border-slate-800 opacity-50 cursor-not-allowed'
-                                }`}
-                              >
-                                <span>🎁 {r.title} ({r.pointsRequired} แต้ม)</span>
-                                {isSelected && <Check className="w-3 h-3" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
               <div className="flex-1 overflow-y-auto space-y-2 divide-y divide-slate-800">
                 {cart.map((item, idx) => (
                   <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between text-xs">
@@ -1299,13 +1208,6 @@ export default function CustomerOrderingView({
               </div>
 
               <div className="pt-3 border-t border-slate-800 space-y-3">
-                {selectedReward && selectedReward.rewardType === 'DISCOUNT' && (
-                  <div className="flex justify-between text-xs text-emerald-400 font-bold">
-                    <span>ส่วนลดแลกแต้ม ({selectedReward.title}):</span>
-                    <span>-฿{selectedReward.discountAmount}</span>
-                  </div>
-                )}
-
                 <div className="flex justify-between font-black text-base text-white">
                   <span>รวมสุทธิ:</span>
                   <span className="text-orange-400">฿{cartTotalAmount.toLocaleString()}</span>
@@ -1337,6 +1239,12 @@ export default function CustomerOrderingView({
               {/* Total Summary */}
               <div className="p-3.5 bg-orange-500/10 rounded-2xl border border-orange-500/20">
                 <span className="text-xs font-bold text-orange-300 block">ยอดสุทธิที่ต้องชำระ:</span>
+                {selectedReward && rewardMilestoneDiscount > 0 && (
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-400 font-bold my-1">
+                    <span>แลกส่วนลด ({selectedReward.title}):</span>
+                    <span>-฿{rewardMilestoneDiscount}</span>
+                  </div>
+                )}
                 <span className="text-3xl font-black text-orange-400">฿{totalAmountToPay.toLocaleString()}</span>
               </div>
 
@@ -1377,23 +1285,65 @@ export default function CustomerOrderingView({
 
                 {/* Member Status Card */}
                 {memberData ? (
-                  <div className="p-2 rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/15 border border-orange-500/30 text-xs flex items-center justify-between">
-                    <div>
-                      <div className="font-black text-white flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
-                        <span>สมาชิก: <span className="text-orange-400">{memberData.name || 'คุณลูกค้า'}</span></span>
+                  <div className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/15 border border-orange-500/30 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-black text-white flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+                          <span>สมาชิก: <span className="text-orange-400">{memberData.name || 'คุณลูกค้า'}</span></span>
+                        </div>
+                        <div className="text-[10px] text-slate-300">
+                          ชำระบิลนี้จะได้รับเพิ่ม <strong className="text-emerald-400 font-black">+{Math.floor(totalAmountToPay / (store?.pointsRate || 25))} แต้ม</strong>
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-300">
-                        ได้รับแต้มเพิ่ม <strong className="text-emerald-400 font-black">+{Math.floor(totalAmountToPay / (store?.pointsRate || 25))} แต้ม</strong>
-                      </div>
+                      <span className="text-xs font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-lg border border-amber-500/30">
+                        ⭐ {memberData.points} แต้ม
+                      </span>
                     </div>
-                    <span className="text-xs font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-lg border border-amber-500/30">
-                      ⭐ {memberData.points} แต้ม
-                    </span>
+
+                    {/* Reward Milestones in Payment Modal */}
+                    {memberRewards.length > 0 && (
+                      <div className="pt-2 border-t border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                          <Award className="w-3 h-3 text-orange-400" />
+                          ของรางวัลแลกแต้ม / ส่วนลด:
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {memberRewards.map((r) => {
+                            const isEnough = memberData && memberData.points >= r.pointsRequired;
+                            const isSelected = selectedReward?.id === r.id;
+                            return (
+                              <button
+                                key={r.id}
+                                type="button"
+                                disabled={!isEnough}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setSelectedReward(null);
+                                  } else {
+                                    setSelectedReward(r);
+                                  }
+                                }}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all flex items-center gap-1 ${
+                                  isSelected
+                                    ? 'bg-orange-500 text-white shadow-md ring-1 ring-white/50'
+                                    : isEnough
+                                    ? 'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 border border-orange-500/40'
+                                    : 'bg-slate-900 text-slate-600 border border-slate-800 opacity-50 cursor-not-allowed'
+                                }`}
+                              >
+                                <span>🎁 {r.title} ({r.pointsRequired} แต้ม)</span>
+                                {isSelected && <Check className="w-3 h-3" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : memberPhone.replace(/\D/g, '').length >= 9 ? (
-                  <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs flex items-center justify-between text-emerald-300 font-bold">
-                    <span>✨ ลูกค้าใหม่: จะบันทึกชื่อ &amp; สะสมแต้ม</span>
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs flex items-center justify-between text-emerald-300 font-bold">
+                    <span>✨ ลูกค้าใหม่: จะบันทึกชื่อ &amp; สะสมแต้มหลังชำระเงิน</span>
                     <span className="text-emerald-400 font-black">+{Math.floor(totalAmountToPay / (store?.pointsRate || 25))} แต้ม</span>
                   </div>
                 ) : null}
