@@ -1,14 +1,35 @@
 /**
- * Web Audio API Sound Synthesizer for Kitchen & Order Chimes
+ * Web Audio API Sound Synthesizer & Universal Thai Voice Notifier
+ * Deep Audio Subsystem:
+ * - Shared AudioContext singleton with auto-unlocking & state recovery
+ * - Web Audio synth chimes (Order, Delivery, Success, Service Bell)
+ * - Crisp online Google Thai TTS stream with Web Speech & chime fallback
+ * - AudioNotifier facade providing unified dispatch for all POS & Kitchen alerts
  */
 
-export function playOrderChime() {
-  if (typeof window === 'undefined') return;
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+let sharedAudioCtx: AudioContext | null = null;
 
+export function getSharedAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return null;
+    if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+      sharedAudioCtx = new AudioContextClass();
+    }
+    if (sharedAudioCtx.state === 'suspended') {
+      sharedAudioCtx.resume().catch(() => {});
+    }
+    return sharedAudioCtx;
+  } catch {
+    return null;
+  }
+}
+
+export function playOrderChime() {
+  const ctx = getSharedAudioContext();
+  if (!ctx) return;
+  try {
     const now = ctx.currentTime;
 
     // First note (E5)
@@ -27,7 +48,7 @@ export function playOrderChime() {
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(880.00, now + 0.15);
+    osc2.frequency.setValueAtTime(880.0, now + 0.15);
     gain2.gain.setValueAtTime(0.4, now + 0.15);
     gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
     osc2.connect(gain2);
@@ -52,11 +73,9 @@ export function playOrderChime() {
 }
 
 export function playSuccessChime() {
-  if (typeof window === 'undefined') return;
+  const ctx = getSharedAudioContext();
+  if (!ctx) return;
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
     const now = ctx.currentTime;
 
     const osc = ctx.createOscillator();
@@ -79,14 +98,9 @@ export function playSuccessChime() {
  * Distinct 2-Strike Service Desk Bell Chime for Customer Calling Staff ("Ding-Dong ... Ding-Dong")
  */
 export function playServiceCallChime() {
-  if (typeof window === 'undefined') return;
+  const ctx = getSharedAudioContext();
+  if (!ctx) return;
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
     const now = ctx.currentTime;
 
     const playStrike = (startTime: number) => {
@@ -127,15 +141,13 @@ export function playServiceCallChime() {
  * Distinct Rapid Triple-Beep Chime for Incoming Delivery Orders (LINE MAN / Grab)
  */
 export function playDeliveryChime() {
-  if (typeof window === 'undefined') return;
+  const ctx = getSharedAudioContext();
+  if (!ctx) return;
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
     const now = ctx.currentTime;
 
     // Rapid fanfare: F5 -> A5 -> C6 -> F6
-    const notes = [698.46, 880.00, 1046.50, 1396.91];
+    const notes = [698.46, 880.0, 1046.5, 1396.91];
     notes.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -202,7 +214,6 @@ function findBestThaiVoice(): SpeechSynthesisVoice | null {
     const voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return null;
 
-    // Filter genuine Thai voices (th-TH, th_TH, th)
     const thaiVoices = voices.filter((v) => {
       const lang = (v.lang || '').toLowerCase().replace('_', '-');
       return lang === 'th-th' || lang.startsWith('th');
@@ -210,7 +221,6 @@ function findBestThaiVoice(): SpeechSynthesisVoice | null {
 
     if (thaiVoices.length === 0) return null;
 
-    // Prioritize natural, Google, or high-fidelity Thai voices
     const premiumVoice = thaiVoices.find((v) => {
       const name = (v.name || '').toLowerCase();
       return (
@@ -250,13 +260,7 @@ export function initAudioUnlock() {
   if (typeof window === 'undefined') return;
   const unlock = () => {
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        if (ctx.state === 'suspended') {
-          ctx.resume().catch(() => {});
-        }
-      }
+      getSharedAudioContext();
       if ('speechSynthesis' in window && window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
       }
@@ -282,7 +286,6 @@ export function playThaiAudioStream(text: string): Promise<boolean> {
 
   return new Promise((resolve) => {
     try {
-      // Cancel previous speech audio if still playing
       if (activeTtsAudio) {
         activeTtsAudio.pause();
         activeTtsAudio.currentTime = 0;
@@ -345,7 +348,6 @@ export function speakViaWebSpeech(text: string, rate: number = 1.0): boolean {
       cachedThaiVoice = voice;
       utterance.voice = voice;
     } else {
-      // Do not allow English voice to read Thai characters
       return false;
     }
 
@@ -368,13 +370,10 @@ export function speakThaiVoice(text: string, rate: number = 1.0) {
   if (!text || !text.trim()) return;
   const clean = text.trim();
 
-  // Try Online Google Thai TTS first (Crystal-clear native Thai pronunciation)
   playThaiAudioStream(clean).then((played) => {
     if (!played) {
-      // Try local Web Speech API (only if genuine Thai voice exists)
       const webSpeechPlayed = speakViaWebSpeech(clean, rate);
       if (!webSpeechPlayed) {
-        // Guarantee audible notification with chime
         console.warn('[TTS] Thai voice fallback to service chime');
         playServiceCallChime();
       }
@@ -384,7 +383,6 @@ export function speakThaiVoice(text: string, rate: number = 1.0) {
 
 /**
  * อ่านออกเสียงยอดเงินเข้าภาษาไทย เช่น "เงินเข้า 170 บาท โต๊ะ 2 ค่ะ"
- * อ่านเฉพาะยอดเงินเข้า ไม่มียอดคงเหลือปะปน และเรียงยอดเงินมาก่อนเลขโต๊ะ เพื่อป้องกันตัวเลขติดกัน
  */
 export function speakMoneyReceived(amount: number, tableName?: string) {
   const formattedAmount = formatThaiCurrencyForSpeech(amount);
@@ -409,7 +407,6 @@ export function speakSlipVerified(amount: number, tableName?: string) {
 
 /**
  * อ่านออกเสียงเมื่อลูกค้ากดแจ้งโอนเงินผ่านหน้าเว็บ (รอแคชเชียร์ตรวจเช็ค)
- * เช่น "เงินเข้า 170 บาท โต๊ะ 2 ค่ะ"
  */
 export function speakCustomerNotifyTransfer(tableNo: number | string, amount: number) {
   const cleanTable = String(tableNo || '').replace(/^โต๊ะ\s*/, '').trim();
@@ -480,7 +477,6 @@ export function speakSlipSubmitted(tableNo?: number | string, amount?: number) {
 
 /**
  * แจ้งเตือนลูกค้ากดเรียกพนักงานที่โต๊ะอาหาร
- * ใช้ประโยคสั้นกระชับ รวดเร็ว สปีด 1.15x เพื่อให้พูดจบไวใน 1-2 วินาที
  */
 export function speakServiceCall(
   tableNo?: number | string,
@@ -514,5 +510,92 @@ export function speakServiceCall(
   speakThaiVoice(phrase, rate);
 }
 
+export type AudioNotificationEvent =
+  | { type: 'ORDER_CREATED'; isDelivery?: boolean }
+  | { type: 'ORDER_SUCCESS' }
+  | { type: 'DELIVERY_ORDER' }
+  | { type: 'PAYMENT_RECEIVED'; amount: number; tableName?: string }
+  | { type: 'SLIP_VERIFIED'; amount: number; tableName?: string }
+  | { type: 'CUSTOMER_TRANSFER_NOTIFIED'; tableNo: number | string; amount: number }
+  | { type: 'SLIP_READ_SUCCESS'; amount: number; tableName?: string }
+  | { type: 'SLIP_DUPLICATE' }
+  | { type: 'SLIP_MISMATCH'; slipAmount?: number; expectedAmount?: number }
+  | { type: 'SLIP_RECEIVER_MISMATCH' }
+  | { type: 'SLIP_NO_QR' }
+  | { type: 'SLIP_SUBMITTED'; tableNo?: number | string; amount?: number }
+  | { type: 'SERVICE_CALL'; tableNo?: number | string; requestType?: string; note?: string; rate?: number };
 
+/**
+ * Deep Audio Subsystem Facade
+ * Provides a clean, single-point dispatch for all sound notifications across POS, Kitchen, and Tables.
+ */
+export class AudioNotifier {
+  private static _muted: boolean = false;
 
+  static setMuted(muted: boolean) {
+    this._muted = muted;
+  }
+
+  static isMuted(): boolean {
+    return this._muted;
+  }
+
+  static notify(event: AudioNotificationEvent): void {
+    if (this._muted) return;
+
+    switch (event.type) {
+      case 'ORDER_CREATED':
+        if (event.isDelivery) {
+          playDeliveryChime();
+        } else {
+          playOrderChime();
+        }
+        break;
+      case 'ORDER_SUCCESS':
+        playSuccessChime();
+        break;
+      case 'DELIVERY_ORDER':
+        playDeliveryChime();
+        break;
+      case 'PAYMENT_RECEIVED':
+        playSuccessChime();
+        speakMoneyReceived(event.amount, event.tableName);
+        break;
+      case 'SLIP_VERIFIED':
+        playSuccessChime();
+        speakSlipVerified(event.amount, event.tableName);
+        break;
+      case 'CUSTOMER_TRANSFER_NOTIFIED':
+        playServiceCallChime();
+        speakCustomerNotifyTransfer(event.tableNo, event.amount);
+        break;
+      case 'SLIP_READ_SUCCESS':
+        speakSlipReadSuccess(event.amount, event.tableName);
+        break;
+      case 'SLIP_DUPLICATE':
+        speakSlipDuplicate();
+        break;
+      case 'SLIP_MISMATCH':
+        speakSlipAmountMismatch(event.slipAmount, event.expectedAmount);
+        break;
+      case 'SLIP_RECEIVER_MISMATCH':
+        speakSlipReceiverMismatch();
+        break;
+      case 'SLIP_NO_QR':
+        speakSlipNoQr();
+        break;
+      case 'SLIP_SUBMITTED':
+        playOrderChime();
+        speakSlipSubmitted(event.tableNo, event.amount);
+        break;
+      case 'SERVICE_CALL':
+        playServiceCallChime();
+        speakServiceCall(event.tableNo, event.requestType, event.note, event.rate ?? 1.15);
+        break;
+    }
+  }
+
+  static unlock(): void {
+    initAudioUnlock();
+  }
+}
