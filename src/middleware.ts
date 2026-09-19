@@ -115,6 +115,9 @@ export async function middleware(request: NextRequest) {
     if (pathname === '/kitchen') {
       return NextResponse.redirect(new URL(`/r/${targetSlug}/kitchen`, request.url));
     }
+    if (pathname === '/admin' || pathname === '/admin/') {
+      return NextResponse.redirect(new URL(`/r/${targetSlug}/admin/tables`, request.url));
+    }
     if (pathname.startsWith('/admin/')) {
       const sub = pathname.replace('/admin/', '');
       return NextResponse.redirect(new URL(`/r/${targetSlug}/admin/${sub}`, request.url));
