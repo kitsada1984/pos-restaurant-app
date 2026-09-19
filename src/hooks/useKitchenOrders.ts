@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { playOrderChime, playSuccessChime, playDeliveryChime } from '@/lib/sound';
 import { useToast } from '@/context/ToastContext';
 import { subscribeRealtime } from '@/lib/realtimeManager';
+import { printKitchenTicketDirect } from '@/lib/thermalPrinter';
 
 export interface KitchenDishItem {
   id: string;
@@ -65,8 +66,19 @@ export function useKitchenOrders({
   const [showBatchBar, setShowBatchBar] = useState(true);
   const [confirmingServeOrder, setConfirmingServeOrder] = useState<KitchenOrder | null>(null);
   const [printingOrder, setPrintingOrder] = useState<KitchenOrder | null>(null);
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`kds_auto_print_${slug}`);
+      if (saved !== null) {
+        return saved === 'true';
+      }
+    }
+    return false;
+  });
+  const [storeSettings, setStoreSettings] = useState<any>(null);
 
   const servedOrderIdsRef = useRef<Set<string>>(new Set());
+  const printedOrderIdsRef = useRef<Set<string>>(new Set());
   const pendingUpdatesRef = useRef<
     Map<
       string,
@@ -77,6 +89,42 @@ export function useKitchenOrders({
       }
     >
   >(new Map());
+
+  // Load store settings to get store name and default auto-print config
+  useEffect(() => {
+    fetch(`/api/r/${slug}/settings`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && !data.error) {
+          setStoreSettings(data);
+          if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem(`kds_auto_print_${slug}`);
+            if (saved === null && data.autoPrintKitchenTicket !== undefined) {
+              setAutoPrintEnabled(Boolean(data.autoPrintKitchenTicket));
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  }, [slug]);
+
+  const toggleAutoPrint = useCallback(
+    (explicit?: boolean) => {
+      setAutoPrintEnabled((prev) => {
+        const next = explicit !== undefined ? explicit : !prev;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`kds_auto_print_${slug}`, String(next));
+        }
+        if (next) {
+          showSuccess('เปิดพิมพ์ออเดอร์อัตโนมัติ 🖨️', 'เมื่อมีออเดอร์ใหม่เข้า จะสั่งพิมพ์ใบส่งครัวทันที');
+        } else {
+          showInfo('ปิดพิมพ์ออเดอร์อัตโนมัติ', 'เปลี่ยนเป็นพิมพ์ด้วยตนเอง');
+        }
+        return next;
+      });
+    },
+    [slug, showSuccess, showInfo]
+  );
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -165,6 +213,20 @@ export function useKitchenOrders({
           } else {
             showInfo('มีออเดอร์ใหม่เข้าครัว 🛎️', `โต๊ะ ${orderData?.tableNo || orderData?.table?.tableNo || 'สั่งใหม่'}`);
           }
+
+          // 🖨️ Auto-print Kitchen Ticket when enabled
+          if (autoPrintEnabled && orderData && orderData.id) {
+            if (!printedOrderIdsRef.current.has(orderData.id)) {
+              printedOrderIdsRef.current.add(orderData.id);
+              setTimeout(() => {
+                printKitchenTicketDirect(orderData, storeSettings, {
+                  width: storeSettings?.printerPaperWidth || '80mm',
+                  copies: 1,
+                }).catch((err) => console.warn('Auto print failed:', err));
+              }, 400);
+            }
+          }
+
           fetchOrders();
         } else if (payload.type === 'ORDER_UPDATED' || payload.type === 'TABLE_UPDATED') {
           fetchOrders();
@@ -181,7 +243,7 @@ export function useKitchenOrders({
       unsubscribe();
       clearInterval(pollInterval);
     };
-  }, [slug, soundEnabled, fetchOrders, showInfo]);
+  }, [slug, soundEnabled, autoPrintEnabled, storeSettings, fetchOrders, showInfo]);
 
   const updateItemStatus = useCallback(
     (orderId: string, itemId: string, newStatus: string) => {
@@ -516,5 +578,8 @@ export function useKitchenOrders({
     readyCount,
     deliveryOrdersCount,
     batchCookingSummary,
+    autoPrintEnabled,
+    toggleAutoPrint,
+    storeSettings,
   };
 }

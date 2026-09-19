@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2, Copy, Zap, ExternalLink, ShieldCheck, BellRing, RefreshCw, Smartphone, HardDrive, ChevronDown, ChevronUp, Folder, Mail, Plus, Trash2, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2, Copy, Zap, ExternalLink, ShieldCheck, BellRing, RefreshCw, Smartphone, HardDrive, ChevronDown, ChevronUp, Folder, Mail, Plus, Trash2, ArrowUp, ArrowDown, RotateCcw, Printer } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { GOOGLE_APPS_SCRIPT_TEMPLATE } from '@/lib/google-drive-template';
 import { getBankEmailAppsScript } from '@/lib/bank-email-template';
@@ -59,6 +59,8 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     googleDriveFolderId: string;
     googleDriveWebhookUrl: string;
     serviceCallItems: ServiceCallOption[];
+    autoPrintKitchenTicket: boolean;
+    printerPaperWidth: string;
   }>({
     storeName: '',
     promptPayId: '',
@@ -81,6 +83,8 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     googleDriveFolderId: '',
     googleDriveWebhookUrl: '',
     serviceCallItems: DEFAULT_SERVICE_ITEMS,
+    autoPrintKitchenTicket: false,
+    printerPaperWidth: '80mm',
   });
 
   const [currentOrigin, setCurrentOrigin] = useState('');
@@ -118,6 +122,8 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
             serviceCallItems: (Array.isArray(data.serviceCallItems) && data.serviceCallItems.length > 0)
               ? data.serviceCallItems
               : DEFAULT_SERVICE_ITEMS,
+            autoPrintKitchenTicket: data.autoPrintKitchenTicket ?? false,
+            printerPaperWidth: data.printerPaperWidth || '80mm',
           });
         }
       })
@@ -499,6 +505,64 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
               onChange={(e) => setForm({ ...form, receiptFooter: e.target.value })}
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
+          </div>
+        </div>
+
+        {/* Section: Thermal Printer & Auto-Print Settings */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2 border-b border-slate-100 pb-2">
+            <Printer className="w-4 h-4 text-amber-500" />
+            <span>เครื่องพิมพ์ความร้อน &amp; การพิมพ์ออเดอร์อัตโนมัติ (Thermal Printer &amp; Auto-Print)</span>
+          </h3>
+          <p className="text-xs text-slate-500">
+            ตั้งค่าการพิมพ์ใบสั่งอาหารส่งครัว (Kitchen Ticket / KOT) อัตโนมัติเมื่อมีออเดอร์ใหม่เข้าสู่ระบบ
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            {/* Auto Print Kitchen Ticket Toggle */}
+            <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-slate-900 font-extrabold flex items-center space-x-2 cursor-pointer">
+                  <span>พิมพ์ใบสั่งอาหารเข้าครัวอัตโนมัติ</span>
+                </label>
+                <input
+                  type="checkbox"
+                  checked={form.autoPrintKitchenTicket}
+                  onChange={(e) => setForm({ ...form, autoPrintKitchenTicket: e.target.checked })}
+                  className="w-5 h-5 accent-amber-600 rounded cursor-pointer"
+                />
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                เมื่อมีออเดอร์ใหม่ (ลูกค้าสแกนสั่ง, แคชเชียร์คีย์ หรือเดลิเวอรี) หน้าจอห้องครัว KDS จะสั่งพิมพ์ใบสั่งอาหารส่งครัวอัตโนมัติทันที
+              </p>
+            </div>
+
+            {/* Printer Paper Width */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+              <label className="block text-slate-900 font-extrabold">ขนาดหน้ากว้างกระดาษความร้อน</label>
+              <select
+                value={form.printerPaperWidth}
+                onChange={(e) => setForm({ ...form, printerPaperWidth: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+              >
+                <option value="80mm">80 มม. (80mm - เครื่องพิมพ์ตั้งโต๊ะมาตรฐาน)</option>
+                <option value="58mm">58 มม. (58mm - เครื่องพิมพ์พกพา / ขนาดเล็ก)</option>
+              </select>
+              <p className="text-[11px] text-slate-500">
+                ระบบจะปรับสเกลใบเสร็จและความกว้างของตารางให้พอดีกับกระดาษอัตโนมัติ
+              </p>
+            </div>
+          </div>
+
+          {/* Kiosk Mode Tip */}
+          <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-start space-x-2.5">
+            <span className="text-base flex-shrink-0">💡</span>
+            <div className="space-y-1">
+              <p className="font-extrabold">เคล็ดลับการพิมพ์ทันทีโดยไม่ต้องกดยืนยัน (Silent Auto-Printing):</p>
+              <p className="text-[11px] text-blue-800 leading-relaxed">
+                หากเปิดเบราว์เซอร์ Google Chrome หรือ Microsoft Edge ด้วยพารามิเตอร์ <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono font-bold">--kiosk --kiosk-printing</code> เบราว์เซอร์จะสั่งพิมพ์ไปยังเครื่องพิมพ์เริ่มต้นทันทีโดยไม่ต้องคลิกปุ่มพิมพ์ในหน้าต่าง Preview
+              </p>
+            </div>
           </div>
         </div>
 

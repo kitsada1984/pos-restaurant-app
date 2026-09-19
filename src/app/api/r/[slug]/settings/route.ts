@@ -74,6 +74,8 @@ export async function GET(
       googleDriveFolderId: store.googleDriveFolderId || '',
       googleDriveWebhookUrl: store.googleDriveWebhookUrl || '',
       serviceCallItems: parsedServiceItems,
+      autoPrintKitchenTicket: store.autoPrintKitchenTicket ?? false,
+      printerPaperWidth: store.printerPaperWidth || '80mm',
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -116,6 +118,8 @@ export async function PUT(
       googleDriveWebhookUrl,
       testGoogleDrive,
       serviceCallItems,
+      autoPrintKitchenTicket,
+      printerPaperWidth,
     } = body;
 
     const store = await prisma.store.findUnique({
@@ -179,6 +183,8 @@ export async function PUT(
         serviceCallItems: serviceCallItems !== undefined 
           ? (typeof serviceCallItems === 'string' ? serviceCallItems : JSON.stringify(serviceCallItems)) 
           : store.serviceCallItems,
+        autoPrintKitchenTicket: autoPrintKitchenTicket !== undefined ? Boolean(autoPrintKitchenTicket) : store.autoPrintKitchenTicket,
+        printerPaperWidth: printerPaperWidth !== undefined ? String(printerPaperWidth) : store.printerPaperWidth,
       },
       include: { plan: true },
     });
@@ -225,6 +231,8 @@ export async function PUT(
       googleDriveFolderId: updated.googleDriveFolderId || '',
       googleDriveWebhookUrl: updated.googleDriveWebhookUrl || '',
       serviceCallItems: parsedServiceItems,
+      autoPrintKitchenTicket: updated.autoPrintKitchenTicket,
+      printerPaperWidth: updated.printerPaperWidth,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

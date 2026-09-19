@@ -7,6 +7,7 @@ import {
   Volume2,
   VolumeX,
   RefreshCw,
+  Printer,
 } from 'lucide-react';
 import KitchenTicketPrintModal from '@/components/KitchenTicketPrintModal';
 import ServeConfirmModal from '@/components/ServeConfirmModal';
@@ -42,6 +43,9 @@ export default function KitchenTerminal({
     readyCount,
     deliveryOrdersCount,
     batchCookingSummary,
+    autoPrintEnabled,
+    toggleAutoPrint,
+    storeSettings,
   } = useKitchenOrders({ slug });
 
   return (
@@ -70,6 +74,26 @@ export default function KitchenTerminal({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Auto Print Toggle */}
+            <button
+              onClick={() => toggleAutoPrint()}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                autoPrintEnabled
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
+                  : 'bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200'
+              }`}
+              title={
+                autoPrintEnabled
+                  ? 'พิมพ์ออเดอร์อัตโนมัติ: เปิดอยู่ (คลิกเพื่อปิด)'
+                  : 'พิมพ์ออเดอร์อัตโนมัติ: ปิดอยู่ (คลิกเพื่อเปิด)'
+              }
+            >
+              <Printer className={`w-4 h-4 ${autoPrintEnabled ? 'text-emerald-600' : 'text-slate-400'}`} />
+              <span className="text-[11px] font-extrabold">
+                {autoPrintEnabled ? 'พิมพ์อัตโนมัติ: เปิด' : 'พิมพ์อัตโนมัติ: ปิด'}
+              </span>
+            </button>
+
             {/* Sound Toggle */}
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
@@ -177,6 +201,7 @@ export default function KitchenTerminal({
         isOpen={!!printingOrder}
         onClose={() => setPrintingOrder(null)}
         order={printingOrder}
+        store={storeSettings}
       />
     </div>
   );
