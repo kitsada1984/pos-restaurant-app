@@ -9,6 +9,7 @@ import {
 } from '@/lib/slip-verifier';
 import { saveSlipImage } from '@/lib/google-drive-storage';
 import { requireStoreAccess } from '@/lib/auth';
+import { settlePayment } from '@/lib/paymentEngine';
 
 export async function POST(
   request: Request,
@@ -281,140 +282,36 @@ export async function POST(
     }
 
     if (shouldAutoClose) {
-      // ปิดบิลออเดอร์ที่เกี่ยวข้องทั้งหมด
-      const updatedOrders: any[] = [];
-      let remainingDiscount = numericDiscount;
-      for (let i = 0; i < ordersToProcess.length; i++) {
-        const o = ordersToProcess[i];
-        const isPrimary = i === 0;
-        const currentOrderRemaining = Math.max(0, o.totalAmount - (o.discountAmount || 0));
-        const orderDiscount = Math.min(currentOrderRemaining, remainingDiscount);
-        remainingDiscount -= orderDiscount;
-        const newDiscount = (o.discountAmount || 0) + orderDiscount;
-        const newNetAmount = Math.max(0, o.totalAmount - newDiscount);
+      const settlement = await settlePayment({
+        storeId: store.id,
+        slug: params.slug,
+        orderIds: ordersToProcess.map((o: any) => o.id),
+        paymentMethod: 'PROMPTPAY',
+        slipUrl: uploadedSlipUrl || undefined,
+        slipRef: effectiveSlipRef || undefined,
+        slipAmount: ordersToProcess.length === 1 ? (parsed?.amount || effectiveOrderAmount) : undefined,
+        slipVerifiedBy: manualConfirm ? 'MANUAL' : 'AUTO',
+        slipRawData: parsed ? JSON.stringify(parsed) : null,
+        memberPhone,
+        customerName,
+        pointsRedeemed: Number(pointsRedeemed) || 0,
+        promoCode,
+        discountAmount: numericDiscount,
+        note,
+      });
 
-        const updated = await prisma.order.update({
-          where: { id: o.id },
-          data: {
-            paymentMethod: 'PROMPTPAY',
-            paymentStatus: 'PAID',
-            status: 'COMPLETED',
-            discountAmount: newDiscount,
-            netAmount: newNetAmount,
-            memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : o.memberPhone,
-            customerName: customerName?.trim() || o.customerName || undefined,
-            pointsRedeemed: isPrimary && Number(pointsRedeemed) ? Number(pointsRedeemed) : o.pointsRedeemed,
-            promoCode: isPrimary && promoCode ? String(promoCode).toUpperCase().trim() : o.promoCode,
-            slipUrl: uploadedSlipUrl || o.slipUrl,
-            slipRef: effectiveSlipRef ? `${effectiveSlipRef}${ordersToProcess.length > 1 ? `_${i + 1}` : ''}` : null,
-            slipAmount: ordersToProcess.length === 1 ? (parsed?.amount || newNetAmount) : newNetAmount,
-            slipVerifiedAt: new Date(),
-            slipVerifiedBy: manualConfirm ? 'MANUAL' : 'AUTO',
-            slipRawData: parsed ? JSON.stringify(parsed) : null,
-            paidAt: new Date(),
-            note: o.id === order.id ? (note || o.note) : o.note,
-          },
-          include: {
-            table: true,
-            items: true,
-          },
-        });
-        updatedOrders.push(updated);
-      }
-
-      const primaryUpdatedOrder = updatedOrders[0];
-
-      // จัดการโปรโมชั่นการใช้งาน
-      if (promoCode) {
-        await prisma.promotion.updateMany({
-          where: { storeId: store.id, code: String(promoCode).toUpperCase().trim() },
-          data: { usageCount: { increment: 1 } },
-        }).catch(() => {});
-      }
-
-      // จัดการแต้มสะสมสมาชิก (รวมยอดใช้จ่ายทั้งหมดที่ชำระในรอบนี้)
-      const targetPhone = (memberPhone ? memberPhone.replace(/\D/g, '') : null) || updatedOrders.find((o) => o.memberPhone)?.memberPhone;
-      if (targetPhone && store.pointsRate > 0) {
-        const totalPaidNet = updatedOrders.reduce((sum, o) => sum + (o.netAmount || 0), 0);
-        const totalRedeemed = updatedOrders.reduce((sum, o) => sum + (o.pointsRedeemed || 0), 0);
-        const pointsEarned = Math.floor(totalPaidNet / store.pointsRate);
-
-        const currentMember = await prisma.customerMember.findUnique({
-          where: {
-            storeId_phone: {
-              storeId: store.id,
-              phone: targetPhone,
-            },
-          },
-        });
-
-        const currentPoints = currentMember?.points || 0;
-        const newPoints = Math.max(0, currentPoints + pointsEarned - totalRedeemed);
-
-        await prisma.customerMember.upsert({
-          where: {
-            storeId_phone: {
-              storeId: store.id,
-              phone: targetPhone,
-            },
-          },
-          update: {
-            points: newPoints,
-            totalSpent: { increment: totalPaidNet },
-            visitCount: { increment: 1 },
-            ...(customerName?.trim() ? { name: customerName.trim() } : {}),
-          },
-          create: {
-            storeId: store.id,
-            phone: targetPhone,
-            name: customerName?.trim() || primaryUpdatedOrder.customerName || 'สมาชิก',
-            points: newPoints,
-            totalSpent: totalPaidNet,
-            visitCount: 1,
-          },
-        }).catch((err) => console.error('Error updating loyalty member:', err));
-      }
-
-      // เคลียร์สถานะโต๊ะเป็น AVAILABLE ถ้าไม่มีออเดอร์ค้างชำระอื่นเหลืออยู่
-      if (primaryUpdatedOrder.tableId) {
-        const remainingOrders = await prisma.order.count({
-          where: {
-            storeId: store.id,
-            tableId: primaryUpdatedOrder.tableId,
-            id: { notIn: updatedOrders.map((o) => o.id) },
-            paymentStatus: { in: ['UNPAID', 'PENDING_CONFIRMATION'] },
-          },
-        });
-
-        if (remainingOrders === 0) {
-          await prisma.table.update({
-            where: { id: primaryUpdatedOrder.tableId },
-            data: {
-              status: 'AVAILABLE',
-              currentSessionId: null,
-            },
-          });
-          broadcastEvent(
-            'TABLE_UPDATED',
-            { tableNo: primaryUpdatedOrder.tableNo, status: 'AVAILABLE' },
-            store.id
-          );
-        }
-      }
-
-      for (const o of updatedOrders) {
-        broadcastEvent('PAYMENT_RECEIVED', o, store.id);
-        broadcastEvent('ORDER_UPDATED', o, store.id);
+      if (!settlement.success) {
+        return NextResponse.json({ error: settlement.error || 'Failed to settle slip payment' }, { status: 400 });
       }
 
       return NextResponse.json({
         success: true,
         isPaid: true,
         message: manualConfirm
-          ? `บันทึกปิดบิลด้วยสลิปสำเร็จเรียบร้อยแล้ว (${updatedOrders.length} รายการบิล) ✅`
-          : `ตรวจสอบสลิปถูกต้อง และปิดบิลให้อัตโนมัติเรียบร้อยแล้ว (${updatedOrders.length} รายการบิล) 🎉`,
-        order: primaryUpdatedOrder,
-        orders: updatedOrders,
+          ? `บันทึกปิดบิลด้วยสลิปสำเร็จเรียบร้อยแล้ว (${settlement.orders.length} รายการบิล) ✅`
+          : `ตรวจสอบสลิปถูกต้อง และปิดบิลให้อัตโนมัติเรียบร้อยแล้ว (${settlement.orders.length} รายการบิล) 🎉`,
+        order: settlement.orders[0],
+        orders: settlement.orders,
         parsed,
       });
     } else {

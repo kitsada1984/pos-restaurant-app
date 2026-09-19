@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { broadcastEvent } from '@/lib/events';
 import { saveSlipImage } from '@/lib/google-drive-storage';
 import { requireStoreAccess } from '@/lib/auth';
+import { settlePayment } from '@/lib/paymentEngine';
 
 export async function POST(
   request: Request,
@@ -30,7 +30,7 @@ export async function POST(
 
     const body = await request.json();
     const {
-      paymentMethod,
+      paymentMethod = 'CASH',
       cashReceived,
       changeAmount,
       slipUrl,
@@ -39,7 +39,6 @@ export async function POST(
       pointsRedeemed,
       promoCode,
       discountAmount,
-      skipVisitIncrement,
       note,
     } = body;
 
@@ -52,49 +51,8 @@ export async function POST(
       return NextResponse.json({ error: 'ไม่พบออเดอร์ในร้านค้านี้' }, { status: 404 });
     }
 
-    // BUG-001 Guard: Prevent double-payment and duplicate loyalty points accumulation
     if (order.paymentStatus === 'PAID') {
       return NextResponse.json({ error: 'ออเดอร์นี้ได้รับการชำระเงินเรียบร้อยแล้ว' }, { status: 400 });
-    }
-
-    const effectiveMemberPhone = memberPhone ? memberPhone.replace(/\D/g, '') : order.memberPhone;
-    const effectiveCustomerName = customerName?.trim() || order.customerName || undefined;
-    const effectivePointsRedeemed = Number(pointsRedeemed) || order.pointsRedeemed || 0;
-    const effectivePromoCode = promoCode || order.promoCode;
-    const requestedDiscount = (discountAmount !== undefined && Number(discountAmount) > 0)
-      ? Number(discountAmount)
-      : (order.discountAmount || 0);
-    const effectiveDiscount = Math.min(order.totalAmount, Math.max(0, requestedDiscount));
-    const effectiveNetAmount = Math.max(0, order.totalAmount - effectiveDiscount);
-
-    // Check points balance if pointsRedeemed > 0
-    let currentMember: any = null;
-    if (effectiveMemberPhone) {
-      currentMember = await prisma.customerMember.findUnique({
-        where: {
-          storeId_phone: {
-            storeId: store.id,
-            phone: effectiveMemberPhone,
-          },
-        },
-      });
-
-      if (effectivePointsRedeemed > 0) {
-        if (!currentMember || currentMember.points < effectivePointsRedeemed) {
-          return NextResponse.json(
-            {
-              error: `แต้มสะสมไม่เพียงพอ (มีแต้มคงเหลือ ${currentMember?.points || 0} แต้ม แต่ขอใช้ ${effectivePointsRedeemed} แต้ม)`,
-            },
-            { status: 400 }
-          );
-        }
-      }
-    }
-
-    // Calculate Points Earned (e.g. netAmount / pointsRate)
-    let pointsEarned = 0;
-    if (effectiveMemberPhone && store.pointsRate > 0) {
-      pointsEarned = Math.floor(effectiveNetAmount / store.pointsRate);
     }
 
     let finalSlipUrl = slipUrl || null;
@@ -108,95 +66,27 @@ export async function POST(
       });
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id: params.id },
-      data: {
-        paymentMethod,
-        paymentStatus: 'PAID',
-        status: 'COMPLETED',
-        discountAmount: effectiveDiscount,
-        netAmount: effectiveNetAmount,
-        cashReceived: cashReceived ? parseFloat(cashReceived) : null,
-        changeAmount: changeAmount ? parseFloat(changeAmount) : null,
-        memberPhone: effectiveMemberPhone,
-        customerName: effectiveCustomerName,
-        pointsEarned,
-        pointsRedeemed: effectivePointsRedeemed,
-        promoCode: effectivePromoCode,
-        slipUrl: finalSlipUrl,
-        paidAt: new Date(),
-        ...(note !== undefined ? { note } : {}),
-      },
-      include: {
-        table: true,
-        items: true,
-      },
+    const result = await settlePayment({
+      storeId: store.id,
+      slug: params.slug,
+      orderIds: [order.id],
+      paymentMethod,
+      cashReceived: cashReceived ? parseFloat(cashReceived) : null,
+      changeAmount: changeAmount ? parseFloat(changeAmount) : null,
+      slipUrl: finalSlipUrl,
+      memberPhone,
+      customerName,
+      pointsRedeemed: Number(pointsRedeemed) || 0,
+      promoCode,
+      discountAmount: Number(discountAmount) || 0,
+      note,
     });
 
-    // Update Customer Member Record (Add Earned Points, Deduct Redeemed Points, Increase Total Spent)
-    if (effectiveMemberPhone) {
-      const currentPoints = currentMember?.points || 0;
-      const newPoints = Math.max(0, currentPoints + pointsEarned - effectivePointsRedeemed);
-
-      await prisma.customerMember.upsert({
-        where: {
-          storeId_phone: {
-            storeId: store.id,
-            phone: effectiveMemberPhone,
-          },
-        },
-        update: {
-          points: newPoints,
-          totalSpent: { increment: effectiveNetAmount },
-          ...(skipVisitIncrement ? {} : { visitCount: { increment: 1 } }),
-          ...(customerName?.trim() ? { name: customerName.trim() } : {}),
-        },
-        create: {
-          storeId: store.id,
-          phone: effectiveMemberPhone,
-          name: customerName?.trim() || order.customerName || 'สมาชิก',
-          points: newPoints,
-          totalSpent: effectiveNetAmount,
-          visitCount: 1,
-        },
-      }).catch((err) => console.error('Error updating loyalty member:', err));
+    if (!result.success) {
+      return NextResponse.json({ error: result.error || 'Failed to settle payment' }, { status: 400 });
     }
 
-    // Increment Promotion Usage Count
-    if (effectivePromoCode) {
-      await prisma.promotion.updateMany({
-        where: { storeId: store.id, code: effectivePromoCode.toUpperCase().trim() },
-        data: { usageCount: { increment: 1 } },
-      }).catch(() => {});
-    }
-
-    // Check if table has other unpaid orders
-    if (order.tableId) {
-      const remainingOrders = await prisma.order.count({
-        where: {
-          storeId: store.id,
-          tableId: order.tableId,
-          id: { not: order.id },
-          paymentStatus: { in: ['UNPAID', 'PENDING_CONFIRMATION'] },
-        },
-      });
-
-      if (remainingOrders === 0) {
-        await prisma.table.update({
-          where: { id: order.tableId },
-          data: {
-            status: 'AVAILABLE',
-            currentSessionId: null,
-          },
-        });
-        broadcastEvent('TABLE_UPDATED', { tableNo: order.tableNo, status: 'AVAILABLE' }, store.id);
-      }
-    }
-
-    broadcastEvent('PAYMENT_RECEIVED', updatedOrder, store.id);
-    broadcastEvent('ORDER_UPDATED', updatedOrder, store.id);
-
-    return NextResponse.json(updatedOrder);
+    return NextResponse.json(result.orders[0]);
   } catch (error: any) {
     console.error('Error paying order:', error);
     return NextResponse.json({ error: error.message || 'Failed to process payment' }, { status: 500 });
