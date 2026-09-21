@@ -1,28 +1,28 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle2, Store, CreditCard, Receipt, Phone, MapPin, Loader2, Copy, Zap, ExternalLink, ShieldCheck, BellRing, RefreshCw, Smartphone, HardDrive, ChevronDown, ChevronUp, Folder, Mail, Plus, Trash2, ArrowUp, ArrowDown, RotateCcw, Printer } from 'lucide-react';
+import {
+  Settings,
+  Save,
+  CheckCircle2,
+  Store,
+  CreditCard,
+  Receipt,
+  Loader2,
+  ShieldCheck,
+  Printer,
+} from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
-import { GOOGLE_APPS_SCRIPT_TEMPLATE } from '@/lib/google-drive-template';
-import { getBankEmailAppsScript } from '@/lib/bank-email-template';
+import PrintProxySettingsCard from './settings/PrintProxySettingsCard';
+import SlipStorageSettingsCard from './settings/SlipStorageSettingsCard';
+import BankWebhookSettingsCard from './settings/BankWebhookSettingsCard';
+import ServiceCallOptionsCard, {
+  ServiceCallOption,
+  DEFAULT_SERVICE_ITEMS,
+} from './settings/ServiceCallOptionsCard';
 
-export interface ServiceCallOption {
-  id: string;
-  icon: string;
-  label: string;
-  active: boolean;
-}
-
-export const DEFAULT_SERVICE_ITEMS: ServiceCallOption[] = [
-  { id: 'srv-1', icon: '🌶️', label: 'ขอน้ำปลาพริก / พริกน้ำส้ม / เครื่องปรุง', active: true },
-  { id: 'srv-2', icon: '🧊', label: 'ขอเติมน้ำแข็ง / น้ำดื่ม', active: true },
-  { id: 'srv-3', icon: '🥢', label: 'ขอช้อนส้อม / ตะเกียบ / จานแบ่ง', active: true },
-  { id: 'srv-4', icon: '🧻', label: 'ขอกระดาษทิชชู่', active: true },
-  { id: 'srv-5', icon: '💵', label: 'เรียกเช็คบิล (ชำระด้วยเงินสด)', active: true },
-  { id: 'srv-6', icon: '❓', label: 'สอบถามพนักงาน / ความช่วยเหลืออื่นๆ', active: true },
-];
-
-const PRESET_EMOJIS = ['🌶️', '🧊', '🥢', '🧻', '💵', '❓', '🍲', '🧂', '🥤', '🍽️', '🥣', '🛎️', '🧹', '👨‍🍳'];
+export type { ServiceCallOption };
+export { DEFAULT_SERVICE_ITEMS };
 
 export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string }) {
   const { showSuccess, showError, showInfo } = useToast();
@@ -34,10 +34,11 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
   const [testingBankWebhook, setTestingBankWebhook] = useState(false);
   const [regeneratingKey, setRegeneratingKey] = useState(false);
   const [testingGoogleDrive, setTestingGoogleDrive] = useState(false);
-  const [googleDriveTestResult, setGoogleDriveTestResult] = useState<{ success: boolean; message: string; viewUrl?: string } | null>(null);
-  const [showScriptGuide, setShowScriptGuide] = useState(false);
-  const [showProxyGuide, setShowProxyGuide] = useState(false);
-  const [bankNotifyTab, setBankNotifyTab] = useState<'EMAIL' | 'APP'>('EMAIL');
+  const [googleDriveTestResult, setGoogleDriveTestResult] = useState<{
+    success: boolean;
+    message: string;
+    viewUrl?: string;
+  } | null>(null);
 
   const [form, setForm] = useState<{
     storeName: string;
@@ -121,9 +122,10 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
             bankAutoCheckout: data.bankAutoCheckout ?? true,
             googleDriveFolderId: data.googleDriveFolderId || '',
             googleDriveWebhookUrl: data.googleDriveWebhookUrl || '',
-            serviceCallItems: (Array.isArray(data.serviceCallItems) && data.serviceCallItems.length > 0)
-              ? data.serviceCallItems
-              : DEFAULT_SERVICE_ITEMS,
+            serviceCallItems:
+              Array.isArray(data.serviceCallItems) && data.serviceCallItems.length > 0
+                ? data.serviceCallItems
+                : DEFAULT_SERVICE_ITEMS,
             autoPrintKitchenTicket: data.autoPrintKitchenTicket ?? false,
             printerPaperWidth: data.printerPaperWidth || '80mm',
           });
@@ -132,6 +134,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
       .finally(() => setLoading(false));
   }, [slug]);
 
+  // Service call handlers
   const handleAddServiceItem = () => {
     const newItem: ServiceCallOption = {
       id: `srv-${Date.now()}`,
@@ -207,7 +210,10 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
       });
       const data = await res.json();
       const isSuccess = Boolean(data.success || data.testResult?.success);
-      const resultMessage = data.message || data.testResult?.message || 'เชื่อมต่อ Google Drive สำเร็จ! ไฟล์ทดสอบถูกบันทึกลงไดรฟ์เรียบร้อย';
+      const resultMessage =
+        data.message ||
+        data.testResult?.message ||
+        'เชื่อมต่อ Google Drive สำเร็จ! ไฟล์ทดสอบถูกบันทึกลงไดรฟ์เรียบร้อย';
       const viewUrl = data.data?.viewUrl || data.testResult?.data?.viewUrl || data.viewUrl;
 
       if (res.ok && isSuccess) {
@@ -221,7 +227,11 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
         });
         showSuccess('เชื่อมต่อ Google Drive สำเร็จ! 🎉', resultMessage);
       } else {
-        const errMsg = data.message || data.testResult?.message || data.error || 'เชื่อมต่อ Google Drive ไม่สำเร็จ ตรวจสอบ Webhook URL หรือการ Deploy';
+        const errMsg =
+          data.message ||
+          data.testResult?.message ||
+          data.error ||
+          'เชื่อมต่อ Google Drive ไม่สำเร็จ ตรวจสอบ Webhook URL หรือการ Deploy';
         setGoogleDriveTestResult({ success: false, message: errMsg });
         showError('ทดสอบ Google Drive ไม่สำเร็จ', errMsg);
       }
@@ -279,21 +289,22 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     }
   };
 
-  const handleTestBankEmailWebhook = async (bankName: 'KBANK' | 'SCB' = 'KBANK') => {
+  const handleTestBankEmailWebhook = async (bankName: 'KBANK' | 'SCB' | 'KTB' | 'BBL' | 'TTB' = 'KBANK') => {
     setTestingBankWebhook(true);
     try {
       const mockTestAmount = 150;
-      const payload = bankName === 'KBANK'
-        ? {
-            sender: 'K-eMail Alert (kasikornbank.com)',
-            title: 'K-eMail Alert: แจ้งเงินเข้าบัญชี x-9999',
-            text: `ธนาคารกสิกรไทย เงินเข้าบัญชี x-9999 จำนวน ${mockTestAmount}.00 บาท เมื่อ ${new Date().toLocaleTimeString('th-TH')} ยอดเงินคงเหลือ 15,200.00 บาท`,
-          }
-        : {
-            sender: 'SCB Email Alert (scb.co.th)',
-            title: 'SCB Alert: รายการเงินเข้าบัญชี PromptPay',
-            text: `ธนาคารไทยพาณิชย์ รายการเงินโอนเข้าบัญชีพร้อมเพย์ จำนวน ฿${mockTestAmount}.00 เมื่อ ${new Date().toLocaleTimeString('th-TH')} คงเหลือ 18,350.00 บาท`,
-          };
+      const payload =
+        bankName === 'KBANK'
+          ? {
+              sender: 'K-eMail Alert (kasikornbank.com)',
+              title: 'K-eMail Alert: แจ้งเงินเข้าบัญชี x-9999',
+              text: `ธนาคารกสิกรไทย เงินเข้าบัญชี x-9999 จำนวน ${mockTestAmount}.00 บาท เมื่อ ${new Date().toLocaleTimeString('th-TH')} ยอดเงินคงเหลือ 15,200.00 บาท`,
+            }
+          : {
+              sender: 'SCB Email Alert (scb.co.th)',
+              title: 'SCB Alert: รายการเงินเข้าบัญชี PromptPay',
+              text: `ธนาคารไทยพาณิชย์ รายการเงินโอนเข้าบัญชีพร้อมเพย์ จำนวน ฿${mockTestAmount}.00 เมื่อ ${new Date().toLocaleTimeString('th-TH')} คงเหลือ 18,350.00 บาท`,
+            };
 
       const res = await fetch(`/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`, {
         method: 'POST',
@@ -302,7 +313,10 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
       });
       const data = await res.json();
       if (res.ok) {
-        showSuccess(`จำลองอีเมลเงินเข้า ฿${mockTestAmount} (${bankName}) สำเร็จ! 📧✨`, data.message || 'ส่งสัญญาณแจ้งเตือนและส่งเสียงพูดไปยังหน้าจอ POS แล้ว');
+        showSuccess(
+          `จำลองอีเมลเงินเข้า ฿${mockTestAmount} (${bankName}) สำเร็จ! 📧✨`,
+          data.message || 'ส่งสัญญาณแจ้งเตือนและส่งเสียงพูดไปยังหน้าจอ POS แล้ว'
+        );
       } else {
         showInfo('ส่งทดสอบแล้ว (เซิร์ฟเวอร์ตอบกลับ)', data.message || data.error);
       }
@@ -312,7 +326,6 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
       setTestingBankWebhook(false);
     }
   };
-
 
   const handleTestWebhook = async (channel: 'LINEMAN' | 'GRAB' | 'SHOPEE_FOOD' | 'CANCEL') => {
     setTestingWebhook(true);
@@ -379,26 +392,26 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(form.deliveryWebhookSecret ? { 'x-proxy-signature': form.deliveryWebhookSecret } : {}),
+          ...(form.deliveryWebhookSecret ? { 'x-proxy-secret': form.deliveryWebhookSecret } : {}),
         },
         body: JSON.stringify(mockPayload),
       });
-
       const data = await res.json();
-      if (res.ok) {
+
+      if (res.ok && data.success) {
         if (channel === 'CANCEL') {
-          showSuccess('จำลองยกเลิกออเดอร์สำเร็จ! 🚫✨', `ออเดอร์ ${mockPayload.orderId} เปลี่ยนเป็นยกเลิกและคืนสต็อกเรียบร้อย`);
+          showSuccess('🚫 จำลองลูกค้ายกเลิกออเดอร์สำเร็จ!', `ออเดอร์ ${mockPayload.orderId} ถูกทำเครื่องหมายยกเลิกแล้ว`);
         } else {
           showSuccess(
-            `ยิงสลิปจำลอง (${channel}) สำเร็จ! 🖨️✨`,
-            `ออเดอร์ #${data.deliveryOrderId || mockPayload.orderId} เข้าจอครัว KDS และตัดสต็อกอัตโนมัติแล้ว`
+            `⚡ จำลองส่งสลิป ${channel} สำเร็จ!`,
+            `รหัส #${mockPayload.orderId} เด้งเข้า POS และ KDS จอครัวเรียบร้อยแล้ว`
           );
         }
       } else {
-        showError('ยิงสลิปจำลองไม่สำเร็จ', data.error || 'ตรวจสอบ Secret Token หรือการเชื่อมต่อ');
+        showError('จำลองไม่สำเร็จ', data.error || data.message || 'โปรดตรวจสอบความถูกต้องของระบบ');
       }
-    } catch (e: any) {
-      showError('เกิดข้อผิดพลาดในการทดสอบ Webhook', e?.message);
+    } catch (err: any) {
+      showError('เกิดข้อผิดพลาดในการจำลองสลิป', err.message);
     } finally {
       setTestingWebhook(false);
     }
@@ -408,6 +421,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     e.preventDefault();
     setSaving(true);
     setSavedSuccess(false);
+
     try {
       const res = await fetch(`/api/r/${slug}/settings`, {
         method: 'PUT',
@@ -569,7 +583,6 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            {/* Auto Print Kitchen Ticket Toggle */}
             <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-slate-900 font-extrabold flex items-center space-x-2 cursor-pointer">
@@ -587,7 +600,6 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
               </p>
             </div>
 
-            {/* Printer Paper Width */}
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
               <label className="block text-slate-900 font-extrabold">ขนาดหน้ากว้างกระดาษความร้อน</label>
               <select
@@ -604,7 +616,6 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
             </div>
           </div>
 
-          {/* Kiosk Mode Tip */}
           <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-start space-x-2.5">
             <span className="text-base flex-shrink-0">💡</span>
             <div className="space-y-1">
@@ -616,242 +627,19 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
           </div>
         </div>
 
-        {/* Section 4: Delivery Platforms & GP Settings */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2 border-b border-slate-100 pb-2">
-            <span>🛵 การตั้งค่าเดลิเวอรี &amp; ค่า GP (Delivery Platforms &amp; GP Settings)</span>
-          </h3>
-          <p className="text-xs text-slate-500">
-            กำหนด % GP ที่แต่ละแอปหัก เพื่อให้ระบบคำนวณกำไรและรายได้สุทธิ (Net Revenue) ที่ร้านจะได้รับจริงแบบอัตโนมัติเมื่อออเดอร์ส่งเข้ามาผ่านตัวกลาง Klikit
-          </p>
+        {/* Section 4: Print Proxy & Delivery GP Settings (Modular Component) */}
+        <PrintProxySettingsCard
+          slug={slug}
+          currentOrigin={currentOrigin}
+          form={form}
+          setForm={setForm}
+          handleCopy={handleCopy}
+          testingWebhook={testingWebhook}
+          handleTestWebhook={handleTestWebhook}
+          showInfo={showInfo}
+        />
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-1.5">
-              <label className="block text-emerald-950 font-black">🟢 LINE MAN GP (%)</label>
-              <div className="flex items-center space-x-1.5">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={form.linemanGp}
-                  onChange={(e) => setForm({ ...form, linemanGp: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
-                />
-                <span className="font-extrabold text-emerald-800">%</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-1.5">
-              <label className="block text-emerald-950 font-black">🟢 GrabFood GP (%)</label>
-              <div className="flex items-center space-x-1.5">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={form.grabGp}
-                  onChange={(e) => setForm({ ...form, grabGp: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
-                />
-                <span className="font-extrabold text-emerald-800">%</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-200/80 space-y-1.5">
-              <label className="block text-amber-950 font-black">🟠 ShopeeFood GP (%)</label>
-              <div className="flex items-center space-x-1.5">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={form.shopeeGp}
-                  onChange={(e) => setForm({ ...form, shopeeGp: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
-                />
-                <span className="font-extrabold text-amber-800">%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Virtual Print Proxy Webhook Integration Card */}
-          <div className="mt-4 p-4 rounded-2xl bg-slate-900 text-white space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center space-x-2">
-                <Printer className="w-4 h-4 text-amber-400" />
-                <h4 className="text-xs font-black">🖨️ ระบบรับออเดอร์เดลิเวอรีผ่านเครื่องพิมพ์เสมือน (Virtual Print Proxy Hub)</h4>
-              </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white self-start sm:self-auto">
-                ฟรี 0 บ. • ปลอดภัย 100% ไม่โดนแบน
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              ดักจับข้อความการพิมพ์จากแอป <span className="text-amber-300 font-bold">Wongnai Merchant (LINE MAN)</span>, <span className="text-emerald-300 font-bold">GrabMerchant</span> หรือ <span className="text-orange-300 font-bold">Shopee Partner</span> บนมือถือ ส่งเข้าหน้าจอแคชเชียร์ POS และจอครัว KDS อัตโนมัติ พร้อมส่งต่อให้พิมพ์กระดาษจริงในครัว (Pass-through) โดยไม่ต้องเสียค่าบริการรายเดือนใดๆ ทั้งสิ้น
-            </p>
-
-            <div className="space-y-2 text-xs">
-              {/* Print Proxy Webhook URL */}
-              <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-between gap-2">
-                <div className="truncate">
-                  <span className="text-[10px] text-amber-400 font-bold block">🌐 Print Proxy Webhook URL:</span>
-                  <code className="text-[11px] text-slate-200 font-mono select-all truncate block">
-                    {currentOrigin ? `${currentOrigin}/api/r/${slug}/webhooks/delivery/print-proxy` : `/api/r/${slug}/webhooks/delivery/print-proxy`}
-                  </code>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleCopy(
-                      `${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/delivery/print-proxy`,
-                      'Print Proxy Webhook URL'
-                    )
-                  }
-                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-black flex items-center space-x-1 flex-shrink-0 transition-all"
-                >
-                  <Copy className="w-3 h-3" />
-                  <span>คัดลอก</span>
-                </button>
-              </div>
-
-              {/* Secret Token Field */}
-              <div className="pt-2">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-slate-300 font-bold text-[11px]">
-                    Print Proxy Security Token (รหัสความปลอดภัยสำหรับจับคู่กับเครื่องพิมพ์เสมือน)
-                  </label>
-                  <div className="flex items-center space-x-2 text-[10px]">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const randomToken = 'proxy_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 8);
-                        setForm({ ...form, deliveryWebhookSecret: randomToken });
-                        showInfo('สร้างรหัสสุ่มให้แล้ว อย่าลืมกดบันทึกการตั้งค่า');
-                      }}
-                      className="text-amber-400 hover:text-amber-300 font-bold flex items-center space-x-0.5"
-                    >
-                      <RotateCcw className="w-2.5 h-2.5" />
-                      <span>🎲 สุ่มรหัสใหม่</span>
-                    </button>
-                    {form.deliveryWebhookSecret && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setForm({ ...form, deliveryWebhookSecret: '' });
-                          showInfo('ล้างรหัสแล้ว (เว้นว่างไว้เพื่อเปิดรับอัตโนมัติ)');
-                        }}
-                        className="text-slate-400 hover:text-slate-300"
-                      >
-                        ล้างรหัส
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <input
-                  type="text"
-                  placeholder="ร้านตั้งเองได้เลย หรือเว้นว่างไว้เพื่อเปิดรับอัตโนมัติ"
-                  value={form.deliveryWebhookSecret}
-                  onChange={(e) => setForm({ ...form, deliveryWebhookSecret: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
-                <p className="mt-1.5 text-[10px] text-slate-400 leading-relaxed">
-                  💡 <strong>ที่มาของรหัส:</strong> คุณสามารถ <span className="text-amber-300 font-bold">คิดและตั้งเองได้ตามใจชอบ</span> หรือ <span className="text-emerald-300 font-bold">เว้นว่างไว้ได้เลย</span> (ไม่ต้องไปขอจากใคร) หากตั้งรหัสไว้ ให้นำรหัสนี้ไปใส่ในโปรแกรมหรือแอป Print Proxy ด้วยเพื่อให้จับคู่ตรงกัน
-                </p>
-              </div>
-
-              {/* Collapsible Setup Guide */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowProxyGuide(!showProxyGuide)}
-                  className="w-full p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-amber-300 text-xs font-bold flex items-center justify-between transition-all"
-                >
-                  <span className="flex items-center space-x-2">
-                    <span>📖 ดูคู่มือการตั้งค่าเครื่องพิมพ์เสมือน 3 สเต็ปง่ายๆ</span>
-                  </span>
-                  {showProxyGuide ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-
-                {showProxyGuide && (
-                  <div className="mt-2 p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-300 space-y-2.5 leading-relaxed">
-                    <p className="font-bold text-white text-xs border-b border-slate-800 pb-1.5">
-                      🚀 วิธีเชื่อมต่อให้บิลจากแอปเดลิเวอรีไหลเข้า POS อัตโนมัติ:
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex items-start space-x-2">
-                        <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
-                          1
-                        </span>
-                        <p>
-                          <strong>รันสคริปต์ตัวกลาง Print Proxy</strong> บนคอมพิวเตอร์หรือแท็บเล็ตในร้าน (รันสคริปต์ <code className="text-amber-300 bg-slate-900 px-1 py-0.5 rounded font-mono">node scripts/print-proxy-companion.js</code> หรือติดตั้งแอป Print Proxy APK) เพื่อจำลองเครื่องพิมพ์เสมือนพอร์ต 9100 / Bluetooth
-                        </p>
-                      </div>
-                      <div className="flex items-start space-x-2">
-                        <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
-                          2
-                        </span>
-                        <p>
-                          <strong>ในแอป Wongnai / Grab / Shopee:</strong> ไปที่เมนู <em>ตั้งค่าเครื่องพิมพ์ ➔ เพิ่มเครื่องพิมพ์ (เลือกแบบ Network หรือ Bluetooth) ➔ เลือกเครื่องพิมพ์เสมือน Virtual Printer</em>
-                        </p>
-                      </div>
-                      <div className="flex items-start space-x-2">
-                        <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
-                          3
-                        </span>
-                        <p>
-                          <strong>เสร็จสมบูรณ์!</strong> เมื่อมีออเดอร์ใหม่เข้าและแอปเดลิเวอรีสั่งพิมพ์ ข้อมูลจะไหลเข้าหน้าจอ POS ตัดสต็อกทันที และพิมพ์ใบสั่งอาหารออกที่เครื่องพิมพ์ในครัวตามปกติ
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Test Simulation Buttons */}
-              <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] text-slate-400 font-bold">จำลองสลิปการพิมพ์:</span>
-                <button
-                  type="button"
-                  disabled={testingWebhook}
-                  onClick={() => handleTestWebhook('LINEMAN')}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/50 text-emerald-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>⚡ จำลองสลิป LINE MAN</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={testingWebhook}
-                  onClick={() => handleTestWebhook('GRAB')}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/50 text-emerald-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>⚡ จำลองสลิป GrabFood</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={testingWebhook}
-                  onClick={() => handleTestWebhook('SHOPEE_FOOD')}
-                  className="px-3 py-1.5 rounded-xl bg-amber-600/30 hover:bg-amber-600 border border-amber-500/50 text-amber-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>⚡ จำลองสลิป ShopeeFood</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={testingWebhook}
-                  onClick={() => handleTestWebhook('CANCEL')}
-                  className="px-3 py-1.5 rounded-xl bg-red-600/30 hover:bg-red-600 border border-red-500/50 text-red-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>🚫 จำลองยกเลิกออเดอร์</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 5: Bank Transfer Slip Verification Settings */}
+        {/* Section 5: Bank Slip Verification Engine */}
         <div className="space-y-4">
           <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2 border-b border-slate-100 pb-2">
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
@@ -862,7 +650,6 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
           </p>
 
           <div className="space-y-4">
-            {/* Auto Checkout Toggle */}
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <label className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 cursor-pointer">
@@ -883,7 +670,6 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
               </label>
             </div>
 
-            {/* Provider Selector */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
                 <label className="block text-slate-700 font-bold mb-1">
@@ -935,616 +721,42 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
           </div>
         </div>
 
-        {/* Section 5.5: Google Drive & Local Disk Slip Storage */}
-        <div className="space-y-4 pt-4 border-t border-slate-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2">
-              <HardDrive className="w-4 h-4 text-emerald-600" />
-              <span>ที่จัดเก็บรูปสลิปโอนเงิน (Google Drive &amp; โฟลเดอร์เซิร์ฟเวอร์)</span>
-            </h3>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
-              ลดขนาด DB 100% 🚀
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            ระบบแก้ปัญหาฐานข้อมูลบวม โดย<strong>ไม่เก็บรูปภาพขนาดใหญ่ (Base64) ลงใน Supabase PostgreSQL</strong> แต่จะอัปโหลดไปเก็บที่ Google Drive ส่วนตัวของคุณ (ฟรี 15GB) หรือบันทึกลงโฟลเดอร์เซิร์ฟเวอร์สำรอง และเก็บเฉพาะ URL ขนาดเล็กลงฐานข้อมูลเท่านั้น
-          </p>
+        {/* Section 5.5: Slip Storage Settings Card (Modular Component) */}
+        <SlipStorageSettingsCard
+          form={form}
+          setForm={setForm}
+          handleCopy={handleCopy}
+          handleTestGoogleDrive={handleTestGoogleDrive}
+          testingGoogleDrive={testingGoogleDrive}
+          googleDriveTestResult={googleDriveTestResult}
+          showSuccess={showSuccess}
+        />
 
-          <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-4 shadow-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="sm:col-span-2">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-slate-800 font-bold">
-                    Google Apps Script Webhook URL (สำหรับส่งรูปไป Google Drive)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const latestUrl = 'https://script.google.com/macros/s/AKfycbw3SHPGQN2z4op26gJ2IAHTA3RVxakKlZK9Lj6IrTaES85XcmjyCLV0gdCnD1Xv4AFM/exec';
-                      setForm({ ...form, googleDriveWebhookUrl: latestUrl });
-                      showSuccess('เปลี่ยนเป็น URL ล่าสุดแล้ว ✨', 'กดปุ่มทดสอบเชื่อมต่อ Google Drive ได้เลยครับ');
-                    }}
-                    className="text-[11px] text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-lg font-bold flex items-center gap-1 transition-all"
-                  >
-                    <span>⚡ ใส่ URL ล่าสุดของระบบอัตโนมัติ</span>
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-                  value={form.googleDriveWebhookUrl}
-                  onChange={(e) => setForm({ ...form, googleDriveWebhookUrl: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-                {(form.googleDriveWebhookUrl.includes('zsxxYWIcg') || form.googleDriveWebhookUrl.includes('AKfycbrzsxx')) && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold flex items-center justify-between">
-                    <span>⚠️ URL นี้เป็น URL เก่าที่ส่งผลลัพธ์ 404 (ไม่มีอยู่ในระบบ) กรุณากดปุ่มเพื่อเปลี่ยนเป็น URL ล่าสุด</span>
-                    <button
-                      type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, googleDriveWebhookUrl: 'https://script.google.com/macros/s/AKfycbw3SHPGQN2z4op26gJ2IAHTA3RVxakKlZK9Lj6IrTaES85XcmjyCLV0gdCnD1Xv4AFM/exec' }))}
-                      className="ml-2 px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-extrabold text-[10px] whitespace-nowrap"
-                    >
-                      เปลี่ยนเป็น URL ล่าสุดทันที
-                    </button>
-                  </div>
-                )}
-                <p className="text-[10px] text-slate-400 mt-1">
-                  นำ URL ที่ได้จากการ Deploy Web App ของ Google Apps Script มาวางที่นี่
-                </p>
-              </div>
+        {/* Section 6: Bank Notification Webhook Card (Modular Component) */}
+        <BankWebhookSettingsCard
+          slug={slug}
+          currentOrigin={currentOrigin}
+          form={form}
+          setForm={setForm}
+          handleCopy={handleCopy}
+          handleTestBankEmailWebhook={handleTestBankEmailWebhook}
+          handleTestBankWebhook={handleTestBankWebhook}
+          handleRegenerateBankKey={handleRegenerateBankKey}
+          testingBankWebhook={testingBankWebhook}
+          regeneratingKey={regeneratingKey}
+        />
 
-              <div>
-                <label className="block text-slate-800 font-bold mb-1">
-                  Google Drive Folder ID (โฟลเดอร์จัดเก็บ - ถ้าไม่ใส่จะบันทึกลงหน้าแรกของ Drive)
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Folder className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder="เช่น 1a2B3c4D5e... (ดูจาก URL โฟลเดอร์)"
-                      value={form.googleDriveFolderId}
-                      onChange={(e) => setForm({ ...form, googleDriveFolderId: e.target.value })}
-                      className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-              </div>
+        {/* Section 7: Service Call Options Card (Modular Component) */}
+        <ServiceCallOptionsCard
+          items={form.serviceCallItems}
+          onAdd={handleAddServiceItem}
+          onRestoreDefaults={handleRestoreDefaultServiceItems}
+          onMove={handleMoveServiceItem}
+          onUpdate={handleUpdateServiceItem}
+          onDelete={handleDeleteServiceItem}
+        />
 
-              <div className="flex flex-col justify-end">
-                <button
-                  type="button"
-                  onClick={handleTestGoogleDrive}
-                  disabled={testingGoogleDrive || !form.googleDriveWebhookUrl}
-                  className="w-full px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Zap className="w-3.5 h-3.5 text-amber-300" />
-                  <span>{testingGoogleDrive ? 'กำลังทดสอบส่งรูปเข้า Drive...' : '⚡ ทดสอบเชื่อมต่อ Google Drive'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Test Result Message */}
-            {googleDriveTestResult && (
-              <div
-                className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                  googleDriveTestResult.success
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-rose-50 border-rose-200 text-rose-800'
-                }`}
-              >
-                {googleDriveTestResult.success ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                ) : (
-                  <ShieldCheck className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1">
-                  <p className="font-bold">{googleDriveTestResult.message}</p>
-                  {googleDriveTestResult.viewUrl && (
-                    <a
-                      href={googleDriveTestResult.viewUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-emerald-700 underline font-mono text-[11px] inline-flex items-center gap-1 mt-1 hover:text-emerald-900"
-                    >
-                      <span>เปิดดูไฟล์ทดสอบบน Google Drive</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Fallback & Safety Note */}
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
-              <div className="font-bold text-slate-700 flex items-center gap-1.5">
-                <span>🛡️ ความปลอดภัย &amp; ระบบสำรองเซิร์ฟเวอร์:</span>
-              </div>
-              <p>
-                • หากยังไม่ได้เชื่อมต่อ Google Drive หรือเน็ตเวิร์กขัดข้อง ระบบจะบันทึกรูปลงโฟลเดอร์ในเซิร์ฟเวอร์ (<code>public/uploads/slips/</code>) อัตโนมัติ ป้องกันรูปสลิปหาย
-              </p>
-              <p>
-                • ฐานข้อมูล Supabase PostgreSQL จะเก็บเฉพาะลิงก์ CDN ขนาดเล็กเพียงไม่กี่ไบต์เท่านั้น หมดกังวลเรื่องพื้นที่ฐานข้อมูลเต็ม
-              </p>
-            </div>
-
-            {/* Collapsible Setup Guide */}
-            <div className="border border-emerald-200/70 rounded-xl overflow-hidden bg-emerald-50/40">
-              <button
-                type="button"
-                onClick={() => setShowScriptGuide(!showScriptGuide)}
-                className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-emerald-900 hover:bg-emerald-100/50 flex items-center justify-between transition-colors"
-              >
-                <span className="flex items-center gap-1.5">
-                  <span>📖 วิธีติดตั้ง Google Apps Script สำหรับเชื่อมต่อ Google Drive ฟรี (ใช้เวลา 2 นาที)</span>
-                </span>
-                {showScriptGuide ? <ChevronUp className="w-4 h-4 text-emerald-700" /> : <ChevronDown className="w-4 h-4 text-emerald-700" />}
-              </button>
-
-              {showScriptGuide && (
-                <div className="p-4 border-t border-emerald-200/70 space-y-3 text-xs text-slate-700 bg-white">
-                  <ol className="list-decimal list-inside space-y-2 font-medium pl-1">
-                    <li>
-                      เปิดเว็บ <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold underline inline-flex items-center gap-0.5">Google Apps Script <ExternalLink className="w-3 h-3 inline" /></a> แล้วกด <strong>&quot;โครงการใหม่&quot; (New project)</strong>
-                    </li>
-                    <li>
-                      คัดลอกโค้ดด้านล่างนี้ไปวางแทนที่โค้ดเดิมใน <code>Code.gs</code> ทั้งหมด:
-                      <div className="mt-2 relative">
-                        <pre className="p-3 bg-slate-900 text-slate-200 rounded-xl font-mono text-[11px] overflow-x-auto max-h-56 select-all">
-                          {GOOGLE_APPS_SCRIPT_TEMPLATE}
-                        </pre>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(GOOGLE_APPS_SCRIPT_TEMPLATE, 'โค้ด Google Apps Script')}
-                          className="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow"
-                        >
-                          <Copy className="w-3 h-3" />
-                          <span>คัดลอกโค้ด</span>
-                        </button>
-                      </div>
-                    </li>
-                    <li>
-                      กดปุ่ม <strong>&quot;การทำให้ใช้งานได้&quot; (Deploy)</strong> มุมบนขวา ➔ เลือก <strong>&quot;การทำให้ใช้งานได้รายการใหม่&quot; (New deployment)</strong>
-                      <ul className="list-disc list-inside pl-4 pt-1 space-y-1 text-slate-600">
-                        <li>คลิกรูปเฟืองเลือกประเภท: <strong>เว็บแอป (Web app)</strong></li>
-                        <li>เรียกใช้ในฐานะ (Execute as): <strong>ฉัน (Me)</strong></li>
-                        <li>ผู้มีสิทธิ์เข้าถึง (Who has access): <strong>ทุกคน (Anyone)</strong> <em>(สำคัญมาก เพื่อให้ระบบส่งรูปเข้าได้)</em></li>
-                        <li>กด <strong>ทำให้ใช้งานได้ (Deploy)</strong> แล้วคัดลอก <strong>URL เว็บแอป</strong> มาวางในช่องด้านบน</li>
-                      </ul>
-                    </li>
-                    <li>
-                      <em>(ไม่บังคับ)</em> หากต้องการเก็บในโฟลเดอร์เฉพาะ ให้สร้างโฟลเดอร์ใน Google Drive แล้วคัดลอกรหัส Folder ID ท้าย URL (เช่น <code>drive.google.com/drive/folders/<b>1abc...xyz</b></code>) มากรอกในช่อง Google Drive Folder ID
-                    </li>
-                  </ol>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Section 6: Bank / LINE Incoming Money Notification Webhook */}
-        <div className="space-y-4 pt-4 border-t border-slate-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2">
-              <BellRing className="w-4 h-4 text-orange-500" />
-              <span>ระบบรับแจ้งเตือนเงินเข้าอัตโนมัติ (Bank Incoming Notification)</span>
-            </h3>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-700">
-              ทุกธนาคารในไทย 🇹🇭
-            </span>
-          </div>
-          <p className="text-xs text-slate-500">
-            ระบบรองรับการแจ้งเตือนเงินโอนเข้า ทั้งผ่าน <strong>หน้าเว็บโดยตรง (Direct Web - ฟรี ไม่ต้องตั้งค่า)</strong>, <strong>อีเมลธนาคาร (Gmail Automation)</strong> และ <strong>แอปบนมือถือ (MacroDroid)</strong> พร้อมระบบอ่านออกเสียงภาษาไทย
-          </p>
-
-          <div className="space-y-4">
-            {/* Direct Web Notification Highlight */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border border-emerald-500/30 text-emerald-950 space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">✨</span>
-                  <h4 className="text-xs sm:text-sm font-black text-emerald-900">
-                    ระบบแจ้งเตือนเงินเข้าผ่านเว็บโดยตรง (Direct Web Notification) - เปิดใช้งานแล้ว 100% ฟรี!
-                  </h4>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-sm w-fit">
-                  ใช้งานได้ทันที ไม่ต้องตั้งค่า
-                </span>
-              </div>
-              <p className="text-xs text-emerald-800 leading-relaxed">
-                เมื่อลูกค้าอยู่ที่โต๊ะอาหาร สแกน QR โอนเงินแล้วกดปุ่ม <strong>"✅ ฉันโอนเงินเรียบร้อยแล้ว (แจ้งแคชเชียร์)"</strong> หรือแนบรูปสลิป
-                หน้าจอ POS ของแคชเชียร์จะ<strong>ส่งเสียงพูดภาษาไทย</strong> (เช่น <em>"เงินเข้า โต๊ะ 1 50 บาท เรียบร้อยค่ะ"</em>) พร้อมป๊อปอัพขึ้นเตือนทันที 
-                <strong>คุณไม่จำเป็นต้องติดตั้ง MacroDroid หรือตั้งค่าอีเมลใดๆ</strong>
-              </p>
-            </div>
-            {/* Auto Checkout on Bank Notify */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <label className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 cursor-pointer">
-                  <span>⚡ ปิดบิลอัตโนมัติทันทีเมื่อยอดเงินตรงกับโต๊ะอาหาร (Auto-Match & Checkout)</span>
-                </label>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  • หาก<strong>เปิดใช้งาน</strong>: เมื่อยอดเงินตรงกับโต๊ะอาหาร ระบบจะปิดบิล เคลียร์โต๊ะ และสะสมแต้มให้อัตโนมัติทันที<br />
-                  • หาก<strong>ปิดไว้</strong>: ระบบจะส่งเสียงพูดภาษาไทยแจ้งเตือน และเปิดหน้าต่างให้แคชเชียร์กดปุ่มยืนยันปิดบิลเอง
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={form.bankAutoCheckout}
-                  onChange={(e) => setForm({ ...form, bankAutoCheckout: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-              </label>
-            </div>
-
-            {/* Mode Tabs: Gmail Email Alert vs Mobile App */}
-            <div className="flex border-b border-slate-200 gap-2">
-              <button
-                type="button"
-                onClick={() => setBankNotifyTab('EMAIL')}
-                className={`px-4 py-2.5 font-bold text-xs rounded-t-xl border-b-2 transition-all flex items-center gap-1.5 ${
-                  bankNotifyTab === 'EMAIL'
-                    ? 'border-orange-500 text-orange-600 bg-orange-50/50'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <Mail className="w-4 h-4" />
-                <span>📧 อีเมลธนาคาร (Gmail Alert) ⭐ แนะนำ - ไม่ต้องใช้ MacroDroid</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setBankNotifyTab('APP')}
-                className={`px-4 py-2.5 font-bold text-xs rounded-t-xl border-b-2 transition-all flex items-center gap-1.5 ${
-                  bankNotifyTab === 'APP'
-                    ? 'border-orange-500 text-orange-600 bg-orange-50/50'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <Smartphone className="w-4 h-4" />
-                <span>📱 แอปบนมือถือ (MacroDroid / LINE)</span>
-              </button>
-            </div>
-
-            {/* TAB 1: Gmail Bank Email Automation */}
-            {bankNotifyTab === 'EMAIL' && (
-              <div className="space-y-4">
-                {/* Webhook URL & Quick Test */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <Mail className="w-4 h-4 text-orange-500" />
-                      <span>Webhook URL ประจำร้าน (สำหรับรับข้อมูลจาก Google Apps Script):</span>
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleTestBankEmailWebhook('KBANK')}
-                        disabled={testingBankWebhook}
-                        className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-sm transition-all disabled:opacity-50"
-                      >
-                        <Zap className="w-3 h-3 text-amber-300" />
-                        <span>{testingBankWebhook ? '...' : '🧪 จำลอง KBank (฿150)'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleTestBankEmailWebhook('SCB')}
-                        disabled={testingBankWebhook}
-                        className="px-2.5 py-1 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-sm transition-all disabled:opacity-50"
-                      >
-                        <Zap className="w-3 h-3 text-amber-300" />
-                        <span>{testingBankWebhook ? '...' : '🧪 จำลอง SCB (฿150)'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={`${currentOrigin}/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`}
-                      className="flex-1 px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono text-slate-700 select-all focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(`${currentOrigin}/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`, 'Webhook URL')}
-                      className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-all flex-shrink-0"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>คัดลอก URL</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Setup Guide Step-by-Step */}
-                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 text-xs text-slate-700 space-y-3">
-                  <div className="font-extrabold flex items-center gap-1.5 text-emerald-900 text-sm">
-                    <span>🚀 วิธีติดตั้งระบบตรวจจับอีเมลเงินเข้าอัตโนมัติ (ทำเพียง 2 นาที ฟรี 100%):</span>
-                  </div>
-
-                  <ol className="list-decimal list-inside space-y-2 font-medium pl-1 leading-relaxed">
-                    <li>
-                      เปิดเว็บ <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" className="text-emerald-700 font-bold underline inline-flex items-center gap-0.5">script.google.com <ExternalLink className="w-3 h-3 inline" /></a> ด้วยบัญชี <strong>Gmail ของร้าน</strong> แล้วกด <strong>&quot;โครงการใหม่&quot; (New project)</strong>
-                    </li>
-                    <li>
-                      คัดลอกโค้ดด้านล่างนี้ไปวางทับโค้ดเดิมใน <code>Code.gs</code> ทั้งหมด แล้วกดบันทึก (Ctrl + S):
-                      <div className="mt-2 relative">
-                        <pre className="p-3 bg-slate-900 text-slate-200 rounded-xl font-mono text-[11px] overflow-x-auto max-h-64 select-all leading-normal">
-                          {getBankEmailAppsScript(`${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`)}
-                        </pre>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(
-                            getBankEmailAppsScript(`${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`),
-                            'โค้ด Google Apps Script ตรวจจับอีเมลธนาคาร'
-                          )}
-                          className="absolute top-2 right-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow"
-                        >
-                          <Copy className="w-3 h-3" />
-                          <span>คัดลอกโค้ดสคริปต์</span>
-                        </button>
-                      </div>
-                    </li>
-                    <li>
-                      เลือกฟังก์ชัน <strong>&quot;installTrigger&quot;</strong> จากเมนูด้านบน แล้วกดปุ่ม <strong>&quot;เรียกใช้&quot; (Run)</strong> 1 ครั้ง:
-                      <p className="text-[11px] text-slate-600 pl-4 pt-1">
-                        • กดยอมรับสิทธิ์ (Review permissions ➔ เลือกบัญชี Gmail ➔ กด Advanced ➔ Go to Untitled project)
-                        <br />
-                        • <strong>เสร็จสิ้น!</strong> สคริปต์จะเริ่มทำงานบน Google Cloud คอยตรวจสอบอีเมลเงินเข้าทุก 1 นาทีตลอด 24 ชั่วโมง โดยไม่ต้องเปิดมือถือหรือติดตั้งโปรแกรมใดๆ
-                      </p>
-                    </li>
-                  </ol>
-
-                  {/* How to enable email alerts in Thai banks */}
-                  <div className="mt-3 pt-3 border-t border-emerald-200/80 space-y-1.5 text-[11px]">
-                    <div className="font-bold text-emerald-950">📲 วิธีเปิดรับอีเมลแจ้งเตือนเงินเข้าฟรีในแอปธนาคาร:</div>
-                    <ul className="list-disc list-inside pl-2 space-y-1 text-slate-700">
-                      <li><strong>ธนาคารกสิกรไทย (KBank):</strong> เข้าแอป K PLUS ➔ เมนู &quot;บริการอื่นๆ&quot; ➔ เลือก &quot;K-eMail Alert&quot; ➔ กรอก Gmail ของร้านและกดยืนยัน (ฟรีไม่มีค่าบริการ)</li>
-                      <li><strong>ธนาคารไทยพาณิชย์ (SCB):</strong> เข้าแอป SCB EASY ➔ เมนูตั้งค่า ➔ การแจ้งเตือน ➔ เลือก &quot;อีเมลแจ้งเตือน&quot; และเปิดใช้งาน</li>
-                      <li><strong>ธนาคารกรุงไทย (Krungthai):</strong> เข้าแอป Krungthai NEXT ➔ เมนูตั้งค่า ➔ การแจ้งเตือนผ่านอีเมล</li>
-                      <li><strong>ธนาคารอื่นๆ (BBL / ttb / GSB):</strong> เปิดบริการแจ้งเตือนเงินเข้าผ่านอีเมลในแอปของธนาคารนั้นๆ ไปยัง Gmail ของร้าน</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: Mobile App (MacroDroid) */}
-            {bankNotifyTab === 'APP' && (
-              <div className="space-y-4">
-                {/* Webhook Endpoint URL */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <Smartphone className="w-4 h-4 text-orange-500" />
-                      <span>Webhook URL ประจำร้านของคุณ (นำไปใส่ในแอปบนมือถือ):</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleTestBankWebhook}
-                      disabled={testingBankWebhook}
-                      className="px-3 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-sm transition-all disabled:opacity-50"
-                    >
-                      <Zap className="w-3 h-3 text-amber-400" />
-                      <span>{testingBankWebhook ? 'กำลังทดสอบ...' : '🧪 ทดสอบยิงเงินเข้า ฿150'}</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={`${currentOrigin}/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`}
-                      className="flex-1 px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono text-slate-700 select-all focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(`${currentOrigin}/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`, 'Webhook URL')}
-                      className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-all flex-shrink-0"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>คัดลอก URL</span>
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between pt-1 text-[11px] text-slate-500 gap-2">
-                    <div className="flex items-center gap-2">
-                      <span>Secret Key: <strong className="font-mono text-slate-800">{form.bankWebhookKey || 'กำลังสร้าง...'}</strong></span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRegenerateBankKey}
-                      disabled={regeneratingKey}
-                      className="text-orange-600 hover:underline flex items-center gap-1 font-bold"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${regeneratingKey ? 'animate-spin' : ''}`} />
-                      <span>สุ่มคีย์ใหม่ (Regenerate Key)</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Step-by-Step Setup Guide Accordion */}
-                <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 space-y-2">
-                  <div className="font-black flex items-center gap-1.5 text-amber-800">
-                    <span>📱 วิธีตั้งค่าให้ส่งแจ้งเตือนจากมือถือเข้า POS อัตโนมัติ (ทำครั้งเดียว ใช้ได้ตลอดไป):</span>
-                  </div>
-                  <ol className="list-decimal list-inside space-y-1.5 text-slate-700 font-medium leading-relaxed pl-1">
-                    <li>
-                      ติดตั้งแอปฟรี <strong>MacroDroid</strong> หรือ <strong>Notification Forwarder</strong> จาก Google Play Store บนมือถือที่รับแจ้งเตือน
-                    </li>
-                    <li>
-                      สร้างคำสั่ง (Macro):
-                      <ul className="list-disc list-inside pl-4 pt-1 space-y-0.5 text-slate-600">
-                        <li><strong>Trigger:</strong> เลือก <em>Notification Received</em> ➔ เลือกแอป <strong>LINE</strong> (หรือ K PLUS / SCB EASY / Krungthai NEXT)</li>
-                        <li><strong>Action:</strong> เลือก <em>HTTP Request</em> ➔ Method เลือก <strong>POST</strong> ➔ วาง <strong>Webhook URL</strong> ด้านบนลงไป</li>
-                        <li><strong>Content-Type:</strong> เลือก <code>application/json</code></li>
-                        <li><strong>Body:</strong> ใส่ <code>{`{"text":"[not_text]","sender":"[not_title]"}`}</code></li>
-                      </ul>
-                    </li>
-                    <li>
-                      <strong>เสร็จสิ้น!</strong> เมื่อมีเงินโอนเข้าและ LINE แจ้งเตือน ระบบจะอ่านยอดเงินและปิดบิลที่หน้าจอ POS ให้ทันทีอัตโนมัติ ⚡
-                    </li>
-                  </ol>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Section: Service Call Items */}
-        <div className="space-y-4 pt-6 border-t border-slate-100">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-            <div>
-              <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2">
-                <BellRing className="w-4 h-4 text-orange-500" />
-                <span>จัดการปุ่มเรียกพนักงานจากโต๊ะลูกค้า (Service Call Options)</span>
-              </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                กำหนดรายการที่ลูกค้าจะเห็นเมื่อกดปุ่ม 🔔 บนมือถือ (เพิ่ม, ลบ, แก้ไขชื่อ/ไอคอน, เปิด-ปิด, และจัดเรียง)
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleRestoreDefaultServiceItems}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all"
-                title="กู้คืนรายการมาตรฐาน 6 อย่าง"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                <span>โหลดค่าเริ่มต้น 6 รายการ</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleAddServiceItem}
-                className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>เพิ่มรายการใหม่</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-2.5">
-            {form.serviceCallItems && form.serviceCallItems.length > 0 ? (
-              form.serviceCallItems.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className={`p-3 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center gap-3 ${
-                    item.active
-                      ? 'bg-slate-50/70 border-slate-200/90'
-                      : 'bg-slate-100/60 border-slate-200/50 opacity-60'
-                  }`}
-                >
-                  {/* Order & Up-Down buttons */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <span className="w-5 text-center text-xs font-black text-slate-400">
-                      {idx + 1}
-                    </span>
-                    <div className="flex flex-row sm:flex-col gap-0.5">
-                      <button
-                        type="button"
-                        disabled={idx === 0}
-                        onClick={() => handleMoveServiceItem(idx, 'up')}
-                        className="p-1 rounded-lg hover:bg-white text-slate-500 hover:text-slate-800 disabled:opacity-20 transition-all"
-                        title="เลื่อนขึ้น"
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={idx === form.serviceCallItems.length - 1}
-                        onClick={() => handleMoveServiceItem(idx, 'down')}
-                        className="p-1 rounded-lg hover:bg-white text-slate-500 hover:text-slate-800 disabled:opacity-20 transition-all"
-                        title="เลื่อนลง"
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Emoji Icon selector / input */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={item.icon}
-                        onChange={(e) => handleUpdateServiceItem(item.id, { icon: e.target.value })}
-                        className="w-12 h-10 text-center text-xl bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
-                        maxLength={4}
-                        title="พิมพ์หรือเปลี่ยนอิโมจิ"
-                      />
-                    </div>
-                    {/* Quick emoji presets */}
-                    <div className="hidden lg:flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/70">
-                      {PRESET_EMOJIS.slice(0, 6).map((em) => (
-                        <button
-                          key={em}
-                          type="button"
-                          onClick={() => handleUpdateServiceItem(item.id, { icon: em })}
-                          className={`w-7 h-7 rounded-lg text-sm flex items-center justify-center hover:bg-slate-100 transition-all ${
-                            item.icon === em ? 'bg-orange-100 ring-1 ring-orange-400' : ''
-                          }`}
-                        >
-                          {em}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Label text input */}
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={item.label}
-                      placeholder="เช่น ขอน้ำปลาพริก หรือ ขอเติมน้ำดื่ม"
-                      onChange={(e) => handleUpdateServiceItem(item.id, { label: e.target.value })}
-                      className="w-full px-3.5 py-2 text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
-                    />
-                  </div>
-
-                  {/* Action Controls: Active Toggle & Delete */}
-                  <div className="flex items-center justify-end gap-3 flex-shrink-0">
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={item.active}
-                        onChange={(e) => handleUpdateServiceItem(item.id, { active: e.target.checked })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 relative"></div>
-                      <span className={`text-[11px] font-bold ${item.active ? 'text-emerald-700' : 'text-slate-400'}`}>
-                        {item.active ? 'เปิดใช้' : 'ปิดชั่วคราว'}
-                      </span>
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteServiceItem(item.id)}
-                      className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all"
-                      title="ลบรายการนี้"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-6 rounded-2xl border border-dashed border-slate-300 text-center text-slate-500 space-y-2">
-                <p className="text-xs">ยังไม่มีรายการปุ่มเรียกพนักงาน</p>
-                <button
-                  type="button"
-                  onClick={handleRestoreDefaultServiceItems}
-                  className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs transition-all inline-flex items-center gap-1.5"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>โหลดค่าเริ่มต้น 6 รายการ</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
+        {/* Submit Button */}
         <div className="pt-4 border-t border-slate-100 flex justify-end">
           <button
             type="submit"
