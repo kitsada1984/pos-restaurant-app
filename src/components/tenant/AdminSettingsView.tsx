@@ -30,6 +30,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
+  const [lastTestDeliveryOrderId, setLastTestDeliveryOrderId] = useState<string>('');
   const [testingBankWebhook, setTestingBankWebhook] = useState(false);
   const [regeneratingKey, setRegeneratingKey] = useState(false);
   const [testingGoogleDrive, setTestingGoogleDrive] = useState(false);
@@ -312,43 +313,85 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
   };
 
 
-  const handleTestWebhook = async (channel: 'LINEMAN' | 'GRAB') => {
+  const handleTestWebhook = async (channel: 'LINEMAN' | 'GRAB' | 'SHOPEE_FOOD' | 'CANCEL') => {
     setTestingWebhook(true);
     try {
-      const endpoint = `/api/r/${slug}/webhooks/delivery/${channel === 'LINEMAN' ? 'lineman' : 'grab'}`;
-      const mockPayload =
-        channel === 'LINEMAN'
-          ? {
-              orderId: `LM-${Math.floor(1000 + Math.random() * 9000)}`,
-              rider: { name: 'สมชาย พุ่มพวง (LINE MAN Rider)', phone: '0891234567' },
-              customer: { name: 'คุณเอกชัย (ลูกค้า LINE MAN)' },
-              items: [
-                { name: 'ข้าวกะเพราหมูกรอบ', price: 65, quantity: 1, instruction: 'เผ็ดกลาง ไม่ใส่ชูรส' },
-                { name: 'ไข่ดาว', price: 10, quantity: 1 },
-              ],
-              note: 'ทดสอบส่ง Webhook อัตโนมัติจาก LINE MAN Open API',
-            }
-          : {
-              shortOrderNumber: `GF-${Math.floor(1000 + Math.random() * 9000)}`,
-              driver: { name: 'วิชัย ใจดี (GrabFood Driver)', phone: '0819876543' },
-              consumer: { name: 'คุณกิตติ (ลูกค้า GrabFood)' },
-              items: [{ name: 'ข้าวผัดหมู', price: 55, quantity: 2, instruction: 'ขอพริกน้ำปลาเยอะๆ' }],
-              specialInstructions: 'ทดสอบส่ง Webhook อัตโนมัติจาก GrabFood Partner API',
-            };
+      const endpoint = `/api/r/${slug}/webhooks/delivery/klikit`;
+      let mockPayload: any;
+
+      if (channel === 'CANCEL') {
+        const orderIdToCancel = lastTestDeliveryOrderId || `LM-${Math.floor(1000 + Math.random() * 9000)}`;
+        mockPayload = {
+          event: 'ORDER_CANCELLED',
+          orderId: orderIdToCancel,
+          reason: 'ลูกค้ายกเลิกผ่านแอปเดลิเวอรี (Klikit)',
+          cancelReason: 'Customer requested cancellation via delivery app',
+        };
+      } else if (channel === 'LINEMAN') {
+        const newOrderId = `LM-${Math.floor(1000 + Math.random() * 9000)}`;
+        setLastTestDeliveryOrderId(newOrderId);
+        mockPayload = {
+          channel: 'LINEMAN',
+          orderId: newOrderId,
+          rider: { name: 'สมชาย พุ่มพวง (LINE MAN Rider)', phone: '0891234567' },
+          customer: { name: 'คุณเอกชัย (ลูกค้า LINE MAN)' },
+          items: [
+            { name: 'ข้าวกะเพราหมูกรอบ', price: 65, quantity: 1, instruction: 'เผ็ดกลาง ไม่ใส่ชูรส' },
+            { name: 'ไข่ดาว', price: 10, quantity: 1 },
+          ],
+          note: 'ทดสอบส่ง Webhook ผ่านตัวกลาง Klikit (LINE MAN)',
+        };
+      } else if (channel === 'GRAB') {
+        const newOrderId = `GF-${Math.floor(1000 + Math.random() * 9000)}`;
+        setLastTestDeliveryOrderId(newOrderId);
+        mockPayload = {
+          channel: 'GRAB',
+          shortOrderNumber: newOrderId,
+          driver: { name: 'วิชัย ใจดี (GrabFood Driver)', phone: '0819876543' },
+          consumer: { name: 'คุณกิตติ (ลูกค้า GrabFood)' },
+          items: [{ name: 'ข้าวผัดหมู', price: 55, quantity: 2, instruction: 'ขอพริกน้ำปลาเยอะๆ' }],
+          specialInstructions: 'ทดสอบส่ง Webhook ผ่านตัวกลาง Klikit (GrabFood)',
+        };
+      } else {
+        const newOrderId = `SF-${Math.floor(1000 + Math.random() * 9000)}`;
+        setLastTestDeliveryOrderId(newOrderId);
+        mockPayload = {
+          channel: 'SHOPEE_FOOD',
+          orderId: newOrderId,
+          rider: { name: 'สุรชัย ว่องไว (ShopeeFood Rider)', phone: '0854321098' },
+          customer: { name: 'คุณพิมพ์ใจ (ลูกค้า ShopeeFood)' },
+          items: [
+            { name: 'ข้าวกะเพราหมูกรอบ', price: 65, quantity: 1, instruction: 'เผ็ดน้อย' },
+            { name: 'ไข่เจียว', price: 15, quantity: 1 },
+          ],
+          note: 'ทดสอบส่ง Webhook ผ่านตัวกลาง Klikit (ShopeeFood)',
+        };
+      }
 
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(form.deliveryWebhookSecret ? { 'x-klikit-signature': form.deliveryWebhookSecret } : {}),
+        },
         body: JSON.stringify(mockPayload),
       });
 
+      const data = await res.json();
       if (res.ok) {
-        showSuccess(`ยิง Webhook จำลองจาก ${channel} สำเร็จ! 🛵✨`, 'ออเดอร์เด้งเข้าจอครัว KDS และตัดสต็อกวัตถุดิบอัตโนมัติแล้ว');
+        if (channel === 'CANCEL') {
+          showSuccess('จำลองยกเลิกออเดอร์สำเร็จ! 🚫✨', `ออเดอร์ ${mockPayload.orderId} เปลี่ยนเป็นยกเลิกและคืนสต็อกเรียบร้อย`);
+        } else {
+          showSuccess(
+            `ยิง Webhook Klikit (${channel}) สำเร็จ! 🛵✨`,
+            `ออเดอร์ #${data.deliveryOrderId || mockPayload.orderId} เด้งเข้าจอครัว KDS และตัดสต็อกอัตโนมัติแล้ว`
+          );
+        }
       } else {
-        showError('ยิง Webhook ไม่สำเร็จ');
+        showError('ยิง Webhook ไม่สำเร็จ', data.error || 'ตรวจสอบ Secret Token หรือการเชื่อมต่อ');
       }
-    } catch (e) {
-      showError('เกิดข้อผิดพลาดในการทดสอบ Webhook');
+    } catch (e: any) {
+      showError('เกิดข้อผิดพลาดในการทดสอบ Webhook', e?.message);
     } finally {
       setTestingWebhook(false);
     }
@@ -569,10 +612,10 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
         {/* Section 4: Delivery Platforms & GP Settings */}
         <div className="space-y-4">
           <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2 border-b border-slate-100 pb-2">
-            <span>🛵 การตั้งค่าเดลิเวอรี &amp; หักค่าคอมมิชชั่น GP (Delivery Platforms)</span>
+            <span>🛵 การตั้งค่าเดลิเวอรี &amp; ค่า GP (Delivery Platforms &amp; GP Settings)</span>
           </h3>
           <p className="text-xs text-slate-500">
-            กำหนด % GP ที่แต่ละแอปหัก เพื่อให้ระบบคำนวณกำไรและยอดเงินสุทธิที่ร้านจะได้รับจริงแบบอัตโนมัติ
+            กำหนด % GP ที่แต่ละแอปหัก เพื่อให้ระบบคำนวณกำไรและรายได้สุทธิ (Net Revenue) ที่ร้านจะได้รับจริงแบบอัตโนมัติเมื่อออเดอร์ส่งเข้ามาผ่านตัวกลาง Klikit
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
@@ -625,62 +668,39 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
             </div>
           </div>
 
-          {/* Webhook Endpoints & API Partner Integration */}
+          {/* Unified Klikit Webhook Integration Card */}
           <div className="mt-4 p-4 rounded-2xl bg-slate-900 text-white space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Zap className="w-4 h-4 text-amber-400" />
-                <h4 className="text-xs font-black">Webhook API Endpoints (สำหรับเชื่อมต่อตรงอัตโนมัติ 100%)</h4>
+                <h4 className="text-xs font-black">🚀 ระบบเชื่อมต่อเดลิเวอรีผ่านตัวกลาง Klikit (klikit.io Unified Delivery Hub)</h4>
               </div>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white">
-                พร้อมใช้งาน
+                เชื่อมต่อจุดเดียว ครอบคลุมทุกค่าย
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">
-              นำ URL ด้านล่างนี้ไปกรอกในระบบ LINE MAN Wongnai Open API หรือ Grab Partner Developer Portal เพื่อให้ออเดอร์เด้งเข้า POS และครัวอัตโนมัติ
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              นำ Webhook URL ด้านล่างนี้ไปผูกในระบบ <span className="text-amber-300 font-bold">Klikit Portal (klikit.io)</span> เพียงจุดเดียว ระบบจะรับออเดอร์เดลิเวอรีทุกแพลตฟอร์ม (LINE MAN, Grab, ShopeeFood, Foodpanda, Robinhood) เข้าสู่หน้าจอแคชเชียร์ POS และจอครัว KDS อัตโนมัติ พร้อมคำนวณหัก GP ตามค่าย และตัดสต็อกวัตถุดิบทันที
             </p>
 
             <div className="space-y-2 text-xs">
-              {/* LINE MAN Webhook URL */}
+              {/* Klikit Unified Webhook URL */}
               <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-between gap-2">
                 <div className="truncate">
-                  <span className="text-[10px] text-emerald-400 font-bold block">🟢 LINE MAN Webhook URL:</span>
+                  <span className="text-[10px] text-amber-400 font-bold block">🌐 Klikit Unified Webhook URL:</span>
                   <code className="text-[11px] text-slate-200 font-mono select-all truncate block">
-                    {currentOrigin ? `${currentOrigin}/api/r/${slug}/webhooks/delivery/lineman` : `/api/r/${slug}/webhooks/delivery/lineman`}
+                    {currentOrigin ? `${currentOrigin}/api/r/${slug}/webhooks/delivery/klikit` : `/api/r/${slug}/webhooks/delivery/klikit`}
                   </code>
                 </div>
                 <button
                   type="button"
                   onClick={() =>
                     handleCopy(
-                      `${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/delivery/lineman`,
-                      'LINE MAN Webhook URL'
+                      `${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/delivery/klikit`,
+                      'Klikit Webhook URL'
                     )
                   }
-                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center space-x-1 flex-shrink-0"
-                >
-                  <Copy className="w-3 h-3" />
-                  <span>คัดลอก</span>
-                </button>
-              </div>
-
-              {/* Grab Webhook URL */}
-              <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-between gap-2">
-                <div className="truncate">
-                  <span className="text-[10px] text-emerald-400 font-bold block">🟢 GrabFood Webhook URL:</span>
-                  <code className="text-[11px] text-slate-200 font-mono select-all truncate block">
-                    {currentOrigin ? `${currentOrigin}/api/r/${slug}/webhooks/delivery/grab` : `/api/r/${slug}/webhooks/delivery/grab`}
-                  </code>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleCopy(
-                      `${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/delivery/grab`,
-                      'Grab Webhook URL'
-                    )
-                  }
-                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center space-x-1 flex-shrink-0"
+                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-black flex items-center space-x-1 flex-shrink-0 transition-all"
                 >
                   <Copy className="w-3 h-3" />
                   <span>คัดลอก</span>
@@ -690,20 +710,20 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
               {/* Secret Token Field */}
               <div className="pt-2">
                 <label className="block text-slate-300 font-bold text-[11px] mb-1">
-                  Webhook Secret / Signature Token (รหัสความปลอดภัยจากแพลตฟอร์ม)
+                  Klikit Webhook Secret / Signature Token (รหัสความปลอดภัยจาก Klikit)
                 </label>
                 <input
                   type="text"
-                  placeholder="เช่น lm_secret_key_xxxx หรือ grab_partner_secret_xxxx"
+                  placeholder="เช่น klikit_sec_xxxx หรือ token ยืนยันความถูกต้อง"
                   value={form.deliveryWebhookSecret}
                   onChange={(e) => setForm({ ...form, deliveryWebhookSecret: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
 
               {/* Test Simulation Buttons */}
               <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] text-slate-400 font-bold">ทดสอบระบบอัตโนมัติ:</span>
+                <span className="text-[11px] text-slate-400 font-bold">จำลองออเดอร์ Klikit:</span>
                 <button
                   type="button"
                   disabled={testingWebhook}
@@ -711,7 +731,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/50 text-emerald-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  <span>⚡ ยิงจำลองออเดอร์ LINE MAN</span>
+                  <span>⚡ ยิงจำลอง LINE MAN</span>
                 </button>
                 <button
                   type="button"
@@ -720,7 +740,25 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/50 text-emerald-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  <span>⚡ ยิงจำลองออเดอร์ GrabFood</span>
+                  <span>⚡ ยิงจำลอง GrabFood</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={testingWebhook}
+                  onClick={() => handleTestWebhook('SHOPEE_FOOD')}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600/30 hover:bg-amber-600 border border-amber-500/50 text-amber-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>⚡ ยิงจำลอง ShopeeFood</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={testingWebhook}
+                  onClick={() => handleTestWebhook('CANCEL')}
+                  className="px-3 py-1.5 rounded-xl bg-red-600/30 hover:bg-red-600 border border-red-500/50 text-red-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>🚫 ยิงจำลองยกเลิกออเดอร์</span>
                 </button>
               </div>
             </div>

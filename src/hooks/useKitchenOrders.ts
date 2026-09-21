@@ -191,7 +191,7 @@ export function useKitchenOrders({
         if (payload.type === 'ORDER_CREATED') {
           const orderData = payload.data || payload.order;
           const ch = orderData?.orderChannel;
-          const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(ch);
+          const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD', 'FOODPANDA', 'KLIKIT'].includes(ch);
           if (soundEnabled) {
             if (isDelivery) {
               playDeliveryChime();
@@ -208,6 +208,10 @@ export function useKitchenOrders({
                 ? 'GrabFood'
                 : ch === 'SHOPEE_FOOD'
                 ? 'ShopeeFood'
+                : ch === 'FOODPANDA'
+                ? 'foodpanda'
+                : ch === 'KLIKIT'
+                ? 'Klikit'
                 : 'Robinhood';
             showInfo(`🛵 ออเดอร์เดลิเวอรีเข้าใหม่ (${label})`, `#${orderData?.deliveryOrderId || orderData?.id?.slice(-4)}`);
           } else {
@@ -503,7 +507,7 @@ export function useKitchenOrders({
     () =>
       orders.filter(
         (o) =>
-          ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(o.orderChannel) &&
+          ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD', 'FOODPANDA', 'KLIKIT'].includes(o.orderChannel) &&
           ['PENDING', 'COOKING', 'READY'].includes(o.status)
       ).length,
     [orders]
@@ -513,7 +517,7 @@ export function useKitchenOrders({
     return orders.filter((order) => {
       if (filterStatus === 'DELIVERY') {
         return (
-          ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(order.orderChannel) &&
+          ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD', 'FOODPANDA', 'KLIKIT'].includes(order.orderChannel) &&
           ['PENDING', 'COOKING', 'READY'].includes(order.status)
         );
       }

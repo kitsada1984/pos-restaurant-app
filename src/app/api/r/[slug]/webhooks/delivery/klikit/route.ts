@@ -7,13 +7,10 @@ export async function POST(
 ) {
   try {
     const payload = await request.json();
-    if (!payload.channel && !payload.platform) {
-      payload.channel = 'LINEMAN';
-    }
     const result = await processDeliveryWebhook(params.slug, payload, request.headers);
     return NextResponse.json(result.body, { status: result.status });
   } catch (err: any) {
-    console.error('LINE MAN legacy webhook error:', err);
+    console.error('Klikit webhook route error:', err);
     return NextResponse.json({ error: 'Invalid JSON or webhook request' }, { status: 400 });
   }
 }
