@@ -55,9 +55,9 @@ export function cleanDishName(rawName: string): string {
  */
 export function detectReceiptChannel(text: string): ParsedReceipt['channel'] {
   const upper = text.toUpperCase();
-  if (upper.includes('LINE MAN') || upper.includes('WONGNAI') || upper.includes('LM-')) return 'LINEMAN';
+  if (upper.includes('LINEMAN') || upper.includes('LINE MAN') || upper.includes('WONGNAI') || upper.includes('LM-')) return 'LINEMAN';
   if (upper.includes('GRAB') || upper.includes('GRABFOOD') || upper.includes('GF-')) return 'GRAB';
-  if (upper.includes('SHOPEE') || upper.includes('SHOPEEFOOD') || upper.includes('SF-')) return 'SHOPEE_FOOD';
+  if (upper.includes('SHOPEE_FOOD') || upper.includes('SHOPEE') || upper.includes('SHOPEEFOOD') || upper.includes('SF-')) return 'SHOPEE_FOOD';
   if (upper.includes('ROBINHOOD') || upper.includes('RH-')) return 'ROBINHOOD';
   if (upper.includes('FOODPANDA') || upper.includes('PANDA') || upper.includes('FP-')) return 'FOODPANDA';
   return 'PRINT_PROXY';

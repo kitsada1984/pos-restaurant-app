@@ -1,0 +1,45 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Lint, Typecheck, Test & Build
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/pos_test"
+      DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/pos_test"
+      JWT_SECRET: "ci_secret_key_for_testing_purposes_only_32_chars_minimum"
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Type Check (Strict)
+        run: npx tsc --noEmit
+
+      - name: Lint Check
+        run: npm run lint
+
+      - name: Run Unit & Integration Tests
+        run: npm test
+
+      - name: Build Next.js Production Bundle
+        run: npm run build
