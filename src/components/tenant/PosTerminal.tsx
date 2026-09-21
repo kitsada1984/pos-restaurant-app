@@ -814,10 +814,11 @@ export default function PosTerminal({
                 return (
                   <div
                     key={order.id}
-                    className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
+                    className="bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col justify-between"
                   >
+                    {/* Card Header: 2-tier structured layout */}
                     <div
-                      className={`p-4 text-white flex items-center justify-between ${
+                      className={`p-3.5 sm:p-4 text-white ${
                         isLineman
                           ? 'bg-[#06C755]'
                           : isGrab
@@ -827,52 +828,95 @@ export default function PosTerminal({
                           : 'bg-slate-800'
                       }`}
                     >
-                      <div className="flex items-center space-x-2">
-                        <span className="text-base font-black">
-                          {isLineman ? '🛵 LINE MAN' : isGrab ? '🛵 GrabFood' : isShopee ? '🛵 ShopeeFood' : '🛵 เดลิเวอรี'}
+                      {/* Row 1: Brand badge + Time */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/20 backdrop-blur-xs font-black text-xs tracking-wide">
+                          <span className="text-sm">🛵</span>
+                          <span>{isLineman ? 'LINE MAN' : isGrab ? 'GrabFood' : isShopee ? 'ShopeeFood' : 'เดลิเวอรี'}</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-white/90 bg-black/15 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                          <span>🕒</span>
+                          <span>{formatTime(order.createdAt)} น.</span>
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-black/20">
+                      </div>
+
+                      {/* Row 2: Order ID + Status Pill */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-2xs">
                           #{order.deliveryOrderId || order.id.slice(-4)}
                         </span>
-                        {isServed && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/30 text-white">
-                            ✨ เสิร์ฟแล้ว
-                          </span>
-                        )}
-                        {isReady && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-300 text-emerald-950">
-                            🔔 พร้อมส่ง
-                          </span>
-                        )}
+                        <div>
+                          {isServed ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-white/25 text-white border border-white/30 shadow-2xs backdrop-blur-xs">
+                              <span>✨</span>
+                              <span>เสิร์ฟแล้ว</span>
+                            </span>
+                          ) : isReady ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-300 text-amber-950 shadow-xs">
+                              <span>🔔</span>
+                              <span>พร้อมส่ง</span>
+                            </span>
+                          ) : isCooking ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-400 text-amber-950 shadow-xs">
+                              <span>🍳</span>
+                              <span>กำลังปรุง</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-white/20 text-white">
+                              <span>⏳</span>
+                              <span>รอครัวทำ</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-xs font-bold">{formatTime(order.createdAt)}</span>
                     </div>
 
-                    <div className="p-4 space-y-3 flex-1">
-                      {order.riderName && (
-                        <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center justify-between">
-                          <span>👤 ไรเดอร์: <strong className="text-slate-900">{order.riderName}</strong></span>
-                          {order.riderPhone && <span className="text-[11px] text-slate-500">📞 {order.riderPhone}</span>}
-                        </div>
-                      )}
-
-                      <div className="space-y-1.5 divide-y divide-slate-100">
-                        {order.items?.map((item: any) => (
-                          <div key={item.id} className="pt-1.5 first:pt-0 flex items-center justify-between text-xs">
-                            <span className="font-bold text-slate-900 truncate">
-                              {item.name} x {item.quantity}
+                    {/* Card Content & Items */}
+                    <div className="p-3.5 sm:p-4 space-y-3 flex-1 flex flex-col justify-between">
+                      <div className="space-y-2.5">
+                        {order.riderName && (
+                          <div className="text-[11px] text-slate-700 bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center justify-between gap-1">
+                            <span className="font-bold truncate flex items-center gap-1.5">
+                              <span>👤</span>
+                              <span className="truncate">{order.riderName}</span>
                             </span>
-                            <span className="text-slate-600 font-semibold flex-shrink-0 ml-2">
-                              ฿{item.price * item.quantity}
-                            </span>
+                            {order.riderPhone && (
+                              <a href={`tel:${order.riderPhone}`} className="text-emerald-600 font-bold hover:underline shrink-0 text-[10px]">
+                                📞 {order.riderPhone}
+                              </a>
+                            )}
                           </div>
-                        ))}
+                        )}
+
+                        <div className="space-y-1.5 divide-y divide-slate-100">
+                          {order.items?.map((item: any) => (
+                            <div key={item.id} className="pt-1.5 first:pt-0 flex items-start justify-between text-xs gap-2">
+                              <div className="flex items-start gap-1.5 min-w-0">
+                                <span className="font-black text-slate-400 text-[11px] shrink-0 mt-0.5">
+                                  {item.quantity}x
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-slate-900 leading-snug break-words">
+                                    {item.name}
+                                  </p>
+                                  {item.specialNote && (
+                                    <p className="text-[10px] text-amber-700 font-semibold mt-0.5">💬 {item.specialNote}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <span className="text-slate-700 font-bold shrink-0 ml-1">
+                                ฿{item.price * item.quantity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
-                      <div className="pt-3 border-t border-slate-100 space-y-1 text-xs">
-                        <div className="flex justify-between text-slate-500">
+                      {/* Pricing Summary */}
+                      <div className="pt-2 mt-2 border-t border-slate-100 space-y-1 text-xs">
+                        <div className="flex justify-between text-slate-500 text-[11px]">
                           <span>ยอดรวมออเดอร์ (Gross):</span>
-                          <span className="font-bold text-slate-800">฿{order.totalAmount}</span>
+                          <span className="font-bold text-slate-700">฿{order.totalAmount}</span>
                         </div>
                         {order.gpPercent > 0 && (
                           <div className="flex justify-between text-rose-600 text-[11px]">
@@ -880,14 +924,15 @@ export default function PosTerminal({
                             <span>-฿{order.gpAmount}</span>
                           </div>
                         )}
-                        <div className="flex justify-between font-black text-slate-900 pt-1 border-t border-slate-100">
-                          <span>รายได้สุทธิ (Net):</span>
-                          <span className="text-emerald-600 text-sm">฿{order.netRevenue || order.netAmount}</span>
+                        <div className="flex justify-between items-baseline pt-1.5 border-t border-slate-100">
+                          <span className="font-bold text-slate-700 text-xs">รายได้สุทธิ (Net):</span>
+                          <span className="text-emerald-600 text-base font-black">฿{order.netRevenue || order.netAmount}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-3 bg-slate-50 border-t border-slate-100 space-y-2">
+                    {/* Card Actions Bottom */}
+                    <div className="p-3 bg-slate-50/90 border-t border-slate-100 space-y-2">
                       {/* Secondary status buttons if not yet served/ready */}
                       {(isPending || isCooking) && (
                         <div className="flex items-center gap-2">
@@ -910,13 +955,13 @@ export default function PosTerminal({
                         </div>
                       )}
 
-                      {/* Prominent Always-Available Button to Clear/Complete Order */}
+                      {/* Main Prominent Handover Button */}
                       <button
                         type="button"
                         onClick={() => handleUpdateDeliveryStatus(order.id, 'COMPLETED')}
-                        className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white font-black text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-sm transition-all active:scale-95 cursor-pointer group"
+                        className="w-full h-11 px-3 rounded-2xl bg-slate-900 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black text-xs sm:text-[13px] flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all duration-150 active:scale-98 cursor-pointer group"
                       >
-                        <span className="text-base group-hover:scale-110 transition-transform">🛵</span>
+                        <span className="text-sm group-hover:scale-110 transition-transform">🛵</span>
                         <span>ไรเดอร์รับอาหารแล้ว (เคลียร์ออเดอร์)</span>
                       </button>
                     </div>
