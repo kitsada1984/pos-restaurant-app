@@ -255,20 +255,24 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
 
         <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full md:w-auto">
           <button
+            type="button"
+            data-sound="pop"
             onClick={() => setIsBatchModalOpen(true)}
-            className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-[11px] sm:text-xs flex items-center justify-center space-x-1.5 transition-all"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-800 font-extrabold text-[11px] sm:text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer ring-0 active:ring-2 active:ring-slate-300"
           >
             <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
             <span>+ เพิ่มหลายโต๊ะ</span>
           </button>
 
           <button
+            type="button"
+            data-sound="pop"
             onClick={() => {
               const highest = tables.reduce((max, t) => Math.max(max, t.tableNo || t.id || 0), 0);
               setAddForm({ id: String(highest + 1), name: `โต๊ะ ${highest + 1}` });
               setIsAddModalOpen(true);
             }}
-            className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-[11px] sm:text-xs shadow-md shadow-orange-500/25 flex items-center justify-center space-x-1.5 transition-all"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold text-[11px] sm:text-xs shadow-md shadow-orange-500/25 flex items-center justify-center space-x-1.5 transition-all cursor-pointer ring-2 ring-orange-400/40"
           >
             <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>+ เพิ่มโต๊ะใหม่</span>
@@ -293,10 +297,12 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
           {['ALL', 'AVAILABLE', 'OCCUPIED'].map((st) => (
             <button
               key={st}
+              type="button"
+              data-sound="pop"
               onClick={() => setStatusFilter(st as any)}
-              className={`py-2 px-1.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
+              className={`py-2 px-1.5 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all duration-75 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none text-center truncate cursor-pointer ${
                 statusFilter === st
-                  ? 'bg-slate-900 text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/30'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -340,18 +346,22 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
 
                 <div className="flex items-center space-x-1">
                   <button
+                    type="button"
+                    data-sound="tap"
                     onClick={() => {
                       setEditingTable({ ...table });
                       setIsEditModalOpen(true);
                     }}
-                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
+                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 active:scale-90 active:translate-y-0.5 select-none duration-75 text-slate-600 transition-all cursor-pointer ring-0 active:ring-2 active:ring-slate-300"
                     title="แก้ไขชื่อโต๊ะ"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
+                    type="button"
+                    data-sound="delete"
                     onClick={() => handleDeleteTable(table)}
-                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600"
+                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 active:scale-90 active:translate-y-0.5 select-none duration-75 text-rose-600 transition-all cursor-pointer ring-0 active:ring-2 active:ring-rose-300"
                     title="ลบโต๊ะนี้"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -362,11 +372,13 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
               {/* QR and Table Link Actions */}
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                 <button
+                  type="button"
+                  data-sound="tap"
                   onClick={() => {
                     setSelectedQrTable(table);
                     setIsQrModalOpen(true);
                   }}
-                  className="font-bold text-orange-600 hover:text-orange-700 flex items-center space-x-1"
+                  className="font-bold text-orange-600 hover:text-orange-700 active:scale-95 active:translate-y-0.5 select-none duration-75 flex items-center space-x-1 transition-all cursor-pointer"
                 >
                   <QrCode className="w-3.5 h-3.5" />
                   <span>ดู QR Code</span>
@@ -375,7 +387,8 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
                 <Link
                   href={`/r/${slug}/table/${tableNo}`}
                   target="_blank"
-                  className="font-bold text-slate-500 hover:text-slate-900 flex items-center space-x-1"
+                  data-sound="tap"
+                  className="font-bold text-slate-500 hover:text-slate-900 active:scale-95 active:translate-y-0.5 select-none duration-75 flex items-center space-x-1 transition-all cursor-pointer"
                 >
                   <span>จำลองสั่ง</span>
                   <ExternalLink className="w-3 h-3" />
@@ -383,8 +396,10 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
 
                 {isOccupied && (
                   <button
+                    type="button"
+                    data-sound="delete"
                     onClick={() => handleClearTable(table)}
-                    className="text-[11px] font-bold text-slate-400 hover:text-rose-600"
+                    className="text-[11px] font-bold text-slate-400 hover:text-rose-600 active:scale-95 active:translate-y-0.5 select-none duration-75 transition-all cursor-pointer"
                     title="เคลียร์สถานะเป็นว่าง"
                   >
                     เคลียร์สถานะ
@@ -399,10 +414,15 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
       {/* Add Single Table Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-base text-slate-900">+ เพิ่มโต๊ะใหม่</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                data-sound="tap"
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 active:scale-90 select-none duration-75 transition-all cursor-pointer"
+              >
                 ✕
               </button>
             </div>
@@ -434,15 +454,17 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
               <div className="flex items-center space-x-2 pt-2">
                 <button
                   type="button"
+                  data-sound="tap"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-600 font-bold transition-all cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
+                  data-sound="success"
                   disabled={isSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold shadow-md disabled:opacity-50"
+                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold shadow-md shadow-orange-500/20 disabled:opacity-50 transition-all cursor-pointer ring-2 ring-orange-400/40"
                 >
                   {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกโต๊ะ'}
                 </button>
@@ -455,10 +477,15 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
       {/* Batch Add Modal */}
       {isBatchModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-base text-slate-900">+ เพิ่มหลายโต๊ะด่วน</h3>
-              <button onClick={() => setIsBatchModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                data-sound="tap"
+                onClick={() => setIsBatchModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 active:scale-90 select-none duration-75 transition-all cursor-pointer"
+              >
                 ✕
               </button>
             </div>
@@ -470,9 +497,10 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
                 <button
                   key={num}
                   type="button"
+                  data-sound="pop"
                   onClick={() => handleBatchAdd(num)}
                   disabled={isSubmitting}
-                  className="py-3 rounded-2xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 font-extrabold text-sm transition-all"
+                  className="py-3 rounded-2xl bg-orange-50 hover:bg-orange-100 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 border border-orange-200 text-orange-700 font-extrabold text-sm transition-all cursor-pointer ring-0 active:ring-2 active:ring-orange-300"
                 >
                   +{num} โต๊ะ
                 </button>
@@ -482,8 +510,9 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
             <div className="pt-2">
               <button
                 type="button"
+                data-sound="tap"
                 onClick={() => setIsBatchModalOpen(false)}
-                className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-600 text-xs font-bold transition-all cursor-pointer"
               >
                 ปิด
               </button>
@@ -495,10 +524,15 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
       {/* Edit Table Modal */}
       {isEditModalOpen && editingTable && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-base text-slate-900">แก้ไขชื่อ {editingTable.name}</h3>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                data-sound="tap"
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 active:scale-90 select-none duration-75 transition-all cursor-pointer"
+              >
                 ✕
               </button>
             </div>
@@ -518,15 +552,17 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
               <div className="flex items-center space-x-2 pt-2">
                 <button
                   type="button"
+                  data-sound="tap"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-600 font-bold transition-all cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
+                  data-sound="success"
                   disabled={isSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold shadow-md disabled:opacity-50"
+                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold shadow-md shadow-orange-500/20 disabled:opacity-50 transition-all cursor-pointer ring-2 ring-orange-400/40"
                 >
                   {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
                 </button>
@@ -539,10 +575,15 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
       {/* QR Code Pop-up Modal */}
       {isQrModalOpen && selectedQrTable && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-2xl border border-slate-200 text-center">
+          <div className="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-2xl border border-slate-200 text-center animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-base text-slate-900">{selectedQrTable.name}</h3>
-              <button onClick={() => setIsQrModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                data-sound="tap"
+                onClick={() => setIsQrModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 active:scale-90 select-none duration-75 transition-all cursor-pointer"
+              >
                 ✕
               </button>
             </div>
@@ -559,8 +600,10 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
             </p>
 
             <button
+              type="button"
+              data-sound="tap"
               onClick={() => window.print()}
-              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center space-x-1.5"
+              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-md ring-2 ring-slate-900/30"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>พิมพ์ QR Code นี้</span>

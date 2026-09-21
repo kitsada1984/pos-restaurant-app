@@ -67,8 +67,10 @@ export default function AdminQrCodesView({ slug = 'lung-pa' }: { slug?: string }
           </div>
 
           <button
+            type="button"
+            data-sound="tap"
             onClick={handlePrint}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold flex items-center justify-center space-x-2 shadow-md shadow-orange-500/25 transition-all"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white text-xs font-extrabold flex items-center justify-center space-x-2 shadow-md shadow-orange-500/25 transition-all cursor-pointer ring-2 ring-orange-400/40"
           >
             <Printer className="w-4 h-4" />
             <span>สั่งพิมพ์ทุกโต๊ะ (Print A4)</span>
@@ -108,7 +110,8 @@ export default function AdminQrCodesView({ slug = 'lung-pa' }: { slug?: string }
                   <Link
                     href={`/r/${slug}/table/${tNo}`}
                     target="_blank"
-                    className="inline-flex items-center space-x-1 text-xs font-bold text-orange-600 hover:text-orange-700"
+                    data-sound="tap"
+                    className="inline-flex items-center space-x-1 text-xs font-bold text-orange-600 hover:text-orange-700 active:scale-95 active:translate-y-0.5 select-none duration-75 transition-all"
                   >
                     <span>เปิดทดสอบลิงก์</span>
                     <ExternalLink className="w-3 h-3" />
