@@ -559,8 +559,11 @@ export default function PosTerminal({
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {
-        if (newStatus === 'COMPLETED' || newStatus === 'SERVED') {
-          showSuccess('ไรเดอร์รับอาหารแล้ว 🛵✨', 'ออเดอร์เดลิเวอรีเสร็จสมบูรณ์');
+        if (newStatus === 'COMPLETED') {
+          showSuccess('ไรเดอร์รับอาหารแล้ว 🛵✨', 'เคลียร์ออเดอร์และบันทึกยอดขายเรียบร้อย');
+          playSuccessChime();
+        } else if (newStatus === 'SERVED') {
+          showSuccess('เสิร์ฟอาหารแล้ว ✨', 'ออเดอร์เดลิเวอรีเสร็จสมบูรณ์');
           playSuccessChime();
         } else if (newStatus === 'READY') {
           showSuccess('ปรุงเสร็จแล้ว 🔔', 'พร้อมส่งมอบให้ไรเดอร์');
@@ -572,6 +575,26 @@ export default function PosTerminal({
       }
     } catch (err) {
       showError('ไม่สามารถอัปเดตสถานะได้');
+    }
+  };
+
+  const handleClearAllDeliveries = async () => {
+    if (deliveryOrders.length === 0) return;
+    try {
+      await Promise.all(
+        deliveryOrders.map((o) =>
+          fetch(`/api/r/${slug}/orders/${o.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'COMPLETED' }),
+          })
+        )
+      );
+      showSuccess('ไรเดอร์รับครบทุกออเดอร์แล้ว 🛵✨', `เคลียร์ ${deliveryOrders.length} ออเดอร์และบันทึกยอดขายเรียบร้อย`);
+      playSuccessChime();
+      fetchData();
+    } catch (err) {
+      showError('ไม่สามารถเคลียร์ออเดอร์ได้');
     }
   };
 
@@ -742,17 +765,29 @@ export default function PosTerminal({
       {/* Delivery Hub View (when Delivery filter is active) */}
       {statusFilter === 'DELIVERY' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
               <span>🛵 รายการออเดอร์เดลิเวอรีที่กำลังดำเนินการ</span>
               <span className="text-xs font-bold text-slate-500">({deliveryOrders.length} ออเดอร์)</span>
             </h2>
-            <button
-              onClick={() => handleOpenDeliveryModal('LINEMAN')}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold hover:bg-emerald-700 shadow-sm whitespace-nowrap flex-shrink-0 transition-all cursor-pointer active:scale-95"
-            >
-              + คีย์ออเดอร์ LINE MAN / Grab
-            </button>
+            <div className="flex items-center gap-2">
+              {deliveryOrders.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllDeliveries}
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 text-xs font-bold transition-all cursor-pointer active:scale-95 flex items-center space-x-1"
+                >
+                  <span>🧹 เคลียร์ทั้งหมด ({deliveryOrders.length})</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleOpenDeliveryModal('LINEMAN')}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold hover:bg-emerald-700 shadow-sm whitespace-nowrap flex-shrink-0 transition-all cursor-pointer active:scale-95"
+              >
+                + คีย์ออเดอร์ LINE MAN / Grab
+              </button>
+            </div>
           </div>
 
           {deliveryOrders.length === 0 ? (
@@ -774,6 +809,7 @@ export default function PosTerminal({
                 const isPending = order.status === 'PENDING';
                 const isCooking = order.status === 'COOKING';
                 const isReady = order.status === 'READY';
+                const isServed = order.status === 'SERVED';
 
                 return (
                   <div
@@ -798,6 +834,16 @@ export default function PosTerminal({
                         <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-black/20">
                           #{order.deliveryOrderId || order.id.slice(-4)}
                         </span>
+                        {isServed && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/30 text-white">
+                            ✨ เสิร์ฟแล้ว
+                          </span>
+                        )}
+                        {isReady && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-300 text-emerald-950">
+                            🔔 พร้อมส่ง
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs font-bold">{formatTime(order.createdAt)}</span>
                     </div>
@@ -841,31 +887,38 @@ export default function PosTerminal({
                       </div>
                     </div>
 
-                    <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
-                      {isPending && (
-                        <button
-                          onClick={() => handleUpdateDeliveryStatus(order.id, 'COOKING')}
-                          className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition-all"
-                        >
-                          🍳 เริ่มปรุง
-                        </button>
-                      )}
+                    <div className="p-3 bg-slate-50 border-t border-slate-100 space-y-2">
+                      {/* Secondary status buttons if not yet served/ready */}
                       {(isPending || isCooking) && (
-                        <button
-                          onClick={() => handleUpdateDeliveryStatus(order.id, 'READY')}
-                          className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-all"
-                        >
-                          🔔 ปรุงเสร็จแล้ว
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {isPending && (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateDeliveryStatus(order.id, 'COOKING')}
+                              className="flex-1 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition-all cursor-pointer shadow-xs active:scale-95"
+                            >
+                              🍳 เริ่มปรุง
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateDeliveryStatus(order.id, 'READY')}
+                            className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-all cursor-pointer shadow-xs active:scale-95"
+                          >
+                            🔔 ปรุงเสร็จแล้ว
+                          </button>
+                        </div>
                       )}
-                      {isReady && (
-                        <button
-                          onClick={() => handleUpdateDeliveryStatus(order.id, 'COMPLETED')}
-                          className="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs transition-all shadow-sm"
-                        >
-                          🛵 ไรเดอร์รับอาหารแล้ว (เสร็จสิ้น)
-                        </button>
-                      )}
+
+                      {/* Prominent Always-Available Button to Clear/Complete Order */}
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateDeliveryStatus(order.id, 'COMPLETED')}
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white font-black text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-sm transition-all active:scale-95 cursor-pointer group"
+                      >
+                        <span className="text-base group-hover:scale-110 transition-transform">🛵</span>
+                        <span>ไรเดอร์รับอาหารแล้ว (เคลียร์ออเดอร์)</span>
+                      </button>
                     </div>
                   </div>
                 );
