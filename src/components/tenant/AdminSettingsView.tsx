@@ -36,6 +36,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
   const [testingGoogleDrive, setTestingGoogleDrive] = useState(false);
   const [googleDriveTestResult, setGoogleDriveTestResult] = useState<{ success: boolean; message: string; viewUrl?: string } | null>(null);
   const [showScriptGuide, setShowScriptGuide] = useState(false);
+  const [showProxyGuide, setShowProxyGuide] = useState(false);
   const [bankNotifyTab, setBankNotifyTab] = useState<'EMAIL' | 'APP'>('EMAIL');
 
   const [form, setForm] = useState<{
@@ -316,7 +317,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
   const handleTestWebhook = async (channel: 'LINEMAN' | 'GRAB' | 'SHOPEE_FOOD' | 'CANCEL') => {
     setTestingWebhook(true);
     try {
-      const endpoint = `/api/r/${slug}/webhooks/delivery/klikit`;
+      const endpoint = `/api/r/${slug}/webhooks/delivery/print-proxy`;
       let mockPayload: any;
 
       if (channel === 'CANCEL') {
@@ -324,7 +325,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
         mockPayload = {
           event: 'ORDER_CANCELLED',
           orderId: orderIdToCancel,
-          reason: 'ลูกค้ายกเลิกผ่านแอปเดลิเวอรี (Klikit)',
+          reason: 'ลูกค้ายกเลิกผ่านแอปเดลิเวอรี (Print Proxy)',
           cancelReason: 'Customer requested cancellation via delivery app',
         };
       } else if (channel === 'LINEMAN') {
@@ -333,24 +334,29 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
         mockPayload = {
           channel: 'LINEMAN',
           orderId: newOrderId,
-          rider: { name: 'สมชาย พุ่มพวง (LINE MAN Rider)', phone: '0891234567' },
-          customer: { name: 'คุณเอกชัย (ลูกค้า LINE MAN)' },
+          riderName: 'สมชาย พุ่มพวง (LINE MAN Rider)',
+          riderPhone: '0891234567',
+          customerName: 'คุณเอกชัย (ลูกค้า LINE MAN)',
           items: [
-            { name: 'ข้าวกะเพราหมูกรอบ', price: 65, quantity: 1, instruction: 'เผ็ดกลาง ไม่ใส่ชูรส' },
-            { name: 'ไข่ดาว', price: 10, quantity: 1 },
+            { name: '1x [โปรคุ้ม] ข้าวกะเพราหมูกรอบ (ไข่ดาว)', price: 75, quantity: 1, specialNote: 'เผ็ดกลาง ไม่ใส่ชูรส' },
+            { name: 'ต้มยำกุ้งน้ำข้น', price: 80, quantity: 1, specialNote: 'ขอเห็ดเยอะๆ' },
           ],
-          note: 'ทดสอบส่ง Webhook ผ่านตัวกลาง Klikit (LINE MAN)',
+          note: 'ดักจับจากเครื่องพิมพ์บลูทูธ (Wongnai Merchant App)',
         };
       } else if (channel === 'GRAB') {
         const newOrderId = `GF-${Math.floor(1000 + Math.random() * 9000)}`;
         setLastTestDeliveryOrderId(newOrderId);
         mockPayload = {
           channel: 'GRAB',
-          shortOrderNumber: newOrderId,
-          driver: { name: 'วิชัย ใจดี (GrabFood Driver)', phone: '0819876543' },
-          consumer: { name: 'คุณกิตติ (ลูกค้า GrabFood)' },
-          items: [{ name: 'ข้าวผัดหมู', price: 55, quantity: 2, instruction: 'ขอพริกน้ำปลาเยอะๆ' }],
-          specialInstructions: 'ทดสอบส่ง Webhook ผ่านตัวกลาง Klikit (GrabFood)',
+          orderId: newOrderId,
+          riderName: 'วิชัย ใจดี (GrabFood Driver)',
+          riderPhone: '0819876543',
+          customerName: 'คุณกิตติ (ลูกค้า GrabFood)',
+          items: [
+            { name: '2x ข้าวผัดหมู', price: 55, quantity: 2, specialNote: 'ขอพริกน้ำปลาเยอะๆ' },
+            { name: 'ไข่ดาวสุก', price: 10, quantity: 2 },
+          ],
+          note: 'ดักจับจากเครื่องพิมพ์บลูทูธ (GrabMerchant App)',
         };
       } else {
         const newOrderId = `SF-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -358,13 +364,14 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
         mockPayload = {
           channel: 'SHOPEE_FOOD',
           orderId: newOrderId,
-          rider: { name: 'สุรชัย ว่องไว (ShopeeFood Rider)', phone: '0854321098' },
-          customer: { name: 'คุณพิมพ์ใจ (ลูกค้า ShopeeFood)' },
+          riderName: 'สุรชัย ว่องไว (ShopeeFood Rider)',
+          riderPhone: '0854321098',
+          customerName: 'คุณพิมพ์ใจ (ลูกค้า ShopeeFood)',
           items: [
-            { name: 'ข้าวกะเพราหมูกรอบ', price: 65, quantity: 1, instruction: 'เผ็ดน้อย' },
-            { name: 'ไข่เจียว', price: 15, quantity: 1 },
+            { name: '1x ข้าวกะเพราหมูกรอบ', price: 65, quantity: 1, specialNote: 'เผ็ดน้อย' },
+            { name: 'ไข่เจียวหมูสับ', price: 30, quantity: 1 },
           ],
-          note: 'ทดสอบส่ง Webhook ผ่านตัวกลาง Klikit (ShopeeFood)',
+          note: 'ดักจับจากเครื่องพิมพ์บลูทูธ (Shopee Partner App)',
         };
       }
 
@@ -372,7 +379,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(form.deliveryWebhookSecret ? { 'x-klikit-signature': form.deliveryWebhookSecret } : {}),
+          ...(form.deliveryWebhookSecret ? { 'x-proxy-signature': form.deliveryWebhookSecret } : {}),
         },
         body: JSON.stringify(mockPayload),
       });
@@ -383,12 +390,12 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
           showSuccess('จำลองยกเลิกออเดอร์สำเร็จ! 🚫✨', `ออเดอร์ ${mockPayload.orderId} เปลี่ยนเป็นยกเลิกและคืนสต็อกเรียบร้อย`);
         } else {
           showSuccess(
-            `ยิง Webhook Klikit (${channel}) สำเร็จ! 🛵✨`,
-            `ออเดอร์ #${data.deliveryOrderId || mockPayload.orderId} เด้งเข้าจอครัว KDS และตัดสต็อกอัตโนมัติแล้ว`
+            `ยิงสลิปจำลอง (${channel}) สำเร็จ! 🖨️✨`,
+            `ออเดอร์ #${data.deliveryOrderId || mockPayload.orderId} เข้าจอครัว KDS และตัดสต็อกอัตโนมัติแล้ว`
           );
         }
       } else {
-        showError('ยิง Webhook ไม่สำเร็จ', data.error || 'ตรวจสอบ Secret Token หรือการเชื่อมต่อ');
+        showError('ยิงสลิปจำลองไม่สำเร็จ', data.error || 'ตรวจสอบ Secret Token หรือการเชื่อมต่อ');
       }
     } catch (e: any) {
       showError('เกิดข้อผิดพลาดในการทดสอบ Webhook', e?.message);
@@ -668,36 +675,36 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
             </div>
           </div>
 
-          {/* Unified Klikit Webhook Integration Card */}
+          {/* Virtual Print Proxy Webhook Integration Card */}
           <div className="mt-4 p-4 rounded-2xl bg-slate-900 text-white space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center space-x-2">
-                <Zap className="w-4 h-4 text-amber-400" />
-                <h4 className="text-xs font-black">🚀 ระบบเชื่อมต่อเดลิเวอรีผ่านตัวกลาง Klikit (klikit.io Unified Delivery Hub)</h4>
+                <Printer className="w-4 h-4 text-amber-400" />
+                <h4 className="text-xs font-black">🖨️ ระบบรับออเดอร์เดลิเวอรีผ่านเครื่องพิมพ์เสมือน (Virtual Print Proxy Hub)</h4>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white">
-                เชื่อมต่อจุดเดียว ครอบคลุมทุกค่าย
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white self-start sm:self-auto">
+                ฟรี 0 บ. • ปลอดภัย 100% ไม่โดนแบน
               </span>
             </div>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              นำ Webhook URL ด้านล่างนี้ไปผูกในระบบ <span className="text-amber-300 font-bold">Klikit Portal (klikit.io)</span> เพียงจุดเดียว ระบบจะรับออเดอร์เดลิเวอรีทุกแพลตฟอร์ม (LINE MAN, Grab, ShopeeFood, Foodpanda, Robinhood) เข้าสู่หน้าจอแคชเชียร์ POS และจอครัว KDS อัตโนมัติ พร้อมคำนวณหัก GP ตามค่าย และตัดสต็อกวัตถุดิบทันที
+              ดักจับข้อความการพิมพ์จากแอป <span className="text-amber-300 font-bold">Wongnai Merchant (LINE MAN)</span>, <span className="text-emerald-300 font-bold">GrabMerchant</span> หรือ <span className="text-orange-300 font-bold">Shopee Partner</span> บนมือถือ ส่งเข้าหน้าจอแคชเชียร์ POS และจอครัว KDS อัตโนมัติ พร้อมส่งต่อให้พิมพ์กระดาษจริงในครัว (Pass-through) โดยไม่ต้องเสียค่าบริการรายเดือนใดๆ ทั้งสิ้น
             </p>
 
             <div className="space-y-2 text-xs">
-              {/* Klikit Unified Webhook URL */}
+              {/* Print Proxy Webhook URL */}
               <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-between gap-2">
                 <div className="truncate">
-                  <span className="text-[10px] text-amber-400 font-bold block">🌐 Klikit Unified Webhook URL:</span>
+                  <span className="text-[10px] text-amber-400 font-bold block">🌐 Print Proxy Webhook URL:</span>
                   <code className="text-[11px] text-slate-200 font-mono select-all truncate block">
-                    {currentOrigin ? `${currentOrigin}/api/r/${slug}/webhooks/delivery/klikit` : `/api/r/${slug}/webhooks/delivery/klikit`}
+                    {currentOrigin ? `${currentOrigin}/api/r/${slug}/webhooks/delivery/print-proxy` : `/api/r/${slug}/webhooks/delivery/print-proxy`}
                   </code>
                 </div>
                 <button
                   type="button"
                   onClick={() =>
                     handleCopy(
-                      `${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/delivery/klikit`,
-                      'Klikit Webhook URL'
+                      `${currentOrigin || 'https://pos-restaurant-app-psi.vercel.app'}/api/r/${slug}/webhooks/delivery/print-proxy`,
+                      'Print Proxy Webhook URL'
                     )
                   }
                   className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-black flex items-center space-x-1 flex-shrink-0 transition-all"
@@ -710,28 +717,76 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
               {/* Secret Token Field */}
               <div className="pt-2">
                 <label className="block text-slate-300 font-bold text-[11px] mb-1">
-                  Klikit Webhook Secret / Signature Token (รหัสความปลอดภัยจาก Klikit)
+                  Print Proxy Security Token (รหัสความปลอดภัยสำหรับจับคู่กับเครื่องพิมพ์เสมือน)
                 </label>
                 <input
                   type="text"
-                  placeholder="เช่น klikit_sec_xxxx หรือ token ยืนยันความถูกต้อง"
+                  placeholder="เช่น proxy_secret_key_xxxx หรือเว้นว่างไว้เพื่อเปิดรับอัตโนมัติ"
                   value={form.deliveryWebhookSecret}
                   onChange={(e) => setForm({ ...form, deliveryWebhookSecret: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
 
+              {/* Collapsible Setup Guide */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowProxyGuide(!showProxyGuide)}
+                  className="w-full p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-amber-300 text-xs font-bold flex items-center justify-between transition-all"
+                >
+                  <span className="flex items-center space-x-2">
+                    <span>📖 ดูคู่มือการตั้งค่าเครื่องพิมพ์เสมือน 3 สเต็ปง่ายๆ</span>
+                  </span>
+                  {showProxyGuide ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showProxyGuide && (
+                  <div className="mt-2 p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-300 space-y-2.5 leading-relaxed">
+                    <p className="font-bold text-white text-xs border-b border-slate-800 pb-1.5">
+                      🚀 วิธีเชื่อมต่อให้บิลจากแอปเดลิเวอรีไหลเข้า POS อัตโนมัติ:
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-start space-x-2">
+                        <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+                          1
+                        </span>
+                        <p>
+                          <strong>รันสคริปต์ตัวกลาง Print Proxy</strong> บนคอมพิวเตอร์หรือแท็บเล็ตในร้าน (รันสคริปต์ <code className="text-amber-300 bg-slate-900 px-1 py-0.5 rounded font-mono">node scripts/print-proxy-companion.js</code> หรือติดตั้งแอป Print Proxy APK) เพื่อจำลองเครื่องพิมพ์เสมือนพอร์ต 9100 / Bluetooth
+                        </p>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+                          2
+                        </span>
+                        <p>
+                          <strong>ในแอป Wongnai / Grab / Shopee:</strong> ไปที่เมนู <em>ตั้งค่าเครื่องพิมพ์ ➔ เพิ่มเครื่องพิมพ์ (เลือกแบบ Network หรือ Bluetooth) ➔ เลือกเครื่องพิมพ์เสมือน Virtual Printer</em>
+                        </p>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+                          3
+                        </span>
+                        <p>
+                          <strong>เสร็จสมบูรณ์!</strong> เมื่อมีออเดอร์ใหม่เข้าและแอปเดลิเวอรีสั่งพิมพ์ ข้อมูลจะไหลเข้าหน้าจอ POS ตัดสต็อกทันที และพิมพ์ใบสั่งอาหารออกที่เครื่องพิมพ์ในครัวตามปกติ
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Test Simulation Buttons */}
               <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] text-slate-400 font-bold">จำลองออเดอร์ Klikit:</span>
+                <span className="text-[11px] text-slate-400 font-bold">จำลองสลิปการพิมพ์:</span>
                 <button
                   type="button"
                   disabled={testingWebhook}
                   onClick={() => handleTestWebhook('LINEMAN')}
                   className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/50 text-emerald-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>⚡ ยิงจำลอง LINE MAN</span>
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>⚡ จำลองสลิป LINE MAN</span>
                 </button>
                 <button
                   type="button"
@@ -739,8 +794,8 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   onClick={() => handleTestWebhook('GRAB')}
                   className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/50 text-emerald-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>⚡ ยิงจำลอง GrabFood</span>
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>⚡ จำลองสลิป GrabFood</span>
                 </button>
                 <button
                   type="button"
@@ -748,8 +803,8 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   onClick={() => handleTestWebhook('SHOPEE_FOOD')}
                   className="px-3 py-1.5 rounded-xl bg-amber-600/30 hover:bg-amber-600 border border-amber-500/50 text-amber-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>⚡ ยิงจำลอง ShopeeFood</span>
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>⚡ จำลองสลิป ShopeeFood</span>
                 </button>
                 <button
                   type="button"
@@ -758,7 +813,7 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
                   className="px-3 py-1.5 rounded-xl bg-red-600/30 hover:bg-red-600 border border-red-500/50 text-red-300 hover:text-white font-black text-xs flex items-center space-x-1 transition-all"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>🚫 ยิงจำลองยกเลิกออเดอร์</span>
+                  <span>🚫 จำลองยกเลิกออเดอร์</span>
                 </button>
               </div>
             </div>

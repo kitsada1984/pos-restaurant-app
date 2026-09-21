@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { broadcastEvent } from '@/lib/events';
+import { cleanDishName } from '@/lib/receiptParser';
 
-export type DeliveryChannel = 'LINEMAN' | 'GRAB' | 'SHOPEE_FOOD' | 'FOODPANDA' | 'ROBINHOOD' | 'KLIKIT';
+export type DeliveryChannel = 'LINEMAN' | 'GRAB' | 'SHOPEE_FOOD' | 'FOODPANDA' | 'ROBINHOOD' | 'KLIKIT' | 'PRINT_PROXY';
 
 export interface ProcessDeliveryWebhookResult {
   status: number;
@@ -10,7 +11,7 @@ export interface ProcessDeliveryWebhookResult {
 }
 
 /**
- * Normalizes incoming delivery platform string from Klikit or direct webhooks
+ * Normalizes incoming delivery platform string from Print Proxy or direct webhooks
  */
 export function normalizeDeliveryChannel(rawChannel?: string, orderId?: string): DeliveryChannel {
   if (rawChannel) {
@@ -20,6 +21,7 @@ export function normalizeDeliveryChannel(rawChannel?: string, orderId?: string):
     if (s.includes('SHOPEE')) return 'SHOPEE_FOOD';
     if (s.includes('ROBIN')) return 'ROBINHOOD';
     if (s.includes('PANDA')) return 'FOODPANDA';
+    if (s.includes('PROXY') || s.includes('PRINT')) return 'PRINT_PROXY';
     if (s.includes('KLIKIT')) return 'KLIKIT';
   }
 
@@ -91,6 +93,8 @@ export async function processDeliveryWebhook(
     // Verify webhook signature/secret token if configured on store
     if (store.deliveryWebhookSecret && headers) {
       const authHeader =
+        headers.get('x-proxy-signature') ||
+        headers.get('x-print-signature') ||
         headers.get('x-klikit-signature') ||
         headers.get('x-hub-signature') ||
         headers.get('x-lineman-signature') ||
@@ -281,9 +285,12 @@ export async function processDeliveryWebhook(
       const itemTotal = itemPrice * quantity;
       totalAmount += itemTotal;
 
+      const cleanName = item.cleanName || cleanDishName(itemName);
+
       const matchedMenuItem = storeMenuItems.find(
         (m) =>
           m.name.toLowerCase().trim() === itemName.toLowerCase().trim() ||
+          m.name.toLowerCase().trim() === cleanName.toLowerCase().trim() ||
           m.id === item.menuItemId ||
           m.id === item.id
       );
