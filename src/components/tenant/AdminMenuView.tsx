@@ -342,24 +342,38 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
     }
   };
 
-  // Quick 1-Click Toggle "ของหมด"
+  // Quick 1-Click Toggle "ของหมด" with instant Optimistic UI update (0ms delay)
   const handleToggleStock = async (itemId: string, currentAvailable: boolean) => {
+    const nextAvailable = !currentAvailable;
+    // 1. Optimistic local state update in 0ms
+    setCategories((prev) =>
+      prev.map((cat) => ({
+        ...cat,
+        items: cat.items?.map((it: any) =>
+          it.id === itemId ? { ...it, isAvailable: nextAvailable } : it
+        ),
+      }))
+    );
+
+    if (currentAvailable) {
+      showWarning('เปลี่ยนสถานะเป็น "ของหมด"', 'เมนูนี้จะไม่สามารถสั่งได้ชั่วคราว');
+    } else {
+      showSuccess('เปิดขายเมนูแล้ว', 'พร้อมรับออเดอร์ตามปกติ');
+    }
+
     try {
       const res = await fetch(`/api/r/${slug}/menu/toggle-availability`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: itemId, isAvailable: !currentAvailable }),
+        body: JSON.stringify({ id: itemId, isAvailable: nextAvailable }),
       });
-      if (res.ok) {
-        if (currentAvailable) {
-          showWarning('เปลี่ยนสถานะเป็น "ของหมด"', 'เมนูนี้จะไม่สามารถสั่งได้ชั่วคราว');
-        } else {
-          showSuccess('เปิดขายเมนูแล้ว', 'พร้อมรับออเดอร์ตามปกติ');
-        }
+      if (!res.ok) {
         fetchMenu();
+        showError('ไม่สามารถเปลี่ยนสถานะได้', 'กรุณาลองใหม่อีกครั้ง');
       }
     } catch (err) {
       console.error(err);
+      fetchMenu();
       showError('ไม่สามารถเปลี่ยนสถานะได้', 'กรุณาลองใหม่อีกครั้ง');
     }
   };
@@ -516,15 +530,19 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
 
         <div className="flex items-center space-x-2.5 w-full md:w-auto">
           <button
+            type="button"
+            data-sound="pop"
             onClick={() => setIsAddCategoryOpen(true)}
-            className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs shadow-md flex items-center justify-center space-x-1.5 transition-all"
+            className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold text-xs shadow-md flex items-center justify-center space-x-1.5 transition-all cursor-pointer ring-0 active:ring-2 active:ring-slate-400"
           >
             <FolderPlus className="w-4 h-4" />
             <span>+ เพิ่มหมวดหมู่</span>
           </button>
           <button
+            type="button"
+            data-sound="pop"
             onClick={() => setIsAddModalOpen(true)}
-            className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 flex items-center justify-center space-x-1.5 transition-all"
+            className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 flex items-center justify-center space-x-1.5 transition-all cursor-pointer ring-2 ring-orange-400/40"
           >
             <Plus className="w-4 h-4" />
             <span>+ เพิ่มเมนูใหม่</span>
@@ -614,12 +632,14 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                     <div className="pt-2.5 border-t border-slate-100 flex items-center gap-1.5 w-full">
                       {/* Options Button (Primary 1) */}
                       <button
+                        type="button"
+                        data-sound="tap"
                         onClick={() => openOptionsModal(item)}
                         title="จัดการตัวเลือก & ท็อปปิ้ง"
-                        className={`flex-1 py-2 px-2.5 rounded-xl border text-xs font-black flex items-center justify-center space-x-1.5 transition-all shadow-xs cursor-pointer active:scale-98 ${
+                        className={`flex-1 py-2 px-2.5 rounded-xl border text-xs font-black flex items-center justify-center space-x-1.5 transition-all duration-75 shadow-xs cursor-pointer active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none ring-0 active:ring-2 ${
                           item.options?.length > 0
-                            ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300/80'
-                            : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                            ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300/80 active:ring-amber-300'
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200 active:ring-slate-300'
                         }`}
                       >
                         <Settings2 className={`w-3.5 h-3.5 flex-shrink-0 ${item.options?.length > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
@@ -630,12 +650,14 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
 
                       {/* 1-Click Out-of-Stock Toggle (Primary 2) */}
                       <button
+                        type="button"
+                        data-sound={item.isAvailable ? 'delete' : 'success'}
                         onClick={() => handleToggleStock(item.id, item.isAvailable)}
                         title={item.isAvailable ? 'กดเพื่อปิด (ของหมด)' : 'กดเพื่อเปิด (มีของ)'}
-                        className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-extrabold border transition-all flex items-center justify-center space-x-1 shadow-xs cursor-pointer active:scale-98 ${
+                        className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-extrabold border transition-all duration-75 flex items-center justify-center space-x-1 shadow-xs cursor-pointer active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none ring-2 ${
                           item.isAvailable
-                            ? 'bg-emerald-50 hover:bg-rose-50 text-emerald-700 hover:text-rose-700 border-emerald-200 hover:border-rose-200'
-                            : 'bg-rose-600 hover:bg-emerald-600 text-white border-rose-600 shadow-sm'
+                            ? 'bg-emerald-50 hover:bg-rose-50 text-emerald-700 hover:text-rose-700 border-emerald-200 hover:border-rose-200 ring-emerald-400/20 active:ring-rose-400/50'
+                            : 'bg-rose-600 hover:bg-emerald-600 text-white border-rose-600 shadow-sm ring-rose-400/30 active:ring-emerald-400/50'
                         }`}
                       >
                         <span className="truncate">{item.isAvailable ? '✓ มีของ' : '✕ ของหมด'}</span>
@@ -643,18 +665,22 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
 
                       {/* Edit Button (Icon) */}
                       <button
+                        type="button"
+                        data-sound="tap"
                         onClick={() => openEditModal(item)}
                         title="แก้ไขข้อมูลเมนู"
-                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center cursor-pointer flex-shrink-0"
+                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none flex items-center justify-center cursor-pointer flex-shrink-0 ring-0 active:ring-2 active:ring-slate-300"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
 
                       {/* Delete Button (Icon) */}
                       <button
+                        type="button"
+                        data-sound="delete"
                         onClick={() => openDeleteModal(item)}
                         title="ลบเมนูนี้"
-                        className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 transition-all flex items-center justify-center cursor-pointer flex-shrink-0"
+                        className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none flex items-center justify-center cursor-pointer flex-shrink-0 ring-0 active:ring-2 active:ring-rose-300"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -670,10 +696,15 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
       {/* Add Item Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-base text-slate-900">+ เพิ่มเมนูอาหารใหม่</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button
+                type="button"
+                data-sound="tap"
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg active:scale-90 select-none duration-75 transition-all cursor-pointer"
+              >
                 ✕
               </button>
             </div>
@@ -762,14 +793,16 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
               <div className="flex items-center space-x-2 pt-2">
                 <button
                   type="button"
+                  data-sound="tap"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-600 font-bold transition-all cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold shadow-md"
+                  data-sound="success"
+                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold shadow-md shadow-orange-500/20 transition-all cursor-pointer ring-2 ring-orange-400/40"
                 >
                   บันทึกเมนู
                 </button>
@@ -782,13 +815,18 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
       {/* Edit Item Modal */}
       {isEditModalOpen && editingItem && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-base text-slate-900 flex items-center gap-1.5">
                 <Edit2 className="w-4 h-4 text-orange-500" />
                 <span>แก้ไขเมนูอาหาร</span>
               </h3>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button
+                type="button"
+                data-sound="tap"
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg active:scale-90 select-none duration-75 transition-all cursor-pointer"
+              >
                 ✕
               </button>
             </div>
@@ -877,11 +915,12 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
               <div className="pt-1">
                 <button
                   type="button"
+                  data-sound="tap"
                   onClick={() => {
                     setIsEditModalOpen(false);
                     openOptionsModal(editingItem);
                   }}
-                  className="w-full py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-extrabold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-sm"
+                  className="w-full py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 border border-amber-300 text-amber-900 font-extrabold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-sm ring-0 active:ring-2 active:ring-amber-300"
                 >
                   <Settings2 className="w-4 h-4 text-amber-600" />
                   <span>⚙️ จัดการตัวเลือก &amp; ท็อปปิ้ง ({editingItem?.options?.length || 0} กลุ่ม)</span>
@@ -891,14 +930,16 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
               <div className="flex items-center space-x-2 pt-2">
                 <button
                   type="button"
+                  data-sound="tap"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-600 font-bold transition-all cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold shadow-md"
+                  data-sound="success"
+                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold shadow-md shadow-orange-500/20 transition-all cursor-pointer ring-2 ring-orange-400/40"
                 >
                   บันทึกการแก้ไข
                 </button>
@@ -911,7 +952,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && deletingItem && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200 text-center">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200 text-center animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -929,17 +970,19 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
             <div className="flex items-center space-x-2 pt-2">
               <button
                 type="button"
+                data-sound="tap"
                 onClick={() => setIsDeleteModalOpen(false)}
                 disabled={isDeleting}
-                className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs"
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-600 font-bold text-xs transition-all cursor-pointer"
               >
                 ยกเลิก
               </button>
               <button
                 type="button"
+                data-sound="delete"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20"
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer ring-2 ring-rose-400/40"
               >
                 {isDeleting ? 'กำลังลบ...' : 'ลบเมนูนี้'}
               </button>
@@ -951,13 +994,18 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
       {/* Add Category Modal (Bug #13) */}
       {isAddCategoryOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-base text-slate-900 flex items-center space-x-2">
                 <FolderPlus className="w-5 h-5 text-orange-500" />
                 <span>เพิ่มหมวดหมู่อาหารใหม่</span>
               </h3>
-              <button onClick={() => setIsAddCategoryOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                data-sound="tap"
+                onClick={() => setIsAddCategoryOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg active:scale-90 select-none duration-75 transition-all cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -976,14 +1024,16 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
               <div className="flex items-center space-x-2 pt-2">
                 <button
                   type="button"
+                  data-sound="tap"
                   onClick={() => setIsAddCategoryOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-600 font-bold text-xs transition-all cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/20"
+                  data-sound="success"
+                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold text-xs shadow-md shadow-orange-500/20 transition-all cursor-pointer ring-2 ring-orange-400/40"
                 >
                   บันทึกหมวดหมู่
                 </button>
@@ -1012,8 +1062,9 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
               </div>
               <button
                 type="button"
+                data-sound="tap"
                 onClick={() => setIsOptionsModalOpen(false)}
-                className="p-1.5 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors cursor-pointer"
+                className="p-1.5 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 select-none duration-75 text-white transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1047,9 +1098,10 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   </select>
                   <button
                     type="button"
+                    data-sound="pop"
                     disabled={!copySourceItemId}
                     onClick={handleCopyFromAnotherItem}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 disabled:opacity-40 text-white font-extrabold text-xs shadow-sm flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 disabled:opacity-40 text-white font-extrabold text-xs shadow-sm flex items-center justify-center space-x-1.5 transition-all cursor-pointer ring-0 active:ring-2 active:ring-slate-400"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     <span>คัดลอกมาใช้</span>
@@ -1070,8 +1122,9 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                     <button
                       key={idx}
                       type="button"
+                      data-sound="pop"
                       onClick={() => handleAddPresetGroup(preset.group)}
-                      className="p-2.5 rounded-xl bg-white hover:bg-orange-50/60 border border-slate-200 hover:border-orange-300 text-left transition-all group shadow-sm flex flex-col justify-between cursor-pointer active:scale-95"
+                      className="p-2.5 rounded-xl bg-white hover:bg-orange-50/60 border border-slate-200 hover:border-orange-300 text-left transition-all duration-75 group shadow-sm flex flex-col justify-between cursor-pointer active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none ring-0 active:ring-2 active:ring-orange-300"
                     >
                       <div>
                         <span className="text-xs font-black text-slate-800 group-hover:text-orange-600 block">
@@ -1098,8 +1151,9 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   </h4>
                   <button
                     type="button"
+                    data-sound="pop"
                     onClick={handleAddEmptyGroup}
-                    className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-extrabold text-xs border border-orange-200 flex items-center gap-1 transition-all cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-orange-700 font-extrabold text-xs border border-orange-200 flex items-center gap-1 transition-all cursor-pointer ring-0 active:ring-2 active:ring-orange-300"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>+ เพิ่มกลุ่มใหม่</span>
@@ -1140,9 +1194,10 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                             {/* Move Group Up */}
                             <button
                               type="button"
+                              data-sound="tap"
                               disabled={gIdx === 0}
                               onClick={() => handleMoveGroup(gIdx, 'UP')}
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 active:scale-90 select-none duration-75 disabled:opacity-30 text-slate-600 cursor-pointer transition-all"
                               title="เลื่อนกลุ่มขึ้น"
                             >
                               <ArrowUp className="w-3.5 h-3.5" />
@@ -1150,9 +1205,10 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                             {/* Move Group Down */}
                             <button
                               type="button"
+                              data-sound="tap"
                               disabled={gIdx === optionGroups.length - 1}
                               onClick={() => handleMoveGroup(gIdx, 'DOWN')}
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 active:scale-90 select-none duration-75 disabled:opacity-30 text-slate-600 cursor-pointer transition-all"
                               title="เลื่อนกลุ่มลง"
                             >
                               <ArrowDown className="w-3.5 h-3.5" />
@@ -1160,8 +1216,9 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                             {/* Delete Group */}
                             <button
                               type="button"
+                              data-sound="delete"
                               onClick={() => setDeleteGroupConfirmIdx(gIdx)}
-                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 cursor-pointer"
+                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 active:scale-90 select-none duration-75 text-rose-600 border border-rose-200 cursor-pointer transition-all"
                               title="ลบกลุ่มนี้"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1246,9 +1303,10 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                                 {/* Move Choice Up */}
                                 <button
                                   type="button"
+                                  data-sound="tap"
                                   disabled={cIdx === 0}
                                   onClick={() => handleMoveChoice(gIdx, cIdx, 'UP')}
-                                  className="p-1.5 rounded-md bg-white hover:bg-slate-200 disabled:opacity-20 text-slate-500 border border-slate-200 cursor-pointer"
+                                  className="p-1.5 rounded-md bg-white hover:bg-slate-200 active:scale-90 select-none duration-75 disabled:opacity-20 text-slate-500 border border-slate-200 cursor-pointer transition-all"
                                   title="เลื่อนขึ้น"
                                 >
                                   <ArrowUp className="w-3 h-3" />
@@ -1257,9 +1315,10 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                                 {/* Move Choice Down */}
                                 <button
                                   type="button"
+                                  data-sound="tap"
                                   disabled={cIdx === group.choices.length - 1}
                                   onClick={() => handleMoveChoice(gIdx, cIdx, 'DOWN')}
-                                  className="p-1.5 rounded-md bg-white hover:bg-slate-200 disabled:opacity-20 text-slate-500 border border-slate-200 cursor-pointer"
+                                  className="p-1.5 rounded-md bg-white hover:bg-slate-200 active:scale-90 select-none duration-75 disabled:opacity-20 text-slate-500 border border-slate-200 cursor-pointer transition-all"
                                   title="เลื่อนลง"
                                 >
                                   <ArrowDown className="w-3 h-3" />
@@ -1268,8 +1327,9 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                                 {/* Delete Choice */}
                                 <button
                                   type="button"
+                                  data-sound="delete"
                                   onClick={() => handleDeleteChoice(gIdx, cIdx)}
-                                  className="p-1.5 rounded-md bg-white hover:bg-rose-100 text-rose-500 border border-slate-200 hover:border-rose-200 cursor-pointer"
+                                  className="p-1.5 rounded-md bg-white hover:bg-rose-100 active:scale-90 select-none duration-75 text-rose-500 border border-slate-200 hover:border-rose-200 cursor-pointer transition-all"
                                   title="ลบตัวเลือกนี้"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -1281,8 +1341,9 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                           {/* Add Choice Button */}
                           <button
                             type="button"
+                            data-sound="pop"
                             onClick={() => handleAddChoice(gIdx)}
-                            className="w-full py-2 px-3 rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-100/60 text-orange-700 font-extrabold text-[11px] flex items-center justify-center space-x-1 transition-all mt-1 cursor-pointer"
+                            className="w-full py-2 px-3 rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-100/60 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-orange-700 font-extrabold text-[11px] flex items-center justify-center space-x-1 transition-all mt-1 cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>+ เพิ่มตัวเลือกย่อยในกลุ่มนี้</span>
@@ -1296,8 +1357,9 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                 {/* Add Another Group Button */}
                 <button
                   type="button"
+                  data-sound="pop"
                   onClick={handleAddEmptyGroup}
-                  className="w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 hover:border-orange-400 bg-slate-50 hover:bg-orange-50 text-slate-600 hover:text-orange-700 font-extrabold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                  className="w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 hover:border-orange-400 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 bg-slate-50 hover:bg-orange-50 text-slate-600 hover:text-orange-700 font-extrabold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer ring-0 active:ring-2 active:ring-orange-300"
                 >
                   <Plus className="w-4 h-4" />
                   <span>+ เพิ่มกลุ่มตัวเลือกใหม่</span>
@@ -1309,17 +1371,19 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
             <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3 flex-shrink-0">
               <button
                 type="button"
+                data-sound="tap"
                 onClick={() => setIsOptionsModalOpen(false)}
-                className="py-2.5 px-5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+                className="py-2.5 px-5 rounded-xl bg-slate-200 hover:bg-slate-300 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
               >
                 ยกเลิก
               </button>
 
               <button
                 type="button"
+                data-sound="success"
                 disabled={isSavingOptions}
                 onClick={handleSaveOptions}
-                className="py-2.5 px-6 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-orange-500/25 flex items-center space-x-2 transition-all cursor-pointer active:scale-95"
+                className="py-2.5 px-6 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-orange-500/25 flex items-center space-x-2 transition-all cursor-pointer ring-2 ring-orange-400/40"
               >
                 {isSavingOptions ? (
                   <>
@@ -1341,7 +1405,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
       {/* Delete Group Confirmation Dialog */}
       {deleteGroupConfirmIdx !== null && (
         <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border border-slate-200 text-center">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border border-slate-200 text-center animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -1359,15 +1423,17 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
             <div className="flex items-center space-x-2 pt-2">
               <button
                 type="button"
+                data-sound="tap"
                 onClick={() => setDeleteGroupConfirmIdx(null)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-600 font-bold text-xs transition-all cursor-pointer"
               >
                 ยกเลิก
               </button>
               <button
                 type="button"
+                data-sound="delete"
                 onClick={() => handleDeleteGroup(deleteGroupConfirmIdx)}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer ring-2 ring-rose-400/40"
               >
                 ลบกลุ่มนี้
               </button>
