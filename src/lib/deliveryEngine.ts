@@ -349,6 +349,7 @@ export async function processDeliveryWebhook(
         customerName,
         paymentMethod: 'PROMPTPAY',
         paymentStatus: 'PAID',
+        paidAt: new Date(),
         status: 'PENDING',
         items: {
           create: orderItemsData,

@@ -106,11 +106,15 @@ export async function PATCH(
       }
 
       if (status === 'SERVED' || status === 'COMPLETED') {
-        // Bug #5: If delivery order is served/completed, ensure it is marked as PAID so it appears in daily sales reports
+        // Bug #5: If delivery order is served/completed, ensure it is marked as PAID and has paidAt timestamp so it appears in daily sales reports
         const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(existingOrder.orderChannel);
-        if (isDelivery && existingOrder.paymentStatus !== 'PAID') {
-          updateData.paymentStatus = 'PAID';
-          updateData.paidAt = new Date();
+        if (isDelivery) {
+          if (existingOrder.paymentStatus !== 'PAID') {
+            updateData.paymentStatus = 'PAID';
+          }
+          if (!existingOrder.paidAt) {
+            updateData.paidAt = new Date();
+          }
           if (!existingOrder.paymentMethod) {
             updateData.paymentMethod = 'DELIVERY_APP';
           }
