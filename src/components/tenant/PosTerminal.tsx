@@ -19,6 +19,7 @@ import {
   playSuccessChime,
   playDeliveryChime,
   playServiceCallChime,
+  playButtonTapSound,
   speakThaiVoice,
   speakMoneyReceived,
   speakSlipSubmitted,
@@ -552,37 +553,70 @@ export default function PosTerminal({
   };
 
   const handleUpdateDeliveryStatus = async (orderId: string, newStatus: string) => {
+    // 1. Play immediate audio feedback and toast (0ms latency)
+    if (newStatus === 'COMPLETED') {
+      playSuccessChime();
+      showSuccess('ไรเดอร์รับอาหารแล้ว 🛵✨', 'เคลียร์ออเดอร์และบันทึกยอดขายเรียบร้อย');
+    } else if (newStatus === 'SERVED') {
+      playSuccessChime();
+      showSuccess('เสิร์ฟอาหารแล้ว ✨', 'ออเดอร์เดลิเวอรีเสร็จสมบูรณ์');
+    } else if (newStatus === 'READY') {
+      playSuccessChime();
+      showSuccess('ปรุงเสร็จแล้ว 🔔', 'พร้อมส่งมอบให้ไรเดอร์');
+    } else if (newStatus === 'COOKING') {
+      playButtonTapSound('pop');
+      showInfo('เริ่มปรุงออเดอร์แล้ว 🍳');
+    } else {
+      playButtonTapSound('tap');
+      showInfo('อัปเดตสถานะเรียบร้อย');
+    }
+
+    // 2. Optimistic local state update (0ms immediate feedback)
+    const prevDeliveries = [...deliveryOrders];
+    if (newStatus === 'COMPLETED') {
+      // Remove immediately from active delivery list!
+      setDeliveryOrders((prev) => prev.filter((o) => o.id !== orderId));
+    } else {
+      // Update status immediately!
+      setDeliveryOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+      );
+    }
+
+    // 3. Background asynchronous network sync
     try {
       const res = await fetch(`/api/r/${slug}/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) {
-        if (newStatus === 'COMPLETED') {
-          showSuccess('ไรเดอร์รับอาหารแล้ว 🛵✨', 'เคลียร์ออเดอร์และบันทึกยอดขายเรียบร้อย');
-          playSuccessChime();
-        } else if (newStatus === 'SERVED') {
-          showSuccess('เสิร์ฟอาหารแล้ว ✨', 'ออเดอร์เดลิเวอรีเสร็จสมบูรณ์');
-          playSuccessChime();
-        } else if (newStatus === 'READY') {
-          showSuccess('ปรุงเสร็จแล้ว 🔔', 'พร้อมส่งมอบให้ไรเดอร์');
-          playSuccessChime();
-        } else {
-          showInfo('อัปเดตสถานะเรียบร้อย');
-        }
-        fetchData();
+      if (!res.ok) {
+        // Rollback on server error
+        setDeliveryOrders(prevDeliveries);
+        showError('ไม่สามารถอัปเดตสถานะได้');
       }
     } catch (err) {
+      setDeliveryOrders(prevDeliveries);
       showError('ไม่สามารถอัปเดตสถานะได้');
     }
   };
 
   const handleClearAllDeliveries = async () => {
     if (deliveryOrders.length === 0) return;
+    const prevDeliveries = [...deliveryOrders];
+    const clearedCount = deliveryOrders.length;
+
+    // 1. Play sound & toast immediately (0ms)
+    playSuccessChime();
+    showSuccess('ไรเดอร์รับครบทุกออเดอร์แล้ว 🛵✨', `เคลียร์ ${clearedCount} ออเดอร์และบันทึกยอดขายเรียบร้อย`);
+
+    // 2. Optimistic local state clearance (0ms)
+    setDeliveryOrders([]);
+
+    // 3. Background asynchronous network sync
     try {
       await Promise.all(
-        deliveryOrders.map((o) =>
+        prevDeliveries.map((o) =>
           fetch(`/api/r/${slug}/orders/${o.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -590,10 +624,8 @@ export default function PosTerminal({
           })
         )
       );
-      showSuccess('ไรเดอร์รับครบทุกออเดอร์แล้ว 🛵✨', `เคลียร์ ${deliveryOrders.length} ออเดอร์และบันทึกยอดขายเรียบร้อย`);
-      playSuccessChime();
-      fetchData();
     } catch (err) {
+      setDeliveryOrders(prevDeliveries);
       showError('ไม่สามารถเคลียร์ออเดอร์ได้');
     }
   };
@@ -852,20 +884,38 @@ export default function PosTerminal({
                               <span>เสิร์ฟแล้ว</span>
                             </span>
                           ) : isReady ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-300 text-amber-950 shadow-xs">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateDeliveryStatus(order.id, 'COMPLETED')}
+                              data-sound="success"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-300 hover:bg-amber-400 active:bg-amber-500 text-amber-950 shadow-xs cursor-pointer active:scale-90 transition-all duration-75"
+                              title="คลิกเพื่อเคลียร์ออเดอร์เมื่อไรเดอร์รับอาหารแล้ว"
+                            >
                               <span>🔔</span>
                               <span>พร้อมส่ง</span>
-                            </span>
+                            </button>
                           ) : isCooking ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-400 text-amber-950 shadow-xs">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateDeliveryStatus(order.id, 'READY')}
+                              data-sound="success"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-amber-950 shadow-xs cursor-pointer active:scale-90 transition-all duration-75"
+                              title="คลิกเพื่อเปลี่ยนสถานะเป็นพร้อมส่ง"
+                            >
                               <span>🍳</span>
                               <span>กำลังปรุง</span>
-                            </span>
+                            </button>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-white/20 text-white">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateDeliveryStatus(order.id, 'COOKING')}
+                              data-sound="pop"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-white/20 hover:bg-white/30 active:bg-white/40 text-white cursor-pointer active:scale-90 transition-all duration-75"
+                              title="คลิกเพื่อเริ่มปรุง"
+                            >
                               <span>⏳</span>
                               <span>รอครัวทำ</span>
-                            </span>
+                            </button>
                           )}
                         </div>
                       </div>
@@ -940,7 +990,8 @@ export default function PosTerminal({
                             <button
                               type="button"
                               onClick={() => handleUpdateDeliveryStatus(order.id, 'COOKING')}
-                              className="flex-1 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition-all cursor-pointer shadow-xs active:scale-95"
+                              data-sound="pop"
+                              className="flex-1 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-black text-xs transition-all duration-75 cursor-pointer shadow-xs active:scale-95"
                             >
                               🍳 เริ่มปรุง
                             </button>
@@ -948,7 +999,8 @@ export default function PosTerminal({
                           <button
                             type="button"
                             onClick={() => handleUpdateDeliveryStatus(order.id, 'READY')}
-                            className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-all cursor-pointer shadow-xs active:scale-95"
+                            data-sound="success"
+                            className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black text-xs transition-all duration-75 cursor-pointer shadow-xs active:scale-95"
                           >
                             🔔 ปรุงเสร็จแล้ว
                           </button>
@@ -959,12 +1011,14 @@ export default function PosTerminal({
                       <button
                         type="button"
                         onClick={() => handleUpdateDeliveryStatus(order.id, 'COMPLETED')}
-                        className="w-full h-11 px-3 rounded-2xl bg-slate-900 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black text-xs sm:text-[13px] flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all duration-150 active:scale-98 cursor-pointer group"
+                        data-sound="success"
+                        className="w-full h-11 px-3 rounded-2xl bg-slate-900 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black text-xs sm:text-[13px] flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all duration-75 active:scale-95 cursor-pointer group"
                       >
                         <span className="text-sm group-hover:scale-110 transition-transform">🛵</span>
                         <span>ไรเดอร์รับอาหารแล้ว (เคลียร์ออเดอร์)</span>
                       </button>
                     </div>
+
                   </div>
                 );
               })}

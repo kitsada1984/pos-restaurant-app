@@ -7,7 +7,7 @@ import { playButtonTapSound, initAudioUnlock } from '@/lib/sound';
  * GlobalButtonSound Provider
  * Automatically attaches instant zero-delay tactile audio feedback to every button,
  * link button, and clickable control across the application.
- * Uses pointerdown in passive capture mode to guarantee 0ms latency without interfering
+ * Uses pointerdown + click in passive capture mode to guarantee 0ms latency without interfering
  * with any React synthetic events, forms, or business logic.
  */
 export default function GlobalButtonSound() {
@@ -17,22 +17,19 @@ export default function GlobalButtonSound() {
     // Ensure audio context is ready on first touch
     initAudioUnlock();
 
-    const handlePointerDown = (e: PointerEvent) => {
-      // Ignore right clicks or non-primary pointers
-      if (e.button !== 0 && e.pointerType === 'mouse') return;
+    let lastSoundTime = 0;
 
-      const target = (e.target as HTMLElement | null)?.closest?.(
-        'button, [role="button"], input[type="button"], input[type="submit"], a.btn, [data-sound-trigger="true"]'
-      ) as HTMLElement | null;
-
-      if (!target) return;
+    const triggerSound = (target: HTMLElement) => {
+      const now = Date.now();
+      if (now - lastSoundTime < 40) return; // Debounce rapid double triggers
+      lastSoundTime = now;
 
       // Ignore disabled buttons
       if (
         target.hasAttribute('disabled') ||
         target.getAttribute('aria-disabled') === 'true' ||
         target.classList.contains('disabled') ||
-        target.classList.contains('opacity-50') && target.hasAttribute('disabled')
+        (target.classList.contains('opacity-50') && target.hasAttribute('disabled'))
       ) {
         return;
       }
@@ -78,10 +75,34 @@ export default function GlobalButtonSound() {
       }
     };
 
+    const handlePointerDown = (e: PointerEvent) => {
+      // Ignore right clicks or non-primary pointers
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+      const target = (e.target as HTMLElement | null)?.closest?.(
+        'button, [role="button"], input[type="button"], input[type="submit"], a.btn, [data-sound-trigger="true"]'
+      ) as HTMLElement | null;
+
+      if (target) triggerSound(target);
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      // Fallback for keyboard Enter/Space navigation on focused buttons
+      if (e.button !== 0) return;
+
+      const target = (e.target as HTMLElement | null)?.closest?.(
+        'button, [role="button"], input[type="button"], input[type="submit"], a.btn, [data-sound-trigger="true"]'
+      ) as HTMLElement | null;
+
+      if (target) triggerSound(target);
+    };
+
     window.addEventListener('pointerdown', handlePointerDown, { capture: true, passive: true });
+    window.addEventListener('click', handleClick, { capture: true, passive: true });
 
     return () => {
       window.removeEventListener('pointerdown', handlePointerDown, { capture: true });
+      window.removeEventListener('click', handleClick, { capture: true });
     };
   }, []);
 
