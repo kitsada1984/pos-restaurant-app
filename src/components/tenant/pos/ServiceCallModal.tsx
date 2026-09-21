@@ -85,7 +85,8 @@ export default function ServiceCallModal({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="p-1.5 rounded-full bg-white/15 hover:bg-white/30 text-white transition-colors cursor-pointer"
+                    data-sound="pop"
+                    className="p-1.5 rounded-full bg-white/15 hover:bg-white/30 text-white transition-all duration-75 active:scale-90 cursor-pointer select-none"
                     title="ปิดหน้าต่างชั่วคราว"
                   >
                     <X className="w-5 h-5" />
@@ -113,6 +114,7 @@ export default function ServiceCallModal({
                 </div>
                 <button
                   type="button"
+                  data-sound="pop"
                   onClick={() =>
                     speakServiceCall(
                       currentServiceCall.tableNo,
@@ -121,7 +123,7 @@ export default function ServiceCallModal({
                       1.15
                     )
                   }
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 text-xs font-bold cursor-pointer transition-colors flex-shrink-0"
+                  className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 active:bg-amber-300 border border-amber-300 text-amber-900 text-xs font-bold cursor-pointer transition-all duration-75 active:scale-90 select-none flex-shrink-0"
                   title="ฟังเสียงพูดซ้ำ"
                 >
                   <Volume2 className="w-4 h-4 text-amber-700" />
@@ -146,18 +148,20 @@ export default function ServiceCallModal({
                   <button
                     type="button"
                     disabled={activeServiceCallIndex <= 0}
+                    data-sound="tap"
                     onClick={() => setActiveServiceCallIndex((i) => Math.max(0, i - 1))}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-30 cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-30 transition-all duration-75 active:scale-90 select-none cursor-pointer"
                   >
                     ← ดูโต๊ะก่อนหน้า
                   </button>
                   <button
                     type="button"
                     disabled={activeServiceCallIndex >= serviceCallQueue.length - 1}
+                    data-sound="tap"
                     onClick={() =>
                       setActiveServiceCallIndex((i) => Math.min(serviceCallQueue.length - 1, i + 1))
                     }
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-30 cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-30 transition-all duration-75 active:scale-90 select-none cursor-pointer"
                   >
                     ดูโต๊ะถัดไป →
                   </button>
@@ -181,6 +185,7 @@ export default function ServiceCallModal({
                     return (
                       <button
                         type="button"
+                        data-sound="success"
                         onClick={() => {
                           dismissServiceCall(currentServiceCall.id);
                           onClose();
@@ -190,7 +195,7 @@ export default function ServiceCallModal({
                             showSuccess('รับทราบการเรียกเช็คบิลแล้ว 👍', currentServiceCall.tableName);
                           }
                         }}
-                        className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-700 hover:from-emerald-700 hover:to-green-700 text-white text-sm font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer transition-all active:scale-95 animate-pulse"
+                        className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-700 hover:from-emerald-700 hover:to-green-700 active:from-emerald-800 active:to-green-800 text-white text-sm font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none ring-0 active:ring-2 active:ring-emerald-300 animate-pulse"
                       >
                         <Receipt className="w-5 h-5" />
                         <span>
@@ -204,6 +209,7 @@ export default function ServiceCallModal({
 
                 <button
                   type="button"
+                  data-sound="success"
                   onClick={() => {
                     const cId = currentServiceCall.id;
                     const tName = currentServiceCall.tableName;
@@ -211,7 +217,7 @@ export default function ServiceCallModal({
                     playSuccessChime();
                     showSuccess('รับทราบการเรียกพนักงานแล้ว 👍', tName);
                   }}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer transition-all active:scale-95"
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 active:from-emerald-800 active:to-teal-800 text-white text-sm font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none ring-0 active:ring-2 active:ring-emerald-300"
                 >
                   <CheckCircle2 className="w-5 h-5" />
                   <span>✅ รับทราบ / ไปบริการแล้ว</span>
@@ -220,12 +226,13 @@ export default function ServiceCallModal({
                 {serviceCallQueue.length > 1 && (
                   <button
                     type="button"
+                    data-sound="success"
                     onClick={() => {
                       dismissAllServiceCalls();
                       playSuccessChime();
                       showSuccess('รับทราบทุกโต๊ะเรียบร้อยแล้ว 👍');
                     }}
-                    className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-xs transition-all cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-800 border border-amber-200 font-bold text-xs transition-all duration-75 active:scale-90 select-none cursor-pointer"
                   >
                     รับทราบทั้งหมด ({serviceCallQueue.length} โต๊ะ)
                   </button>
@@ -233,8 +240,9 @@ export default function ServiceCallModal({
 
                 <button
                   type="button"
+                  data-sound="pop"
                   onClick={onClose}
-                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-bold text-xs transition-all duration-75 active:scale-90 select-none cursor-pointer"
                 >
                   ปิดหน้าต่างชั่วคราว (ป้ายเตือนยังคงแสดงบนโต๊ะ)
                 </button>
@@ -255,6 +263,7 @@ export default function ServiceCallModal({
                       <button
                         key={m.id}
                         type="button"
+                        data-sound="tap"
                         onClick={() => {
                           updateServiceCallAlertMode(m.id as ServiceCallAlertMode);
                           if (m.id === 'BOTH') {
@@ -280,7 +289,7 @@ export default function ServiceCallModal({
                             playServiceCallChime();
                           }
                         }}
-                        className={`py-1.5 px-1 rounded-xl text-[10px] sm:text-[11px] font-extrabold flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                        className={`py-1.5 px-1 rounded-xl text-[10px] sm:text-[11px] font-extrabold flex flex-col items-center justify-center border transition-all duration-75 active:scale-90 select-none cursor-pointer ${
                           serviceCallAlertMode === m.id
                             ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
                             : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
@@ -304,7 +313,8 @@ export default function ServiceCallModal({
           <button
             type="button"
             onClick={onOpen}
-            className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white font-black text-sm shadow-2xl shadow-amber-500/50 hover:scale-105 active:scale-95 transition-all border-2 border-white/50 cursor-pointer"
+            data-sound="pop"
+            className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white font-black text-sm shadow-2xl shadow-amber-500/50 hover:scale-105 active:scale-90 transition-all duration-75 border-2 border-white/50 cursor-pointer select-none"
           >
             <div className="relative">
               <BellRing className="w-5 h-5 text-white animate-pulse" />

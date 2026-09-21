@@ -83,11 +83,12 @@ export default function BankAlertModal({
                       <button
                         key={item.id}
                         type="button"
+                        data-sound="tap"
                         onClick={() => setActiveAlertId(item.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-xs ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-75 active:scale-95 select-none flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-xs ${
                           isSelected
                             ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white ring-2 ring-white/70 shadow-md scale-105'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20 active:bg-white/30 hover:text-white'
                         }`}
                       >
                         <span>{item.tableName || `โต๊ะ ${item.tableNo}`}</span>
@@ -104,11 +105,12 @@ export default function BankAlertModal({
                   <button
                     type="button"
                     disabled={bankAlertQueue.findIndex((a) => a.id === bankAlertModal.id) <= 0}
+                    data-sound="tap"
                     onClick={() => {
                       const idx = bankAlertQueue.findIndex((a) => a.id === bankAlertModal.id);
                       if (idx > 0) setActiveAlertId(bankAlertQueue[idx - 1].id);
                     }}
-                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-25 disabled:cursor-not-allowed text-white text-xs font-black transition-all cursor-pointer"
+                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 disabled:opacity-25 disabled:cursor-not-allowed text-white text-xs font-black transition-all duration-75 active:scale-90 select-none cursor-pointer"
                     title="โต๊ะก่อนหน้า"
                   >
                     ◀
@@ -119,11 +121,12 @@ export default function BankAlertModal({
                       bankAlertQueue.findIndex((a) => a.id === bankAlertModal.id) >=
                       bankAlertQueue.length - 1
                     }
+                    data-sound="tap"
                     onClick={() => {
                       const idx = bankAlertQueue.findIndex((a) => a.id === bankAlertModal.id);
                       if (idx < bankAlertQueue.length - 1) setActiveAlertId(bankAlertQueue[idx + 1].id);
                     }}
-                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-25 disabled:cursor-not-allowed text-white text-xs font-black transition-all cursor-pointer"
+                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/30 disabled:opacity-25 disabled:cursor-not-allowed text-white text-xs font-black transition-all duration-75 active:scale-90 select-none cursor-pointer"
                     title="โต๊ะถัดไป"
                   >
                     ▶
@@ -180,7 +183,8 @@ export default function BankAlertModal({
                 <button
                   type="button"
                   onClick={dismissCurrentAlert}
-                  className="p-1 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors cursor-pointer"
+                  data-sound="pop"
+                  className="p-1 rounded-full bg-white/10 hover:bg-white/25 active:bg-white/35 text-white transition-all duration-75 active:scale-90 cursor-pointer select-none"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -233,6 +237,7 @@ export default function BankAlertModal({
                 </div>
                 <button
                   type="button"
+                  data-sound="pop"
                   onClick={() => {
                     if (bankAlertModal.action === 'CUSTOMER_NOTIFY') {
                       speakCustomerNotifyTransfer(bankAlertModal.tableNo, bankAlertModal.amount);
@@ -248,7 +253,7 @@ export default function BankAlertModal({
                       speakThaiVoice(`เงินเข้า ${bankAlertModal.amount} บาท ค่ะ`.replace(/\s+/g, ' ').trim());
                     }
                   }}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold cursor-pointer transition-colors"
+                  className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 active:bg-amber-200 border border-amber-200 text-amber-800 text-xs font-bold cursor-pointer transition-all duration-75 active:scale-90 select-none"
                 >
                   <Volume2 className="w-4 h-4 text-amber-600" />
                   <span>🔊 ฟังเสียง</span>
@@ -322,46 +327,60 @@ export default function BankAlertModal({
 
                   <button
                     type="button"
-                    onClick={async () => {
+                    data-sound="success"
+                    onClick={() => {
                       if (voiceEnabled !== false) {
                         speakPaymentConfirmed(bankAlertModal.tableName);
                       }
-                      try {
-                        let orderIds = bankAlertModal.orderIds || [];
-                        if (orderIds.length === 0) {
-                          const tableRes = await fetch(`/api/r/${slug}/tables/${bankAlertModal.tableNo}`);
-                          const tableData = await tableRes.json();
-                          if (tableData?.orders) {
-                            orderIds = tableData.orders.map((o: any) => o.id);
+                      playSuccessChime();
+                      showSuccess(
+                        `ปิดบิล ${bankAlertModal.tableName} สำเร็จแล้ว ✅`,
+                        `ยอดรับ ฿${bankAlertModal.amount?.toLocaleString()}`
+                      );
+                      const currentAlertId = bankAlertModal.id;
+                      const tableName = bankAlertModal.tableName;
+                      const slipUrl = bankAlertModal.slipUrl;
+                      const memberPhone = bankAlertModal.memberPhone;
+                      const customerName = bankAlertModal.customerName;
+                      const channel = bankAlertModal.channel;
+                      const tableNo = bankAlertModal.tableNo;
+                      const initialOrderIds = bankAlertModal.orderIds || [];
+
+                      resolveAlertAndNext(currentAlertId);
+                      fetchData();
+
+                      // Background network execution
+                      (async () => {
+                        try {
+                          let orderIds = initialOrderIds;
+                          if (orderIds.length === 0) {
+                            const tableRes = await fetch(`/api/r/${slug}/tables/${tableNo}`);
+                            const tableData = await tableRes.json();
+                            if (tableData?.orders) {
+                              orderIds = tableData.orders.map((o: any) => o.id);
+                            }
                           }
+                          await Promise.all(
+                            orderIds.map((oId: string) =>
+                              fetch(`/api/r/${slug}/orders/${oId}/pay`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  paymentMethod: 'PROMPTPAY',
+                                  slipUrl: slipUrl || undefined,
+                                  memberPhone: memberPhone || undefined,
+                                  customerName: customerName || undefined,
+                                  note: `${tableName} (${channel === 'SLIP' ? 'ลูกค้าส่งสลิป' : 'ลูกค้าแจ้งโอนผ่านเว็บ'})`,
+                                }),
+                              })
+                            )
+                          );
+                        } catch (e: any) {
+                          showError('ไม่สามารถปิดบิลได้', e.message);
                         }
-
-                        for (const oId of orderIds) {
-                          await fetch(`/api/r/${slug}/orders/${oId}/pay`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              paymentMethod: 'PROMPTPAY',
-                              slipUrl: bankAlertModal.slipUrl || undefined,
-                              memberPhone: bankAlertModal.memberPhone || undefined,
-                              customerName: bankAlertModal.customerName || undefined,
-                              note: `${bankAlertModal.tableName} (${bankAlertModal.channel === 'SLIP' ? 'ลูกค้าส่งสลิป' : 'ลูกค้าแจ้งโอนผ่านเว็บ'})`,
-                            }),
-                          });
-                        }
-
-                        playSuccessChime();
-                        showSuccess(
-                          `ปิดบิล ${bankAlertModal.tableName} สำเร็จแล้ว ✅`,
-                          `ยอดรับ ฿${bankAlertModal.amount?.toLocaleString()}`
-                        );
-                        resolveAlertAndNext(bankAlertModal.id);
-                        fetchData();
-                      } catch (e: any) {
-                        showError('ไม่สามารถปิดบิลได้', e.message);
-                      }
+                      })();
                     }}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer transition-all active:scale-95"
+                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 active:from-emerald-800 active:to-teal-800 text-white text-sm font-black flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/30 cursor-pointer transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none ring-0 active:ring-2 active:ring-emerald-300"
                   >
                     <CheckCircle2 className="w-5 h-5" />
                     <span>✅ ยืนยันรับเงิน & ปิดบิล (1 คลิก)</span>
@@ -369,8 +388,9 @@ export default function BankAlertModal({
 
                   <button
                     type="button"
+                    data-sound="pop"
                     onClick={dismissCurrentAlert}
-                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-bold text-xs transition-all duration-75 active:scale-90 select-none cursor-pointer"
                   >
                     ปิดหน้าต่าง / รอตรวจสอบก่อน
                   </button>
@@ -403,6 +423,7 @@ export default function BankAlertModal({
                     {bankAlertModal.orders && bankAlertModal.orders.length > 0 && (
                       <button
                         type="button"
+                        data-sound="pop"
                         onClick={() => {
                           setReceiptOrder({
                             storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
@@ -424,7 +445,7 @@ export default function BankAlertModal({
                           setIsReceiptModalOpen(true);
                           resolveAlertAndNext(bankAlertModal.id);
                         }}
-                        className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer transition-all"
+                        className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white text-xs font-bold flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer transition-all duration-75 active:scale-90 select-none"
                       >
                         <Printer className="w-4 h-4" />
                         <span>🖨️ พิมพ์ใบเสร็จ</span>
@@ -432,8 +453,9 @@ export default function BankAlertModal({
                     )}
                     <button
                       type="button"
+                      data-sound="success"
                       onClick={() => resolveAlertAndNext(bankAlertModal.id)}
-                      className={`py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all ${
+                      className={`py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all duration-75 active:scale-90 select-none ${
                         !bankAlertModal.orders || bankAlertModal.orders.length === 0 ? 'col-span-2' : ''
                       }`}
                     >
@@ -462,35 +484,46 @@ export default function BankAlertModal({
 
                   <button
                     type="button"
-                    onClick={async () => {
+                    data-sound="success"
+                    onClick={() => {
                       if (voiceEnabled !== false) {
                         speakPaymentConfirmed(bankAlertModal.tableName);
                       }
-                      try {
-                        const candidate = bankAlertModal.candidates?.[0];
-                        const orderIds = candidate?.orderIds || [];
-                        for (const oId of orderIds) {
-                          await fetch(`/api/r/${slug}/orders/${oId}/pay`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              paymentMethod: 'PROMPTPAY',
-                              note: `${bankAlertModal.tableName} (โอนผ่าน ${bankAlertModal.bankName || 'Email ธนาคาร'})`,
-                            }),
-                          });
+                      playSuccessChime();
+                      showSuccess(
+                        `ปิดบิล ${bankAlertModal.tableName} สำเร็จแล้ว ✅`,
+                        `ยอดรับ ฿${bankAlertModal.amount}`
+                      );
+                      const currentAlertId = bankAlertModal.id;
+                      const tableName = bankAlertModal.tableName;
+                      const bankName = bankAlertModal.bankName;
+                      const candidate = bankAlertModal.candidates?.[0];
+                      const orderIds = candidate?.orderIds || [];
+
+                      resolveAlertAndNext(currentAlertId);
+                      fetchData();
+
+                      // Background execution
+                      (async () => {
+                        try {
+                          await Promise.all(
+                            orderIds.map((oId: string) =>
+                              fetch(`/api/r/${slug}/orders/${oId}/pay`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  paymentMethod: 'PROMPTPAY',
+                                  note: `${tableName} (โอนผ่าน ${bankName || 'Email ธนาคาร'})`,
+                                }),
+                              })
+                            )
+                          );
+                        } catch (e: any) {
+                          showError('ไม่สามารถปิดบิลได้', e.message);
                         }
-                        playSuccessChime();
-                        showSuccess(
-                          `ปิดบิล ${bankAlertModal.tableName} สำเร็จแล้ว ✅`,
-                          `ยอดรับ ฿${bankAlertModal.amount}`
-                        );
-                        resolveAlertAndNext(bankAlertModal.id);
-                        fetchData();
-                      } catch (e: any) {
-                        showError('ไม่สามารถปิดบิลได้', e.message);
-                      }
+                      })();
                     }}
-                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-600/25 cursor-pointer transition-all active:scale-95"
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:from-emerald-800 active:to-teal-800 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-600/25 cursor-pointer transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none ring-0 active:ring-2 active:ring-emerald-300"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>✅ ยืนยันตัดยอดปิดบิล ({bankAlertModal.tableName})</span>
@@ -498,8 +531,9 @@ export default function BankAlertModal({
 
                   <button
                     type="button"
+                    data-sound="pop"
                     onClick={dismissCurrentAlert}
-                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-bold text-xs transition-all duration-75 active:scale-90 select-none cursor-pointer"
                   >
                     ไม่ใช่โต๊ะนี้ / ปิดหน้าต่าง
                   </button>
@@ -519,30 +553,42 @@ export default function BankAlertModal({
                       <button
                         key={c.tableId || c.tableNo}
                         type="button"
-                        onClick={async () => {
-                          try {
-                            for (const orderId of c.orderIds) {
-                              await fetch(`/api/r/${slug}/orders/${orderId}/pay`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  paymentMethod: 'PROMPTPAY',
-                                  note: `${c.tableName} (โอนผ่าน ${bankAlertModal.bankName || 'Email ธนาคาร'})`,
-                                }),
-                              });
-                            }
-                            playSuccessChime();
-                            if (voiceEnabled) {
-                              speakMoneyReceived(c.totalAmount, c.tableName);
-                            }
-                            showSuccess(`ปิดบิล ${c.tableName} สำเร็จแล้ว ✅`, `ยอดรับ ฿${c.totalAmount}`);
-                            resolveAlertAndNext(bankAlertModal.id);
-                            fetchData();
-                          } catch (e: any) {
-                            showError('ไม่สามารถปิดบิลได้', e.message);
+                        data-sound="success"
+                        onClick={() => {
+                          playSuccessChime();
+                          if (voiceEnabled) {
+                            speakMoneyReceived(c.totalAmount, c.tableName);
                           }
+                          showSuccess(`ปิดบิล ${c.tableName} สำเร็จแล้ว ✅`, `ยอดรับ ฿${c.totalAmount}`);
+                          const currentAlertId = bankAlertModal.id;
+                          const cTableName = c.tableName;
+                          const bName = bankAlertModal.bankName;
+                          const cOrderIds = c.orderIds || [];
+
+                          resolveAlertAndNext(currentAlertId);
+                          fetchData();
+
+                          // Background execution
+                          (async () => {
+                            try {
+                              await Promise.all(
+                                cOrderIds.map((orderId: string) =>
+                                  fetch(`/api/r/${slug}/orders/${orderId}/pay`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      paymentMethod: 'PROMPTPAY',
+                                      note: `${cTableName} (โอนผ่าน ${bName || 'Email ธนาคาร'})`,
+                                    }),
+                                  })
+                                )
+                              );
+                            } catch (e: any) {
+                              showError('ไม่สามารถปิดบิลได้', e.message);
+                            }
+                          })();
                         }}
-                        className="w-full p-3 rounded-2xl bg-orange-50/80 hover:bg-orange-100/90 border border-orange-200/90 text-left flex items-center justify-between group transition-all cursor-pointer"
+                        className="w-full p-3 rounded-2xl bg-orange-50/80 hover:bg-orange-100/90 active:bg-orange-200/90 border border-orange-200/90 text-left flex items-center justify-between group transition-all duration-75 active:scale-95 active:translate-y-0.5 select-none cursor-pointer"
                       >
                         <div>
                           <span className="font-black text-sm text-slate-900 block">{c.tableName}</span>
@@ -557,8 +603,9 @@ export default function BankAlertModal({
 
                   <button
                     type="button"
+                    data-sound="pop"
                     onClick={dismissCurrentAlert}
-                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-all cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-bold text-xs transition-all duration-75 active:scale-90 select-none cursor-pointer"
                   >
                     ปิดหน้าต่าง / ไม่ใช่โต๊ะเหล่านี้
                   </button>
@@ -596,30 +643,42 @@ export default function BankAlertModal({
                               <button
                                 key={t.id}
                                 type="button"
-                                onClick={async () => {
-                                  try {
-                                    for (const o of tableOrders) {
-                                      await fetch(`/api/r/${slug}/orders/${o.id}/pay`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                          paymentMethod: 'PROMPTPAY',
-                                          note: `${t.name} (ตัดยอดจากเงินโอน ฿${bankAlertModal.amount})`,
-                                        }),
-                                      });
-                                    }
-                                    playSuccessChime();
-                                    if (voiceEnabled) {
-                                      speakMoneyReceived(bankAlertModal.amount, t.name);
-                                    }
-                                    showSuccess(`ตัดยอดปิดบิล ${t.name} สำเร็จแล้ว ✅`);
-                                    resolveAlertAndNext(bankAlertModal.id);
-                                    fetchData();
-                                  } catch (e: any) {
-                                    showError('ไม่สามารถปิดบิลได้', e.message);
+                                data-sound="success"
+                                onClick={() => {
+                                  playSuccessChime();
+                                  if (voiceEnabled) {
+                                    speakMoneyReceived(bankAlertModal.amount, t.name);
                                   }
+                                  showSuccess(`ตัดยอดปิดบิล ${t.name} สำเร็จแล้ว ✅`);
+                                  const currentAlertId = bankAlertModal.id;
+                                  const tName = t.name;
+                                  const bAmount = bankAlertModal.amount;
+                                  const tOrders = [...tableOrders];
+
+                                  resolveAlertAndNext(currentAlertId);
+                                  fetchData();
+
+                                  // Background execution
+                                  (async () => {
+                                    try {
+                                      await Promise.all(
+                                        tOrders.map((o: any) =>
+                                          fetch(`/api/r/${slug}/orders/${o.id}/pay`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                              paymentMethod: 'PROMPTPAY',
+                                              note: `${tName} (ตัดยอดจากเงินโอน ฿${bAmount})`,
+                                            }),
+                                          })
+                                        )
+                                      );
+                                    } catch (e: any) {
+                                      showError('ไม่สามารถปิดบิลได้', e.message);
+                                    }
+                                  })();
                                 }}
-                                className="w-full p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center justify-between text-xs cursor-pointer transition-colors"
+                                className="w-full p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200 border border-slate-200 text-left flex items-center justify-between text-xs cursor-pointer transition-all duration-75 active:scale-95 select-none"
                               >
                                 <span className="font-bold text-slate-800">{t.name}</span>
                                 <span className="font-bold text-amber-700">
@@ -634,8 +693,9 @@ export default function BankAlertModal({
 
                   <button
                     type="button"
+                    data-sound="pop"
                     onClick={dismissCurrentAlert}
-                    className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-xs transition-all cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white font-black text-xs transition-all duration-75 active:scale-90 select-none cursor-pointer"
                   >
                     รับทราบ & ปิดหน้าต่าง
                   </button>
@@ -651,8 +711,9 @@ export default function BankAlertModal({
         <div className="fixed bottom-6 right-6 z-40 animate-bounce">
           <button
             type="button"
+            data-sound="pop"
             onClick={onOpen}
-            className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white font-black text-sm shadow-2xl shadow-orange-500/50 hover:scale-105 active:scale-95 transition-all border-2 border-white/40 cursor-pointer"
+            className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white font-black text-sm shadow-2xl shadow-orange-500/50 hover:scale-105 active:scale-90 transition-all duration-75 border-2 border-white/40 cursor-pointer select-none"
           >
             <div className="relative">
               <BellRing className="w-5 h-5 text-white animate-pulse" />

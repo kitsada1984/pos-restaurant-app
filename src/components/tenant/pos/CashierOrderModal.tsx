@@ -142,39 +142,51 @@ export default function CashierOrderModal({
     const isDelivery = ['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(orderChannel);
     if (!isDelivery && !selectedTable) return;
 
+    // Snapshot payload
+    const cartSnapshot = [...cashierCart];
+    const tableSnapshot = selectedTable;
+    const channelSnapshot = orderChannel;
+    const orderIdSnapshot = deliveryOrderId;
+    const rNameSnapshot = riderName;
+    const rPhoneSnapshot = riderPhone;
+
+    // 1. Immediate tactile sound & toast (0ms)
+    if (isDelivery) {
+      const chLabel =
+        orderChannel === 'LINEMAN'
+          ? 'LINE MAN'
+          : orderChannel === 'GRAB'
+          ? 'GrabFood'
+          : orderChannel === 'SHOPEE_FOOD'
+          ? 'ShopeeFood'
+          : 'Robinhood';
+      showSuccess('รับออเดอร์เดลิเวอรีเข้าครัวแล้ว 🛵', `${chLabel} #${deliveryOrderId || 'ใหม่'} • ${cartSnapshot.length} รายการ`);
+      playDeliveryChime();
+    } else {
+      showSuccess('ส่งรายการอาหารเข้าครัวแล้ว 🍳', `${selectedTable?.name || 'สั่งกลับบ้าน'} • ${cartSnapshot.length} รายการ`);
+      playOrderChime();
+    }
+
+    // 2. Clear cart & close modal immediately (0ms)
+    setCashierCart([]);
+    onOrderSuccess();
+
+    // 3. Background network dispatch
     try {
       const res = await fetch(`/api/r/${slug}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tableId: isDelivery ? 0 : (selectedTable?.id || selectedTable?.tableNo),
-          items: cashierCart,
-          orderType: isDelivery ? 'TAKEAWAY' : (orderChannel === 'TAKEAWAY' ? 'TAKEAWAY' : 'DINE_IN'),
-          orderChannel,
-          deliveryOrderId: isDelivery ? deliveryOrderId : null,
-          riderName: isDelivery ? riderName : null,
-          riderPhone: isDelivery ? riderPhone : null,
+          tableId: isDelivery ? 0 : (tableSnapshot?.id || tableSnapshot?.tableNo),
+          items: cartSnapshot,
+          orderType: isDelivery ? 'TAKEAWAY' : (channelSnapshot === 'TAKEAWAY' ? 'TAKEAWAY' : 'DINE_IN'),
+          orderChannel: channelSnapshot,
+          deliveryOrderId: isDelivery ? orderIdSnapshot : null,
+          riderName: isDelivery ? rNameSnapshot : null,
+          riderPhone: isDelivery ? rPhoneSnapshot : null,
         }),
       });
-      if (res.ok) {
-        if (isDelivery) {
-          const chLabel =
-            orderChannel === 'LINEMAN'
-              ? 'LINE MAN'
-              : orderChannel === 'GRAB'
-              ? 'GrabFood'
-              : orderChannel === 'SHOPEE_FOOD'
-              ? 'ShopeeFood'
-              : 'Robinhood';
-          showSuccess('รับออเดอร์เดลิเวอรีเข้าครัวแล้ว 🛵', `${chLabel} #${deliveryOrderId || 'ใหม่'} • ${cashierCart.length} รายการ`);
-          playDeliveryChime();
-        } else {
-          showSuccess('ส่งรายการอาหารเข้าครัวแล้ว 🍳', `${selectedTable?.name || 'สั่งกลับบ้าน'} • ${cashierCart.length} รายการ`);
-          playOrderChime();
-        }
-        setCashierCart([]);
-        onOrderSuccess();
-      } else {
+      if (!res.ok) {
         showError('ไม่สามารถส่งออเดอร์ได้', 'กรุณาลองใหม่อีกครั้ง');
       }
     } catch (err) {
@@ -217,6 +229,7 @@ export default function CashierOrderModal({
                 <button
                   key={ch.id}
                   type="button"
+                  data-sound="tap"
                   onClick={() => {
                     setOrderChannel(ch.id as any);
                     if (['LINEMAN', 'GRAB', 'SHOPEE_FOOD'].includes(ch.id) && !deliveryOrderId) {
@@ -224,15 +237,15 @@ export default function CashierOrderModal({
                       setDeliveryOrderId(`${prefix}-${Math.floor(1000 + Math.random() * 9000)}`);
                     }
                   }}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-black whitespace-nowrap transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-black whitespace-nowrap transition-all duration-75 active:scale-95 select-none cursor-pointer ${
                     orderChannel === ch.id
                       ? ch.id === 'LINEMAN'
-                        ? 'bg-[#06C755] text-white'
+                        ? 'bg-[#06C755] text-white shadow-sm'
                         : ch.id === 'GRAB'
-                        ? 'bg-[#00B14F] text-white'
+                        ? 'bg-[#00B14F] text-white shadow-sm'
                         : ch.id === 'SHOPEE_FOOD'
-                        ? 'bg-[#EE4D2D] text-white'
-                        : 'bg-orange-500 text-white'
+                        ? 'bg-[#EE4D2D] text-white shadow-sm'
+                        : 'bg-orange-500 text-white shadow-sm'
                       : 'text-slate-300 hover:text-white hover:bg-slate-700'
                   }`}
                 >
@@ -243,7 +256,8 @@ export default function CashierOrderModal({
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white self-end sm:self-auto"
+              data-sound="pop"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-400 hover:text-white self-end sm:self-auto transition-all duration-75 active:scale-90 cursor-pointer select-none"
             >
               <X className="w-5 h-5" />
             </button>
@@ -304,7 +318,8 @@ export default function CashierOrderModal({
                   <div
                     key={item.id}
                     onClick={() => handleOpenItemCustomizer(item)}
-                    className="p-3 rounded-2xl border border-slate-200 hover:border-orange-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between bg-white"
+                    data-sound="tap"
+                    className="p-3 rounded-2xl border border-slate-200 hover:border-orange-500 hover:shadow-md active:scale-95 cursor-pointer transition-all duration-75 flex flex-col justify-between bg-white select-none"
                   >
                     {item.imageUrl && (
                       <div className="w-full h-20 rounded-xl overflow-hidden mb-2 bg-slate-100 flex-shrink-0">
@@ -352,7 +367,8 @@ export default function CashierOrderModal({
                         </div>
                         <button
                           onClick={() => handleRemoveFromCart(idx)}
-                          className="text-rose-500 hover:text-rose-700 p-1"
+                          data-sound="pop"
+                          className="text-rose-500 hover:text-rose-700 active:text-rose-900 p-1.5 rounded-lg hover:bg-rose-50 transition-all duration-75 active:scale-90 cursor-pointer select-none"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -402,10 +418,11 @@ export default function CashierOrderModal({
                       <button
                         disabled={cashierCart.length === 0}
                         onClick={handleSubmitCashierOrder}
-                        className={`w-full py-3 rounded-2xl text-white font-extrabold text-xs shadow-lg transition-all disabled:opacity-50 ${
+                        data-sound="success"
+                        className={`w-full py-3 rounded-2xl text-white font-extrabold text-xs shadow-lg transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none disabled:opacity-50 cursor-pointer ${
                           isDeliv
-                            ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25'
-                            : 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/25'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 shadow-emerald-600/25 ring-0 active:ring-2 active:ring-emerald-300'
+                            : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700 shadow-orange-500/25 ring-0 active:ring-2 active:ring-orange-300'
                         }`}
                       >
                         {isDeliv ? '🛵 ส่งออเดอร์เดลิเวอรีเข้าครัวทันที' : 'ส่งออเดอร์เข้าครัวทันที 🍳'}
@@ -425,7 +442,11 @@ export default function CashierOrderModal({
           <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
             <div className="flex items-center justify-between">
               <h4 className="font-black text-base text-slate-900">{selectedMenuItem.name}</h4>
-              <button onClick={() => setSelectedMenuItem(null)} className="text-slate-400 hover:text-slate-600">
+              <button
+                onClick={() => setSelectedMenuItem(null)}
+                data-sound="pop"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-all duration-75 active:scale-90 cursor-pointer select-none"
+              >
                 ✕
               </button>
             </div>
@@ -440,6 +461,7 @@ export default function CashierOrderModal({
                       <button
                         key={choice.id}
                         type="button"
+                        data-sound="tap"
                         onClick={() => {
                           if (group.isMulti) {
                             const current = selectedOptions[group.title] || [];
@@ -461,9 +483,9 @@ export default function CashierOrderModal({
                             });
                           }
                         }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-75 active:scale-90 select-none cursor-pointer ${
                           isSelected
-                            ? 'bg-orange-500 border-orange-500 text-white'
+                            ? 'bg-orange-500 border-orange-500 text-white shadow-xs'
                             : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                         }`}
                       >
@@ -490,16 +512,18 @@ export default function CashierOrderModal({
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
+                  data-sound="pop"
                   onClick={() => setDishQuantity(Math.max(1, dishQuantity - 1))}
-                  className="w-8 h-8 rounded-lg bg-slate-100 font-bold"
+                  className="w-8 h-8 rounded-lg bg-slate-100 font-bold transition-all duration-75 active:scale-90 cursor-pointer select-none"
                 >
                   -
                 </button>
                 <span className="font-extrabold text-sm">{dishQuantity}</span>
                 <button
                   type="button"
+                  data-sound="pop"
                   onClick={() => setDishQuantity(dishQuantity + 1)}
-                  className="w-8 h-8 rounded-lg bg-slate-100 font-bold"
+                  className="w-8 h-8 rounded-lg bg-slate-100 font-bold transition-all duration-75 active:scale-90 cursor-pointer select-none"
                 >
                   +
                 </button>
@@ -507,8 +531,9 @@ export default function CashierOrderModal({
 
               <button
                 type="button"
+                data-sound="success"
                 onClick={handleAddToCart}
-                className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/20"
+                className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-extrabold text-xs shadow-md shadow-orange-500/20 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-orange-300"
               >
                 เพิ่มลงตะกร้า (฿{calculateCustomizedPrice()})
               </button>

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useToast } from '@/context/ToastContext';
+import { playSuccessChime } from '@/lib/sound';
 
 export interface TableActionModalsProps {
   isMoveModalOpen: boolean;
@@ -36,6 +37,17 @@ export default function TableActionModals({
 
   const handleMoveTable = async () => {
     if (!selectedTable || !targetTableId) return;
+    const targetTableNum = targetTableId;
+    const sourceTableName = selectedTable.name;
+
+    // 1. Immediate tactile sound, toast & close modal (0ms)
+    playSuccessChime();
+    showSuccess('ย้ายโต๊ะสำเร็จ 🪑', `ย้ายจาก ${sourceTableName} ไป โต๊ะ ${targetTableNum} เรียบร้อย`);
+    onCloseMove();
+    setTargetTableId('');
+    onSuccess();
+
+    // 2. Background network dispatch
     try {
       const res = await fetch(`/api/r/${slug}/tables`, {
         method: 'POST',
@@ -43,20 +55,17 @@ export default function TableActionModals({
         body: JSON.stringify({
           action: 'MOVE_TABLE',
           fromTableId: selectedTable.id || selectedTable.tableNo,
-          toTableId: targetTableId,
+          toTableId: targetTableNum,
         }),
       });
-      if (res.ok) {
-        showSuccess('ย้ายโต๊ะสำเร็จ 🪑', `ย้ายจาก ${selectedTable.name} ไป โต๊ะ ${targetTableId} เรียบร้อย`);
-        onCloseMove();
-        setTargetTableId('');
-        onSuccess();
-      } else {
+      if (!res.ok) {
         showError('ไม่สามารถย้ายโต๊ะได้', 'โต๊ะปลายทางอาจไม่ว่าง');
+        onSuccess();
       }
     } catch (err) {
       console.error(err);
       showError('เกิดข้อผิดพลาด', 'ไม่สามารถย้ายโต๊ะได้');
+      onSuccess();
     }
   };
 
@@ -119,7 +128,8 @@ export default function TableActionModals({
               <button
                 type="button"
                 onClick={onCloseMove}
-                className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
+                data-sound="pop"
+                className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 text-xs font-bold transition-all duration-75 active:scale-90 cursor-pointer select-none"
               >
                 ยกเลิก
               </button>
@@ -127,7 +137,8 @@ export default function TableActionModals({
                 type="button"
                 disabled={!targetTableId}
                 onClick={handleMoveTable}
-                className="flex-1 py-2 rounded-xl bg-orange-500 text-white text-xs font-extrabold disabled:opacity-50"
+                data-sound="success"
+                className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white text-xs font-extrabold shadow-sm transition-all duration-75 active:scale-90 active:translate-y-0.5 disabled:opacity-50 cursor-pointer select-none ring-0 active:ring-2 active:ring-orange-300"
               >
                 ยืนยันย้ายโต๊ะ
               </button>
@@ -168,14 +179,16 @@ export default function TableActionModals({
                 <button
                   type="button"
                   onClick={onCloseAdd}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold"
+                  data-sound="pop"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-bold transition-all duration-75 active:scale-90 cursor-pointer select-none"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={isCreatingTable}
-                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold shadow-md"
+                  data-sound="success"
+                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-extrabold shadow-md transition-all duration-75 active:scale-90 active:translate-y-0.5 disabled:opacity-50 cursor-pointer select-none ring-0 active:ring-2 active:ring-orange-300"
                 >
                   {isCreatingTable ? 'กำลังเพิ่ม...' : 'ยืนยันเพิ่มโต๊ะ'}
                 </button>
