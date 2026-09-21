@@ -716,16 +716,47 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
 
               {/* Secret Token Field */}
               <div className="pt-2">
-                <label className="block text-slate-300 font-bold text-[11px] mb-1">
-                  Print Proxy Security Token (รหัสความปลอดภัยสำหรับจับคู่กับเครื่องพิมพ์เสมือน)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-bold text-[11px]">
+                    Print Proxy Security Token (รหัสความปลอดภัยสำหรับจับคู่กับเครื่องพิมพ์เสมือน)
+                  </label>
+                  <div className="flex items-center space-x-2 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const randomToken = 'proxy_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 8);
+                        setForm({ ...form, deliveryWebhookSecret: randomToken });
+                        showInfo('สร้างรหัสสุ่มให้แล้ว อย่าลืมกดบันทึกการตั้งค่า');
+                      }}
+                      className="text-amber-400 hover:text-amber-300 font-bold flex items-center space-x-0.5"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>🎲 สุ่มรหัสใหม่</span>
+                    </button>
+                    {form.deliveryWebhookSecret && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm({ ...form, deliveryWebhookSecret: '' });
+                          showInfo('ล้างรหัสแล้ว (เว้นว่างไว้เพื่อเปิดรับอัตโนมัติ)');
+                        }}
+                        className="text-slate-400 hover:text-slate-300"
+                      >
+                        ล้างรหัส
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <input
                   type="text"
-                  placeholder="เช่น proxy_secret_key_xxxx หรือเว้นว่างไว้เพื่อเปิดรับอัตโนมัติ"
+                  placeholder="ร้านตั้งเองได้เลย หรือเว้นว่างไว้เพื่อเปิดรับอัตโนมัติ"
                   value={form.deliveryWebhookSecret}
                   onChange={(e) => setForm({ ...form, deliveryWebhookSecret: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
+                <p className="mt-1.5 text-[10px] text-slate-400 leading-relaxed">
+                  💡 <strong>ที่มาของรหัส:</strong> คุณสามารถ <span className="text-amber-300 font-bold">คิดและตั้งเองได้ตามใจชอบ</span> หรือ <span className="text-emerald-300 font-bold">เว้นว่างไว้ได้เลย</span> (ไม่ต้องไปขอจากใคร) หากตั้งรหัสไว้ ให้นำรหัสนี้ไปใส่ในโปรแกรมหรือแอป Print Proxy ด้วยเพื่อให้จับคู่ตรงกัน
+                </p>
               </div>
 
               {/* Collapsible Setup Guide */}
