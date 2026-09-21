@@ -165,6 +165,83 @@ export function playDeliveryChime() {
   }
 }
 
+/**
+ * Instant Tactile Button Feedback Synthesizer
+ * Synthesizes a crisp, subtle mechanical click/tap with sub-millisecond latency using Web Audio API
+ */
+let lastTapTime = 0;
+export function playButtonTapSound(variant: 'tap' | 'pop' | 'success' | 'delete' = 'tap') {
+  if (typeof window === 'undefined') return;
+
+  const nowMs = Date.now();
+  if (nowMs - lastTapTime < 20) return; // Prevent audio distortion from rapid sub-20ms multi-touch
+  lastTapTime = nowMs;
+
+  const ctx = getSharedAudioContext();
+  if (!ctx) return;
+
+  try {
+    const now = ctx.currentTime;
+
+    if (variant === 'success') {
+      // Crisp subtle positive micro-chime: 587Hz -> 880Hz (D5 -> A5), 50ms
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now);
+      osc.frequency.exponentialRampToValueAtTime(880.0, now + 0.04);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } else if (variant === 'delete') {
+      // Soft low tactile thud: 220Hz -> 90Hz, 30ms
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(90, now + 0.035);
+      gain.gain.setValueAtTime(0.14, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.06);
+    } else if (variant === 'pop') {
+      // Light bubbly pop: 920Hz -> 450Hz, 25ms
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(920, now);
+      osc.frequency.exponentialRampToValueAtTime(450, now + 0.025);
+      gain.gain.setValueAtTime(0.10, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } else {
+      // Default 'tap': Crisp, high-end mechanical tactile click: 750Hz -> 280Hz, 18ms
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(750, now);
+      osc.frequency.exponentialRampToValueAtTime(280, now + 0.018);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.04);
+    }
+  } catch {
+    // Gracefully ignore audio interruptions
+  }
+}
+
+
 export function formatThaiCurrencyForSpeech(amount: number): string {
   const num = Number(amount);
   if (isNaN(num) || num <= 0) return '0 บาท';

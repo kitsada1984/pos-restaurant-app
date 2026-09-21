@@ -4,6 +4,7 @@ import './globals.css';
 import { ToastProvider } from '@/context/ToastContext';
 import PwaRegister from '@/components/PwaRegister';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt';
+import GlobalButtonSound from '@/components/GlobalButtonSound';
 
 const prompt = Prompt({
   subsets: ['thai', 'latin'],
@@ -67,6 +68,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased font-sans text-slate-900 bg-[#F8FAFC] selection:bg-orange-500 selection:text-white overflow-x-hidden max-w-[100vw] w-full">
         <ToastProvider>
+          <GlobalButtonSound />
           {children}
           <PwaRegister />
           <PwaInstallPrompt />
