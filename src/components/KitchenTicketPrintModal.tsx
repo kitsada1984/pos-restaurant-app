@@ -115,8 +115,9 @@ export default function KitchenTicketPrintModal({
           </div>
           <button
             type="button"
+            data-sound="tap"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 active:scale-90 active:translate-y-0.5 select-none duration-75 transition-all cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -227,17 +228,19 @@ export default function KitchenTicketPrintModal({
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center gap-2 no-print">
           <button
             type="button"
+            data-sound="tap"
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 transition-all cursor-pointer"
           >
             ปิดหน้าต่าง
           </button>
           <button
             type="button"
+            data-sound="tap"
             onClick={handlePrint}
             disabled={isPrinting}
-            className={`flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-amber-500/20 transition-all ${
-              isPrinting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+            className={`flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-amber-500/20 transition-all ${
+              isPrinting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer ring-2 ring-amber-400/40'
             }`}
           >
             <Printer className="w-4 h-4" />

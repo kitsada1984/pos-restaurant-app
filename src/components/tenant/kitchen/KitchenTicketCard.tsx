@@ -16,12 +16,16 @@ interface KitchenTicketCardProps {
   order: KitchenOrder;
   onUpdateItemStatus: (orderId: string, itemId: string, newStatus: string) => void;
   onOpenPrintModal: (order: KitchenOrder) => void;
+  onOpenServeModal?: (order: KitchenOrder) => void;
+  onUpdateOrderStatus?: (orderId: string, newStatus: string) => void;
 }
 
 export default function KitchenTicketCard({
   order,
   onUpdateItemStatus,
   onOpenPrintModal,
+  onOpenServeModal,
+  onUpdateOrderStatus,
 }: KitchenTicketCardProps) {
   const isPending = order.status === 'PENDING';
   const isCooking = order.status === 'COOKING';
@@ -41,6 +45,9 @@ export default function KitchenTicketCard({
       return sum;
     }, 0) || 0;
   const progressPercent = totalItems > 0 ? Math.round(((servedCount + readyCount) / totalItems) * 100) : 0;
+  const hasPending = order.items?.some((it: any) => it.status === 'PENDING' || !it.status);
+  const hasCooking = order.items?.some((it: any) => it.status === 'COOKING');
+  const allReadyOrServed = totalItems > 0 && order.items?.every((it: any) => it.status === 'READY' || it.status === 'SERVED');
 
   // Channel Theme
   let headerBg = isPending ? 'bg-rose-600' : isCooking ? 'bg-amber-600' : 'bg-emerald-600';
@@ -123,9 +130,10 @@ export default function KitchenTicketCard({
           {/* Print Kitchen Ticket Button */}
           <button
             type="button"
+            data-sound="tap"
             onClick={() => onOpenPrintModal(order)}
             title="พิมพ์ใบสั่งอาหารห้องครัว (KOT)"
-            className="p-2 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 text-white shadow-2xs transition-all duration-150 cursor-pointer flex items-center justify-center border border-white/30 backdrop-blur-xs"
+            className="p-2 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 active:translate-y-0.5 text-white shadow-2xs transition-all duration-75 select-none cursor-pointer flex items-center justify-center border border-white/30 backdrop-blur-xs ring-0 active:ring-2 active:ring-white/40"
           >
             <Printer className="w-4 h-4" />
           </button>
@@ -305,6 +313,7 @@ export default function KitchenTicketCard({
                   {/* 4-State dish button */}
                   <button
                     type="button"
+                    data-sound={isItemReady ? 'success' : isItemCooking ? 'success' : 'pop'}
                     onClick={() => {
                       const nextStatus =
                         item.status === 'PENDING' || !item.status
@@ -325,14 +334,14 @@ export default function KitchenTicketCard({
                         ? 'คลิกเมื่อปรุงเสร็จพร้อมเสิร์ฟ'
                         : 'คลิกเพื่อเริ่มปรุงจานนี้'
                     }
-                    className={`px-3 py-1.5 rounded-xl text-[11px] font-black border active:scale-95 transition-all duration-150 cursor-pointer shadow-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-black border active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none transition-all duration-75 cursor-pointer shadow-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
                       isItemServed
-                        ? 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+                        ? 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200 active:ring-2 active:ring-slate-300'
                         : isItemReady
                         ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-xs ring-2 ring-emerald-400/50'
                         : isItemCooking
-                        ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600 shadow-xs'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600 shadow-xs ring-2 ring-amber-400/50'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 active:ring-2 active:ring-slate-300'
                     }`}
                   >
                     {isItemServed ? (
@@ -360,6 +369,64 @@ export default function KitchenTicketCard({
           })}
         </div>
       </div>
+
+      {/* Quick Bulk Ticket Actions Footer */}
+      {(onOpenServeModal || onUpdateOrderStatus) && (
+        <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
+          {allReadyOrServed ? (
+            <button
+              type="button"
+              data-sound="success"
+              onClick={() => onOpenServeModal?.(order)}
+              className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer ring-2 ring-emerald-400/40"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>เสิร์ฟครบทุกจาน (เคลียร์บิล)</span>
+            </button>
+          ) : hasCooking && !hasPending ? (
+            <button
+              type="button"
+              data-sound="success"
+              onClick={() => onUpdateOrderStatus?.(order.id, 'READY')}
+              className="w-full py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer ring-2 ring-teal-400/40"
+            >
+              <BellRing className="w-4 h-4" />
+              <span>ปรุงเสร็จทั้งหมด (พร้อมเสิร์ฟ)</span>
+            </button>
+          ) : hasPending ? (
+            <div className="w-full flex items-center gap-2">
+              <button
+                type="button"
+                data-sound="pop"
+                onClick={() => onUpdateOrderStatus?.(order.id, 'COOKING')}
+                className="flex-1 py-2 px-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer ring-2 ring-amber-400/40"
+              >
+                <Flame className="w-3.5 h-3.5" />
+                <span>เริ่มทำทั้งหมด</span>
+              </button>
+              <button
+                type="button"
+                data-sound="success"
+                onClick={() => onOpenServeModal?.(order)}
+                title="ยืนยันเสิร์ฟทันที"
+                className="py-2 px-3 rounded-xl bg-slate-200 hover:bg-slate-300 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-700 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+              >
+                <span>เสิร์ฟทั้งบิล</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              data-sound="success"
+              onClick={() => onOpenServeModal?.(order)}
+              className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>ยืนยันเสิร์ฟบิลนี้</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

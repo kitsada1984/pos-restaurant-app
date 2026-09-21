@@ -36,6 +36,7 @@ export default function KitchenTerminal({
     setPrintingOrder,
     fetchOrders,
     updateItemStatus,
+    updateOrderStatus,
     confirmServeOrder,
     filteredOrders,
     pendingCount,
@@ -76,10 +77,12 @@ export default function KitchenTerminal({
           <div className="flex items-center gap-1.5">
             {/* Auto Print Toggle */}
             <button
+              type="button"
+              data-sound="tap"
               onClick={() => toggleAutoPrint()}
-              className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all duration-75 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none cursor-pointer ${
                 autoPrintEnabled
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs ring-1 ring-emerald-300'
                   : 'bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200'
               }`}
               title={
@@ -96,11 +99,13 @@ export default function KitchenTerminal({
 
             {/* Sound Toggle */}
             <button
+              type="button"
+              data-sound="tap"
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className={`p-1.5 rounded-xl border text-xs font-bold flex items-center transition-all cursor-pointer ${
+              className={`p-1.5 rounded-xl border text-xs font-bold flex items-center transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none cursor-pointer ${
                 soundEnabled
-                  ? 'bg-amber-50 border-amber-300 text-amber-800 shadow-2xs'
-                  : 'bg-slate-100 border-slate-300 text-slate-500'
+                  ? 'bg-amber-50 border-amber-300 text-amber-800 shadow-2xs ring-1 ring-amber-300'
+                  : 'bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200'
               }`}
               title={soundEnabled ? 'ปิดเสียงกระดิ่ง' : 'เปิดเสียงกระดิ่ง'}
             >
@@ -113,8 +118,10 @@ export default function KitchenTerminal({
 
             {/* Refresh */}
             <button
+              type="button"
+              data-sound="pop"
               onClick={fetchOrders}
-              className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-all cursor-pointer"
+              className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none cursor-pointer"
               title="รีเฟรชออเดอร์"
             >
               <RefreshCw className="w-4 h-4" />
@@ -137,10 +144,12 @@ export default function KitchenTerminal({
           ].map((f) => (
             <button
               key={f.id}
+              type="button"
+              data-sound="pop"
               onClick={() => setFilterStatus(f.id)}
-              className={`py-1.5 px-2.5 rounded-xl text-[10px] sm:text-[11px] font-black transition-all text-center whitespace-nowrap cursor-pointer ${
+              className={`py-1.5 px-2.5 rounded-xl text-[10px] sm:text-[11px] font-black transition-all duration-75 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none text-center whitespace-nowrap cursor-pointer ${
                 filterStatus === f.id
-                  ? f.color || 'bg-slate-900 text-white shadow-sm'
+                  ? f.color || 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/30'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -183,6 +192,8 @@ export default function KitchenTerminal({
               order={order}
               onUpdateItemStatus={updateItemStatus}
               onOpenPrintModal={(ord) => setPrintingOrder(ord)}
+              onOpenServeModal={(ord) => setConfirmingServeOrder(ord)}
+              onUpdateOrderStatus={updateOrderStatus}
             />
           ))}
         </div>

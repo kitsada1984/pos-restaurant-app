@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { AlertTriangle, CheckCircle2, X, Utensils, ChefHat } from 'lucide-react';
@@ -62,8 +62,9 @@ export default function ServeConfirmModal({
           </div>
           <button
             type="button"
+            data-sound="tap"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 active:scale-90 active:translate-y-0.5 select-none duration-75 transition-all cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -102,15 +103,17 @@ export default function ServeConfirmModal({
         <div className="flex items-center gap-2 pt-1">
           <button
             type="button"
+            data-sound="tap"
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 active:scale-95 transition-all cursor-pointer"
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 transition-all cursor-pointer"
           >
             ยกเลิก
           </button>
           <button
             type="button"
+            data-sound="success"
             onClick={onConfirm}
-            className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+            className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer ring-2 ring-emerald-400/40"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>ยืนยันเสิร์ฟทันที</span>

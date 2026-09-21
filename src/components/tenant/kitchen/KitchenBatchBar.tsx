@@ -37,8 +37,10 @@ export default function KitchenBatchBar({
           </h3>
         </div>
         <button
+          type="button"
+          data-sound="pop"
           onClick={() => setShowBatchBar(!showBatchBar)}
-          className="text-[11px] font-bold text-amber-800 hover:text-amber-950 px-2 py-0.5 rounded-lg hover:bg-amber-100/60 transition-all flex-shrink-0 cursor-pointer"
+          className="text-[11px] font-bold text-amber-800 hover:text-amber-950 px-2.5 py-1 rounded-lg hover:bg-amber-100/80 active:scale-90 active:translate-y-0.5 duration-75 select-none transition-all flex-shrink-0 cursor-pointer"
         >
           {showBatchBar ? 'ย่อ ▲' : 'ดูเมนู ▼'}
         </button>
