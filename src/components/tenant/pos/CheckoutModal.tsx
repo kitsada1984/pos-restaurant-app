@@ -40,6 +40,7 @@ import {
   speakSlipReceiverMismatch,
   speakSlipNoQr,
   speakThaiVoice,
+  speakPaymentConfirmed,
 } from '@/lib/sound';
 import { useToast } from '@/context/ToastContext';
 
@@ -301,6 +302,12 @@ export default function CheckoutModal({
   // Handle Process Payment
   const handleProcessPayment = async () => {
     if (!selectedTable || activeOrders.length === 0) return;
+
+    // ประกาศเสียง "ยืนยันชำระเงิน โต๊ะ X" ทันทีที่กดปุ่ม โดยไม่มีการหน่วงเวลา
+    if (voiceEnabled !== false) {
+      speakPaymentConfirmed(selectedTable.name || selectedTable.tableNo);
+    }
+
     setIsProcessingPay(true);
     try {
       let remainingDiscount = totalCombinedDiscount;
@@ -329,9 +336,6 @@ export default function CheckoutModal({
       }
 
       playSuccessChime();
-      if (voiceEnabled) {
-        speakMoneyReceived(finalNetAmount, selectedTable.name);
-      }
       showSuccess('ชำระเงินสำเร็จ 💰', `${selectedTable.name} • ยอดรับเงิน ฿${finalNetAmount}`);
 
       onPrintReceipt({
@@ -467,6 +471,12 @@ export default function CheckoutModal({
   const handleManualConfirmSlip = async () => {
     const activeOrder = activeOrders[0];
     if (!activeOrder) return;
+
+    // ประกาศเสียง "ยืนยันชำระเงิน โต๊ะ X" ทันทีที่กดปุ่ม โดยไม่มีการหน่วงเวลา
+    if (voiceEnabled !== false) {
+      speakPaymentConfirmed(selectedTable.name || selectedTable.tableNo);
+    }
+
     setIsManualConfirming(true);
     try {
       const res = await fetch(`/api/r/${slug}/orders/verify-slip`, {
@@ -487,9 +497,6 @@ export default function CheckoutModal({
       const data = await res.json();
       if (data.isPaid) {
         playSuccessChime();
-        if (voiceEnabled) {
-          speakSlipVerified(finalNetAmount, selectedTable.name);
-        }
         showSuccess('บันทึกปิดบิลด้วยสลิปสำเร็จแล้ว ✅', `${selectedTable.name} • ยอด ฿${finalNetAmount}`);
 
         onPrintReceipt({
@@ -542,6 +549,11 @@ export default function CheckoutModal({
       if (!ok) return;
     }
 
+    // ประกาศเสียง "ยืนยันชำระเงิน โต๊ะ X" ทันทีที่กดปุ่ม โดยไม่มีการหน่วงเวลา
+    if (voiceEnabled !== false) {
+      speakPaymentConfirmed(selectedTable.name || selectedTable.tableNo);
+    }
+
     setIsProcessingBankText(true);
     try {
       let remainingDiscount = totalCombinedDiscount;
@@ -568,9 +580,6 @@ export default function CheckoutModal({
       }
 
       playSuccessChime();
-      if (voiceEnabled) {
-        speakMoneyReceived(parsedBankText.amount, selectedTable.name);
-      }
       showSuccess(
         `ตัดยอดเงินเข้า ฿${parsedBankText.amount.toLocaleString()} สำเร็จ! 🎉`,
         `${selectedTable.name} • (${parsedBankText.bankName || parsedBankText.bank || 'ธนาคาร'})`

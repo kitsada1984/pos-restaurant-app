@@ -357,7 +357,7 @@ if (typeof window !== 'undefined') {
  * Works universally on Windows, iOS, Android, macOS without requiring OS Thai voice packs.
  */
 export function playThaiAudioStream(text: string): Promise<boolean> {
-  if (typeof window === 'undefined') return Promise.resolve(false);
+  if (typeof window === 'undefined' || typeof Audio === 'undefined') return Promise.resolve(false);
   const clean = text.trim();
   if (!clean) return Promise.resolve(false);
 
@@ -456,6 +456,23 @@ export function speakThaiVoice(text: string, rate: number = 1.0) {
       }
     }
   });
+}
+
+/**
+ * อ่านออกเสียงเมื่อกดยืนยันชำระเงินปิดบิล
+ * เช่น "ยืนยันชำระเงิน โต๊ะ 1"
+ */
+export function speakPaymentConfirmed(tableName?: string | number) {
+  let target = '';
+  if (tableName !== undefined && tableName !== null && String(tableName).trim() !== '') {
+    const raw = String(tableName).trim();
+    if (raw.startsWith('โต๊ะ') || raw.includes('กลับบ้าน') || raw.includes('เดลิเวอรี่') || raw.includes('เดลิเวอรี') || raw.includes('หน้าร้าน')) {
+      target = ` ${raw}`;
+    } else {
+      target = ` โต๊ะ ${raw}`;
+    }
+  }
+  speakThaiVoice(`ยืนยันชำระเงิน${target}`.trim());
 }
 
 /**

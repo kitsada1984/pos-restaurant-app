@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { playButtonTapSound, getSharedAudioContext } from '@/lib/sound';
+import { playButtonTapSound, getSharedAudioContext, speakPaymentConfirmed } from '@/lib/sound';
 
 describe('Sound Synthesizer & Button Audio Feedback', () => {
   beforeEach(() => {
@@ -44,5 +44,15 @@ describe('Sound Synthesizer & Button Audio Feedback', () => {
     };
 
     expect(() => playButtonTapSound('tap')).not.toThrow();
+  });
+
+  it('runs speakPaymentConfirmed safely with various table names and numbers', () => {
+    expect(() => speakPaymentConfirmed('โต๊ะ 1')).not.toThrow();
+    expect(() => speakPaymentConfirmed(1)).not.toThrow();
+    expect(() => speakPaymentConfirmed('2')).not.toThrow();
+    expect(() => speakPaymentConfirmed('โต๊ะ 2')).not.toThrow();
+    expect(() => speakPaymentConfirmed('กลับบ้าน')).not.toThrow();
+    expect(() => speakPaymentConfirmed()).not.toThrow();
+    expect(() => speakPaymentConfirmed('')).not.toThrow();
   });
 });

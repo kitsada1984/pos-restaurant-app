@@ -17,6 +17,7 @@ import {
   speakMoneyReceived,
   speakCustomerNotifyTransfer,
   playSuccessChime,
+  speakPaymentConfirmed,
 } from '@/lib/sound';
 import { useToast } from '@/context/ToastContext';
 
@@ -322,6 +323,9 @@ export default function BankAlertModal({
                   <button
                     type="button"
                     onClick={async () => {
+                      if (voiceEnabled !== false) {
+                        speakPaymentConfirmed(bankAlertModal.tableName);
+                      }
                       try {
                         let orderIds = bankAlertModal.orderIds || [];
                         if (orderIds.length === 0) {
@@ -347,9 +351,6 @@ export default function BankAlertModal({
                         }
 
                         playSuccessChime();
-                        if (voiceEnabled) {
-                          speakMoneyReceived(bankAlertModal.amount, bankAlertModal.tableName);
-                        }
                         showSuccess(
                           `ปิดบิล ${bankAlertModal.tableName} สำเร็จแล้ว ✅`,
                           `ยอดรับ ฿${bankAlertModal.amount?.toLocaleString()}`
@@ -462,6 +463,9 @@ export default function BankAlertModal({
                   <button
                     type="button"
                     onClick={async () => {
+                      if (voiceEnabled !== false) {
+                        speakPaymentConfirmed(bankAlertModal.tableName);
+                      }
                       try {
                         const candidate = bankAlertModal.candidates?.[0];
                         const orderIds = candidate?.orderIds || [];
@@ -476,9 +480,6 @@ export default function BankAlertModal({
                           });
                         }
                         playSuccessChime();
-                        if (voiceEnabled) {
-                          speakMoneyReceived(bankAlertModal.amount, bankAlertModal.tableName);
-                        }
                         showSuccess(
                           `ปิดบิล ${bankAlertModal.tableName} สำเร็จแล้ว ✅`,
                           `ยอดรับ ฿${bankAlertModal.amount}`
