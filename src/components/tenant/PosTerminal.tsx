@@ -662,6 +662,7 @@ export default function PosTerminal({
       pointsEarned: existingPhone ? Math.floor(total / (store?.pointsRate || 25)) : 0,
       orderId: orders[0]?.id || `BILL-${table.tableNo || table.id}-${Date.now().toString().slice(-4)}`,
       paidAt: new Date().toISOString(),
+      autoPrint: true,
     });
     setIsReceiptModalOpen(true);
   };
@@ -1229,7 +1230,8 @@ export default function PosTerminal({
 
                   <button
                     onClick={() => handlePrintBillForTable(selectedTable)}
-                    className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 font-bold text-xs border border-amber-500/40 hover:border-amber-500/70 flex items-center space-x-1 transition-all cursor-pointer"
+                    data-sound="pop"
+                    className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-amber-300 hover:text-amber-200 font-bold text-xs border border-amber-500/40 hover:border-amber-500/70 flex items-center space-x-1 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-amber-400"
                     title="พิมพ์ใบแจ้งค่าอาหาร / ใบเช็คบิล"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -1371,6 +1373,7 @@ export default function PosTerminal({
             setReceiptOrder(null);
           }}
           order={receiptOrder}
+          store={store}
         />
       )}
     </div>

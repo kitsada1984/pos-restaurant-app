@@ -41,6 +41,7 @@ import {
   speakSlipNoQr,
   speakThaiVoice,
   speakPaymentConfirmed,
+  playButtonTapSound,
 } from '@/lib/sound';
 import { useToast } from '@/context/ToastContext';
 
@@ -269,9 +270,10 @@ export default function CheckoutModal({
     }
   };
 
-  // Handle Print Bill From Checkout
+  // Handle Print Bill From Checkout (Instant Zero Delay Action)
   const handlePrintBillFromCheckout = () => {
     if (!selectedTable) return;
+    playButtonTapSound('pop');
     onPreCheckPrint({
       storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
       promptPayName: store?.promptPayName || '',
@@ -296,29 +298,67 @@ export default function CheckoutModal({
       pointsEarned: memberPhone ? Math.floor(finalNetAmount / (store?.pointsRate || 25)) : 0,
       orderId: activeOrders[0]?.id || `BILL-${selectedTable.tableNo || selectedTable.id}-${Date.now().toString().slice(-4)}`,
       paidAt: new Date().toISOString(),
+      autoPrint: true,
     });
   };
 
-  // Handle Process Payment
-  const handleProcessPayment = async () => {
+  // Handle Process Payment (Instant Zero-Delay Optimistic Execution)
+  const handleProcessPayment = () => {
     if (!selectedTable || activeOrders.length === 0) return;
 
-    // ประกาศเสียง "ยืนยันชำระเงิน โต๊ะ X" ทันทีที่กดปุ่ม โดยไม่มีการหน่วงเวลา
+    // 1. ปุ่มมี action ทันที & ส่งเสียงแจ้งเตือนภาษาไทย "ยืนยันชำระเงิน โต๊ะ X" และเสียง Chime แบบ 0ms
+    playButtonTapSound('success');
     if (voiceEnabled !== false) {
       speakPaymentConfirmed(selectedTable.name || selectedTable.tableNo);
     }
+    playSuccessChime();
 
-    setIsProcessingPay(true);
-    try {
-      let remainingDiscount = totalCombinedDiscount;
-      for (let i = 0; i < activeOrders.length; i++) {
-        const order = activeOrders[i];
-        const isFirst = i === 0;
-        const currentOrderAmount = order.netAmount ?? order.totalAmount ?? 0;
-        const orderDiscount = Math.min(currentOrderAmount, remainingDiscount);
-        remainingDiscount -= orderDiscount;
+    // 2. จัดเตรียม Snapshot ข้อมูลใบเสร็จ
+    const receiptData = {
+      storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
+      promptPayName: store?.promptPayName || '',
+      promptPayId: store?.promptPayId || '',
+      phone: store?.phone || '',
+      address: store?.address || '',
+      receiptFooter: store?.receiptFooter || '',
+      tableId: selectedTable.id || selectedTable.tableNo,
+      tableName: selectedTable.name,
+      orders: activeOrders,
+      items: activeOrders.flatMap((o: any) => o.items || []),
+      totalAmount: rawTotalAmount,
+      discountAmount: totalCombinedDiscount,
+      netAmount: finalNetAmount,
+      paymentMethod,
+      cashReceived: paymentMethod === 'CASH' ? parseFloat(cashReceived) : null,
+      changeAmount: paymentMethod === 'CASH' ? Math.max(0, change) : 0,
+      paidAt: new Date().toISOString(),
+      customerName: customerNameInput.trim() || memberData?.name || '',
+      memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : '',
+      memberPoints: memberData?.points,
+      pointsEarned: memberPhone ? Math.floor(finalNetAmount / (store?.pointsRate || 25)) : 0,
+      orderId: activeOrders[0]?.id || `REC-${selectedTable.tableNo || selectedTable.id}-${Date.now().toString().slice(-4)}`,
+      isPreCheck: false,
+      autoPrint: true,
+    };
 
-        await fetch(`/api/r/${slug}/orders/${order.id}/pay`, {
+    // 3. ปิดหน้าต่างทันทีและเคลียร์โต๊ะโดยไม่ต้องรอเซิร์ฟเวอร์ (Zero Delay Optimistic UI)
+    showSuccess('ชำระเงินสำเร็จ 💰', `${selectedTable.name} • ยอดรับเงิน ฿${finalNetAmount}`);
+    onClose();
+    onPaidSuccess();
+    onPrintReceipt(receiptData);
+
+    // 4. Background Sync: ยิงส่งข้อมูลไปยังเซิร์ฟเวอร์แบบขนาน (Promise.all) ไม่บล็อก UI
+    const orderPayPromises = [];
+    let remainingDiscount = totalCombinedDiscount;
+    for (let i = 0; i < activeOrders.length; i++) {
+      const order = activeOrders[i];
+      const isFirst = i === 0;
+      const currentOrderAmount = order.netAmount ?? order.totalAmount ?? 0;
+      const orderDiscount = Math.min(currentOrderAmount, remainingDiscount);
+      remainingDiscount -= orderDiscount;
+
+      orderPayPromises.push(
+        fetch(`/api/r/${slug}/orders/${order.id}/pay`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -332,46 +372,14 @@ export default function CheckoutModal({
             discountAmount: orderDiscount,
             skipVisitIncrement: !isFirst,
           }),
-        });
-      }
-
-      playSuccessChime();
-      showSuccess('ชำระเงินสำเร็จ 💰', `${selectedTable.name} • ยอดรับเงิน ฿${finalNetAmount}`);
-
-      onPrintReceipt({
-        storeName: store?.storeName || store?.name || 'ร้านอาหารตามสั่ง',
-        promptPayName: store?.promptPayName || '',
-        promptPayId: store?.promptPayId || '',
-        phone: store?.phone || '',
-        address: store?.address || '',
-        receiptFooter: store?.receiptFooter || '',
-        tableId: selectedTable.id || selectedTable.tableNo,
-        tableName: selectedTable.name,
-        orders: activeOrders,
-        items: activeOrders.flatMap((o: any) => o.items || []),
-        totalAmount: rawTotalAmount,
-        discountAmount: totalCombinedDiscount,
-        netAmount: finalNetAmount,
-        paymentMethod,
-        cashReceived: paymentMethod === 'CASH' ? parseFloat(cashReceived) : null,
-        changeAmount: paymentMethod === 'CASH' ? Math.max(0, change) : 0,
-        paidAt: new Date().toISOString(),
-        customerName: customerNameInput.trim() || memberData?.name || '',
-        memberPhone: memberPhone ? memberPhone.replace(/\D/g, '') : '',
-        memberPoints: memberData?.points,
-        pointsEarned: memberPhone ? Math.floor(finalNetAmount / (store?.pointsRate || 25)) : 0,
-        orderId: activeOrders[0]?.id || `REC-${selectedTable.tableNo || selectedTable.id}-${Date.now().toString().slice(-4)}`,
-        isPreCheck: false,
-      });
-
-      onClose();
-      onPaidSuccess();
-    } catch (err: any) {
-      console.error(err);
-      showError('เกิดข้อผิดพลาดในการชำระเงิน', err.message);
-    } finally {
-      setIsProcessingPay(false);
+        })
+      );
     }
+
+    Promise.all(orderPayPromises).catch((err: any) => {
+      console.error('[POS Payment Background Error]:', err);
+      showError('เกิดข้อผิดพลาดในการบันทึกข้อมูลการชำระเงิน', err.message);
+    });
   };
 
   // Generate PromptPay QR Payload for Checkout
@@ -1510,8 +1518,9 @@ export default function CheckoutModal({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
             <button
               type="button"
+              data-sound="pop"
               onClick={handlePrintBillFromCheckout}
-              className="py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 font-bold text-xs border border-slate-300 transition-all flex items-center justify-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer"
+              className="py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-orange-100 text-slate-700 hover:text-slate-900 active:text-orange-950 font-extrabold text-xs border border-slate-300 active:border-orange-400 transition-all duration-75 flex items-center justify-center space-x-1.5 shadow-sm active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-orange-300"
               title="พิมพ์ใบแจ้งค่าอาหาร / ใบเช็คบิลพร้อม QR Code ก่อนชำระเงิน"
             >
               <Printer className="w-4 h-4 text-orange-500" />
@@ -1520,9 +1529,10 @@ export default function CheckoutModal({
 
             <button
               type="button"
-              disabled={isProcessingPay || (paymentMethod === 'CASH' && change < 0)}
+              data-sound="success"
+              disabled={paymentMethod === 'CASH' && change < 0}
               onClick={handleProcessPayment}
-              className="sm:col-span-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm shadow-lg shadow-emerald-500/25 transition-all disabled:opacity-50 flex items-center justify-center space-x-2 active:scale-95 cursor-pointer"
+              className="sm:col-span-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 active:from-emerald-700 active:to-teal-700 text-white font-black text-sm shadow-lg shadow-emerald-500/25 active:shadow-sm transition-all duration-75 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center space-x-2 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-emerald-300"
             >
               <CheckCircle2 className="w-5 h-5" />
               <span>ยืนยันชำระเงิน &amp; ปิดบิล</span>

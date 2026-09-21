@@ -12,9 +12,10 @@ interface ReceiptPrintModalProps {
   onClose: () => void;
   order: any;
   store?: any;
+  autoPrint?: boolean;
 }
 
-export default function ReceiptPrintModal({ isOpen, onClose, order, store }: ReceiptPrintModalProps) {
+export default function ReceiptPrintModal({ isOpen, onClose, order, store, autoPrint }: ReceiptPrintModalProps) {
   if (!isOpen || !order) return null;
 
   const [copies, setCopies] = useState<number>(1);
@@ -26,11 +27,19 @@ export default function ReceiptPrintModal({ isOpen, onClose, order, store }: Rec
     try {
       await printThermalElement('printable-receipt', { copies, width: '80mm' });
     } finally {
-      setTimeout(() => {
-        setIsPrinting(false);
-      }, 1500);
+      setIsPrinting(false);
     }
   };
+
+  // Auto trigger print immediately upon opening if requested
+  React.useEffect(() => {
+    if (isOpen && order && (order.autoPrint || autoPrint)) {
+      const timer = setTimeout(() => {
+        handlePrint();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, order?.orderId, order?.id]);
 
   const storeInfo = store || order;
   const items = order.items || (order.orders ? order.orders.flatMap((o: any) => o.items || []) : []);
@@ -349,9 +358,10 @@ export default function ReceiptPrintModal({ isOpen, onClose, order, store }: Rec
           </button>
           <button
             type="button"
+            data-sound="pop"
             onClick={handlePrint}
             disabled={isPrinting}
-            className={`flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs shadow-md transition-colors flex items-center justify-center space-x-1.5 ${
+            className={`flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-black text-xs shadow-md transition-all duration-75 flex items-center justify-center space-x-1.5 active:scale-95 cursor-pointer select-none ring-0 active:ring-2 active:ring-amber-400/50 ${
               isPrinting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
             }`}
           >

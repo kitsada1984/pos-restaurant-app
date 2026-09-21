@@ -414,7 +414,7 @@ export async function printThermalElement(
   iframeDoc.close();
 
   return new Promise((resolve) => {
-    // Give browser time to parse CSS and SVG barcodes/QR codes
+    // Give browser time to parse CSS and SVG barcodes/QR codes (instant 50ms)
     setTimeout(() => {
       try {
         iframe.contentWindow?.focus();
@@ -432,6 +432,6 @@ export async function printThermalElement(
           }
         }, 3000);
       }
-    }, 250);
+    }, 50);
   });
 }
