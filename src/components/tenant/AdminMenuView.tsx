@@ -1045,18 +1045,21 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
 
       {/* Menu Options & Add-ons Manager Modal */}
       {isOptionsModalOpen && selectedItemForOptions && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 text-left overflow-hidden">
+        <div className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 text-left overflow-hidden">
+            {/* Mobile Handle */}
+            <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
+
             {/* Modal Header */}
             <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between flex-shrink-0 shadow-sm">
-              <div>
+              <div className="min-w-0 flex-1 mr-2">
                 <div className="flex items-center space-x-2">
                   <span className="text-xl">⚙️</span>
-                  <h3 className="font-black text-base sm:text-lg">
+                  <h3 className="font-black text-base sm:text-lg truncate">
                     จัดการตัวเลือก &amp; ท็อปปิ้ง
                   </h3>
                 </div>
-                <p className="text-xs text-white/90 font-medium mt-0.5">
+                <p className="text-xs text-white/90 font-medium mt-0.5 truncate">
                   เมนู: <strong className="text-white underline">{selectedItemForOptions.name}</strong> (เริ่มต้น ฿{selectedItemForOptions.basePrice})
                 </p>
               </div>
@@ -1064,28 +1067,28 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                 type="button"
                 data-sound="tap"
                 onClick={() => setIsOptionsModalOpen(false)}
-                className="p-1.5 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 select-none duration-75 text-white transition-all cursor-pointer"
+                className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 active:scale-90 select-none duration-75 text-white transition-all cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Modal Scrollable Content */}
-            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
+            <div className="p-3.5 sm:p-6 overflow-y-auto overflow-x-hidden flex-1 space-y-4 sm:space-y-5">
               {/* Section A: Copy From Another Dish */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Copy className="w-3.5 h-3.5 text-orange-500" />
+                    <Copy className="w-3.5 h-3.5 text-orange-500 shrink-0" />
                     <span>คัดลอกตัวเลือกจากเมนูอื่น:</span>
                   </span>
-                  <span className="text-[10px] text-slate-400">ประหยัดเวลา ไม่ต้องพิมพ์ใหม่</span>
+                  <span className="text-[10px] text-slate-400 hidden sm:inline">ประหยัดเวลา ไม่ต้องพิมพ์ใหม่</span>
                 </div>
                 <div className="flex flex-col sm:flex-row items-center gap-2">
                   <select
                     value={copySourceItemId}
                     onChange={(e) => setCopySourceItemId(e.target.value)}
-                    className="flex-1 w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-orange-500 outline-none"
+                    className="flex-1 w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-base sm:text-xs font-semibold focus:ring-2 focus:ring-orange-500 outline-none"
                   >
                     <option value="">-- เลือกเมนูต้นทางที่ต้องการคัดลอก --</option>
                     {allMenuItems
@@ -1101,7 +1104,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                     data-sound="pop"
                     disabled={!copySourceItemId}
                     onClick={handleCopyFromAnotherItem}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 disabled:opacity-40 text-white font-extrabold text-xs shadow-sm flex items-center justify-center space-x-1.5 transition-all cursor-pointer ring-0 active:ring-2 active:ring-slate-400"
+                    className="w-full sm:w-auto px-4 py-2 min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-900 active:scale-95 select-none duration-75 disabled:opacity-40 text-white font-extrabold text-xs shadow-sm flex items-center justify-center space-x-1.5 transition-all cursor-pointer ring-0 active:ring-2 active:ring-slate-400"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     <span>คัดลอกมาใช้</span>
@@ -1113,21 +1116,22 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <span>เทมเพลตตัวเลือกด่วน (คลิกเพื่อเพิ่มทันที):</span>
                   </span>
+                  <span className="text-[10px] text-slate-400 sm:hidden">👉 เลื่อนซ้าย-ขวา</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="flex sm:grid sm:grid-cols-4 gap-2 overflow-x-auto pb-1 scrollbar-thin">
                   {QUICK_PRESETS.map((preset, idx) => (
                     <button
                       key={idx}
                       type="button"
                       data-sound="pop"
                       onClick={() => handleAddPresetGroup(preset.group)}
-                      className="p-2.5 rounded-xl bg-white hover:bg-orange-50/60 border border-slate-200 hover:border-orange-300 text-left transition-all duration-75 group shadow-sm flex flex-col justify-between cursor-pointer active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none ring-0 active:ring-2 active:ring-orange-300"
+                      className="min-w-[150px] sm:min-w-0 flex-shrink-0 p-2.5 rounded-xl bg-white hover:bg-orange-50/60 border border-slate-200 hover:border-orange-300 text-left transition-all duration-75 group shadow-sm flex flex-col justify-between cursor-pointer active:scale-95 select-none ring-0 active:ring-2 active:ring-orange-300"
                     >
                       <div>
-                        <span className="text-xs font-black text-slate-800 group-hover:text-orange-600 block">
+                        <span className="text-xs font-black text-slate-800 group-hover:text-orange-600 block truncate">
                           {preset.name}
                         </span>
                         <span className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
@@ -1173,24 +1177,24 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                     {optionGroups.map((group, gIdx) => (
                       <div
                         key={group.id || gIdx}
-                        className="p-4 rounded-2xl bg-white border-2 border-slate-200 hover:border-slate-300 shadow-sm space-y-3 transition-all"
+                        className="p-3 sm:p-4 rounded-2xl bg-white border-2 border-slate-200 hover:border-slate-300 shadow-sm space-y-3 transition-all w-full min-w-0 overflow-hidden"
                       >
                         {/* Group Header: Title, Controls, Reorder, Delete */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
-                          <div className="flex items-center space-x-2 flex-1">
+                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 min-w-0">
+                          <div className="flex items-center space-x-2 flex-1 min-w-0">
                             <span className="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 font-black text-xs flex items-center justify-center flex-shrink-0">
                               {gIdx + 1}
                             </span>
                             <input
                               type="text"
-                              placeholder="ชื่อกลุ่มตัวเลือก เช่น เลือกเนื้อสัตว์, ระดับความเผ็ด"
+                              placeholder="ชื่อกลุ่ม เช่น เลือกเนื้อสัตว์, ระดับความเผ็ด"
                               value={group.title}
                               onChange={(e) => handleUpdateGroupField(gIdx, 'title', e.target.value)}
-                              className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-900 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none"
+                              className="flex-1 min-w-0 px-3 py-2 sm:py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-xs font-extrabold text-slate-900 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none"
                             />
                           </div>
 
-                          <div className="flex items-center space-x-1.5 flex-shrink-0 self-end sm:self-auto">
+                          <div className="flex items-center space-x-1 flex-shrink-0">
                             {/* Move Group Up */}
                             <button
                               type="button"
@@ -1229,12 +1233,12 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                         {/* Group Settings: Required & Multiple Options */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
                           {/* Required Setting */}
-                          <label className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100/70 transition-colors">
-                            <div>
-                              <span className="text-xs font-extrabold text-slate-800 block">
+                          <label className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100/70 transition-colors min-w-0">
+                            <div className="min-w-0 flex-1 mr-2">
+                              <span className="text-xs font-extrabold text-slate-800 block truncate">
                                 {group.isRequired ? '🔴 บังคับเลือก (Required)' : '⚪ ไม่บังคับ (Optional)'}
                               </span>
-                              <span className="text-[10px] text-slate-400 block">
+                              <span className="text-[10px] text-slate-400 block truncate">
                                 {group.isRequired ? 'ลูกค้าต้องเลือกก่อนสั่งอาหาร' : 'ลูกค้าจะเลือกหรือไม่เลือกก็ได้'}
                               </span>
                             </div>
@@ -1242,17 +1246,17 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                               type="checkbox"
                               checked={group.isRequired}
                               onChange={(e) => handleUpdateGroupField(gIdx, 'isRequired', e.target.checked)}
-                              className="w-4 h-4 text-orange-500 rounded focus:ring-orange-400"
+                              className="w-4 h-4 text-orange-500 rounded focus:ring-orange-400 shrink-0"
                             />
                           </label>
 
                           {/* Selection Type: Single vs Multiple */}
-                          <label className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100/70 transition-colors">
-                            <div>
-                              <span className="text-xs font-extrabold text-slate-800 block">
+                          <label className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100/70 transition-colors min-w-0">
+                            <div className="min-w-0 flex-1 mr-2">
+                              <span className="text-xs font-extrabold text-slate-800 block truncate">
                                 {group.isMulti ? '☑️ เลือกได้หลายอย่าง (Multiple)' : '🔘 เลือกได้ 1 อย่าง (Single)'}
                               </span>
-                              <span className="text-[10px] text-slate-400 block">
+                              <span className="text-[10px] text-slate-400 block truncate">
                                 {group.isMulti ? 'ติ๊กถูกได้หลายรายการพร้อมกัน' : 'เลือกได้เพียงรายการเดียว'}
                               </span>
                             </div>
@@ -1260,82 +1264,90 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                               type="checkbox"
                               checked={group.isMulti}
                               onChange={(e) => handleUpdateGroupField(gIdx, 'isMulti', e.target.checked)}
-                              className="w-4 h-4 text-orange-500 rounded focus:ring-orange-400"
+                              className="w-4 h-4 text-orange-500 rounded focus:ring-orange-400 shrink-0"
                             />
                           </label>
                         </div>
 
                         {/* Choices List in this Group */}
-                        <div className="space-y-2 pt-1">
-                          <span className="text-[11px] font-extrabold text-slate-600 block">
-                            รายการตัวเลือกย่อย ({group.choices?.length || 0} รายการ):
-                          </span>
+                        <div className="space-y-2 pt-1 w-full min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-extrabold text-slate-600 block">
+                              รายการตัวเลือกย่อย ({group.choices?.length || 0} รายการ):
+                            </span>
+                            <span className="text-[10px] text-orange-600 font-bold sm:hidden bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
+                              ↔ เลื่อนซ้าย-ขวาได้
+                            </span>
+                          </div>
 
-                          <div className="space-y-1.5">
-                            {group.choices.map((choice: any, cIdx: number) => (
-                              <div
-                                key={choice.id || cIdx}
-                                className="flex items-center gap-1.5 sm:gap-2 p-1.5 bg-slate-50 rounded-xl border border-slate-200"
-                              >
-                                {/* Choice Name */}
-                                <input
-                                  type="text"
-                                  placeholder="ชื่อตัวเลือก เช่น หมูกรอบ, ไข่ดาว"
-                                  value={choice.name}
-                                  onChange={(e) => handleUpdateChoiceField(gIdx, cIdx, 'name', e.target.value)}
-                                  className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-orange-500 outline-none"
-                                />
-
-                                {/* Extra Price */}
-                                <div className="flex items-center space-x-1 flex-shrink-0">
-                                  <span className="text-[11px] font-extrabold text-slate-400">+฿</span>
+                          {/* Horizontal Scroll Wrapper for Choices */}
+                          <div className="w-full overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
+                            <div className="min-w-[420px] sm:min-w-0 space-y-1.5">
+                              {group.choices.map((choice: any, cIdx: number) => (
+                                <div
+                                  key={choice.id || cIdx}
+                                  className="flex items-center gap-1.5 sm:gap-2 p-1.5 bg-slate-50 rounded-xl border border-slate-200"
+                                >
+                                  {/* Choice Name */}
                                   <input
-                                    type="number"
-                                    min={0}
-                                    step="any"
-                                    placeholder="0"
-                                    value={choice.extraPrice}
-                                    onChange={(e) => handleUpdateChoiceField(gIdx, cIdx, 'extraPrice', e.target.value)}
-                                    className="w-16 sm:w-20 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-black text-emerald-600 text-right focus:ring-2 focus:ring-orange-500 outline-none"
+                                    type="text"
+                                    placeholder="ชื่อตัวเลือก เช่น หมูกรอบ, ไข่ดาว"
+                                    value={choice.name}
+                                    onChange={(e) => handleUpdateChoiceField(gIdx, cIdx, 'name', e.target.value)}
+                                    className="flex-1 min-w-[130px] px-3 py-2 sm:py-1.5 bg-white border border-slate-200 rounded-lg text-base sm:text-xs font-bold text-slate-800 focus:ring-2 focus:ring-orange-500 outline-none"
                                   />
+
+                                  {/* Extra Price */}
+                                  <div className="flex items-center space-x-1 flex-shrink-0">
+                                    <span className="text-[11px] font-extrabold text-slate-400">+฿</span>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step="any"
+                                      placeholder="0"
+                                      value={choice.extraPrice}
+                                      onChange={(e) => handleUpdateChoiceField(gIdx, cIdx, 'extraPrice', e.target.value)}
+                                      className="w-16 sm:w-20 px-2 py-2 sm:py-1.5 bg-white border border-slate-200 rounded-lg text-base sm:text-xs font-black text-emerald-600 text-right focus:ring-2 focus:ring-orange-500 outline-none"
+                                    />
+                                  </div>
+
+                                  {/* Move Choice Up */}
+                                  <button
+                                    type="button"
+                                    data-sound="tap"
+                                    disabled={cIdx === 0}
+                                    onClick={() => handleMoveChoice(gIdx, cIdx, 'UP')}
+                                    className="p-2 sm:p-1.5 rounded-lg bg-white hover:bg-slate-200 active:scale-90 select-none duration-75 disabled:opacity-20 text-slate-500 border border-slate-200 cursor-pointer transition-all shrink-0"
+                                    title="เลื่อนขึ้น"
+                                  >
+                                    <ArrowUp className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  {/* Move Choice Down */}
+                                  <button
+                                    type="button"
+                                    data-sound="tap"
+                                    disabled={cIdx === group.choices.length - 1}
+                                    onClick={() => handleMoveChoice(gIdx, cIdx, 'DOWN')}
+                                    className="p-2 sm:p-1.5 rounded-lg bg-white hover:bg-slate-200 active:scale-90 select-none duration-75 disabled:opacity-20 text-slate-500 border border-slate-200 cursor-pointer transition-all shrink-0"
+                                    title="เลื่อนลง"
+                                  >
+                                    <ArrowDown className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  {/* Delete Choice */}
+                                  <button
+                                    type="button"
+                                    data-sound="delete"
+                                    onClick={() => handleDeleteChoice(gIdx, cIdx)}
+                                    className="p-2 sm:p-1.5 rounded-lg bg-white hover:bg-rose-100 active:scale-90 select-none duration-75 text-rose-500 border border-slate-200 hover:border-rose-200 cursor-pointer transition-all shrink-0"
+                                    title="ลบตัวเลือกนี้"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
-
-                                {/* Move Choice Up */}
-                                <button
-                                  type="button"
-                                  data-sound="tap"
-                                  disabled={cIdx === 0}
-                                  onClick={() => handleMoveChoice(gIdx, cIdx, 'UP')}
-                                  className="p-1.5 rounded-md bg-white hover:bg-slate-200 active:scale-90 select-none duration-75 disabled:opacity-20 text-slate-500 border border-slate-200 cursor-pointer transition-all"
-                                  title="เลื่อนขึ้น"
-                                >
-                                  <ArrowUp className="w-3 h-3" />
-                                </button>
-
-                                {/* Move Choice Down */}
-                                <button
-                                  type="button"
-                                  data-sound="tap"
-                                  disabled={cIdx === group.choices.length - 1}
-                                  onClick={() => handleMoveChoice(gIdx, cIdx, 'DOWN')}
-                                  className="p-1.5 rounded-md bg-white hover:bg-slate-200 active:scale-90 select-none duration-75 disabled:opacity-20 text-slate-500 border border-slate-200 cursor-pointer transition-all"
-                                  title="เลื่อนลง"
-                                >
-                                  <ArrowDown className="w-3 h-3" />
-                                </button>
-
-                                {/* Delete Choice */}
-                                <button
-                                  type="button"
-                                  data-sound="delete"
-                                  onClick={() => handleDeleteChoice(gIdx, cIdx)}
-                                  className="p-1.5 rounded-md bg-white hover:bg-rose-100 active:scale-90 select-none duration-75 text-rose-500 border border-slate-200 hover:border-rose-200 cursor-pointer transition-all"
-                                  title="ลบตัวเลือกนี้"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
 
                           {/* Add Choice Button */}
@@ -1343,7 +1355,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                             type="button"
                             data-sound="pop"
                             onClick={() => handleAddChoice(gIdx)}
-                            className="w-full py-2 px-3 rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-100/60 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-orange-700 font-extrabold text-[11px] flex items-center justify-center space-x-1 transition-all mt-1 cursor-pointer"
+                            className="w-full py-2.5 px-3 min-h-[42px] rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-100/60 active:scale-95 select-none duration-75 text-orange-700 font-extrabold text-xs flex items-center justify-center space-x-1 transition-all mt-1 cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>+ เพิ่มตัวเลือกย่อยในกลุ่มนี้</span>
@@ -1368,12 +1380,12 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3 flex-shrink-0">
+            <div className="p-3.5 sm:p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3 flex-shrink-0 safe-area-bottom">
               <button
                 type="button"
                 data-sound="tap"
                 onClick={() => setIsOptionsModalOpen(false)}
-                className="py-2.5 px-5 rounded-xl bg-slate-200 hover:bg-slate-300 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+                className="py-3 px-5 min-h-[44px] rounded-xl bg-slate-200 hover:bg-slate-300 active:scale-95 select-none duration-75 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
               >
                 ยกเลิก
               </button>
@@ -1383,7 +1395,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                 data-sound="success"
                 disabled={isSavingOptions}
                 onClick={handleSaveOptions}
-                className="py-2.5 px-6 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-90 sm:active:scale-95 active:translate-y-0.5 select-none duration-75 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-orange-500/25 flex items-center space-x-2 transition-all cursor-pointer ring-2 ring-orange-400/40"
+                className="flex-1 sm:flex-initial py-3 px-6 min-h-[48px] rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 select-none duration-75 disabled:opacity-50 text-white font-black text-sm shadow-lg shadow-orange-500/25 flex items-center justify-center space-x-2 transition-all cursor-pointer ring-2 ring-orange-400/40"
               >
                 {isSavingOptions ? (
                   <>
@@ -1404,7 +1416,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
 
       {/* Delete Group Confirmation Dialog */}
       {deleteGroupConfirmIdx !== null && (
-        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border border-slate-200 text-center animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />
