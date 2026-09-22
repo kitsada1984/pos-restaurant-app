@@ -50,7 +50,7 @@ export default function KitchenTerminal({
   } = useKitchenOrders({ slug });
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 pb-28 md:pb-8 space-y-3.5 sm:space-y-6">
       {/* Top Controls & Status Bar */}
       <div
         className={`bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm w-full transition-all ${

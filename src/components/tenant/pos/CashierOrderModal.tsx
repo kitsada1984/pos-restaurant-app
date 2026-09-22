@@ -49,6 +49,7 @@ export default function CashierOrderModal({
   const [specialNote, setSpecialNote] = useState('');
   const [dishQuantity, setDishQuantity] = useState(1);
   const [searchMenu, setSearchMenu] = useState('');
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
 
   const allMenuItems = useMemo(() => {
     const list: any[] = [];
@@ -197,8 +198,8 @@ export default function CashierOrderModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl max-w-4xl w-full h-[85vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
+        <div className="bg-white rounded-t-3xl md:rounded-3xl max-w-5xl w-full h-[95vh] md:h-[88vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col relative">
           <div className="p-4 sm:p-6 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center space-x-2">
@@ -313,7 +314,7 @@ export default function CashierOrderModal({
                 />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 pb-24 md:pb-4">
                 {filteredMenuItems.map((item) => (
                   <div
                     key={item.id}
@@ -322,7 +323,7 @@ export default function CashierOrderModal({
                     className="p-3 rounded-2xl border border-slate-200 hover:border-orange-500 hover:shadow-md active:scale-95 cursor-pointer transition-all duration-75 flex flex-col justify-between bg-white select-none"
                   >
                     {item.imageUrl && (
-                      <div className="w-full h-20 rounded-xl overflow-hidden mb-2 bg-slate-100 flex-shrink-0">
+                      <div className="w-full h-24 rounded-xl overflow-hidden mb-2 bg-slate-100 flex-shrink-0">
                         <img
                           src={formatImageUrl(item.imageUrl)}
                           alt={item.name}
@@ -334,12 +335,12 @@ export default function CashierOrderModal({
                       </div>
                     )}
                     <div>
-                      <span className="font-extrabold text-xs text-slate-900 block truncate">{item.name}</span>
-                      <span className="text-[11px] text-slate-400">{item.categoryName}</span>
+                      <span className="font-extrabold text-sm text-slate-900 block truncate">{item.name}</span>
+                      <span className="text-xs text-slate-400">{item.categoryName}</span>
                     </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-xs font-black text-orange-600">฿{item.basePrice}</span>
-                      <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-xs">
+                    <div className="mt-2.5 flex items-center justify-between">
+                      <span className="text-sm font-black text-orange-600">฿{item.basePrice}</span>
+                      <span className="w-7 h-7 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-black text-sm">
                         +
                       </span>
                     </div>
@@ -348,14 +349,14 @@ export default function CashierOrderModal({
               </div>
             </div>
 
-            {/* Cart Drawer in Modal */}
-            <div className="w-full md:w-80 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-200 p-4 sm:p-6 flex flex-col justify-between">
+            {/* Desktop & Tablet Permanent Split View Cart Panel (Rule 49, 51) */}
+            <div className="hidden md:flex w-80 lg:w-96 bg-slate-50 border-l border-slate-200 p-4 sm:p-6 flex-col justify-between flex-shrink-0">
               <div>
                 <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-3">
                   รายการที่เลือก ({cashierCart.length})
                 </h4>
 
-                <div className="space-y-2 max-h-[35vh] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
                   {cashierCart.length === 0 ? (
                     <p className="text-xs text-slate-400 py-8 text-center">ยังไม่มีรายการในตะกร้า</p>
                   ) : (
@@ -363,7 +364,7 @@ export default function CashierOrderModal({
                       <div key={idx} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs">
                         <div>
                           <span className="font-bold text-slate-900 block">{item.name} x {item.quantity}</span>
-                          <span className="text-[10px] text-slate-400">฿{item.price * item.quantity}</span>
+                          <span className="text-[11px] text-slate-400">฿{item.price * item.quantity}</span>
                         </div>
                         <button
                           onClick={() => handleRemoveFromCart(idx)}
@@ -419,13 +420,13 @@ export default function CashierOrderModal({
                         disabled={cashierCart.length === 0}
                         onClick={handleSubmitCashierOrder}
                         data-sound="success"
-                        className={`w-full py-3 rounded-2xl text-white font-extrabold text-xs shadow-lg transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none disabled:opacity-50 cursor-pointer ${
+                        className={`w-full min-h-[48px] py-3 rounded-2xl text-white font-black text-sm shadow-lg transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none disabled:opacity-50 cursor-pointer ${
                           isDeliv
                             ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 shadow-emerald-600/25 ring-0 active:ring-2 active:ring-emerald-300'
                             : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700 shadow-orange-500/25 ring-0 active:ring-2 active:ring-orange-300'
                         }`}
                       >
-                        {isDeliv ? '🛵 ส่งออเดอร์เดลิเวอรีเข้าครัวทันที' : 'ส่งออเดอร์เข้าครัวทันที 🍳'}
+                        {isDeliv ? '🛵 ส่งออเดอร์เดลิเวอรีเข้าครัว' : 'ส่งออเดอร์เข้าครัว 🍳'}
                       </button>
                     </>
                   );
@@ -433,6 +434,98 @@ export default function CashierOrderModal({
               </div>
             </div>
           </div>
+
+          {/* Mobile Sticky Bottom Bar (Rule 19, 50) */}
+          {cashierCart.length > 0 && (
+            <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 px-4 py-3 shadow-2xl flex items-center justify-between safe-area-bottom">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-orange-500 text-white font-black text-xs flex items-center justify-center">
+                    {cashierCart.reduce((sum, i) => sum + i.quantity, 0)}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500">ในตะกร้า</span>
+                </div>
+                <span className="text-base font-black text-orange-600 block">
+                  ฿{cashierCart.reduce((sum, i) => sum + i.price * i.quantity, 0).toLocaleString()}
+                </span>
+              </div>
+              <button
+                type="button"
+                data-sound="pop"
+                onClick={() => setIsMobileCartOpen(true)}
+                className="btn-pos-primary min-h-[48px] px-5 py-2 text-sm shadow-md"
+              >
+                <span>ดูตะกร้า / ยืนยัน</span>
+                <span>→</span>
+              </button>
+            </div>
+          )}
+
+          {/* Mobile Bottom Sheet Cart Modal (Rule 19, 24, 50) */}
+          {isMobileCartOpen && (
+            <div className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end">
+              <div className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col p-4 pb-8 space-y-4 shadow-2xl border-t border-slate-200 animate-fade-in">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <span>🛒 รายการในตะกร้า</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-extrabold">
+                      {cashierCart.reduce((sum, i) => sum + i.quantity, 0)} จาน
+                    </span>
+                  </h4>
+                  <button
+                    onClick={() => setIsMobileCartOpen(false)}
+                    className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-800"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-2.5 max-h-[45vh] pr-1">
+                  {cashierCart.map((item, idx) => (
+                    <div key={idx} className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div className="min-w-0 pr-2">
+                        <span className="font-extrabold text-sm text-slate-900 block truncate">{item.name}</span>
+                        <span className="text-xs font-black text-orange-600">฿{item.price} x {item.quantity} = ฿{item.price * item.quantity}</span>
+                        {item.selectedOptions && (
+                          <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                            {item.selectedOptions.map((o: any) => o.choice).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveFromCart(idx)}
+                        data-sound="pop"
+                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 space-y-3">
+                  <div className="flex justify-between items-baseline font-black text-slate-900">
+                    <span className="text-sm">ยอดรวมชำระ:</span>
+                    <span className="text-xl text-orange-600">
+                      ฿{cashierCart.reduce((sum, i) => sum + i.price * i.quantity, 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsMobileCartOpen(false);
+                      handleSubmitCashierOrder();
+                    }}
+                    data-sound="success"
+                    className="w-full btn-pos-primary min-h-[56px] text-base"
+                  >
+                    {['LINEMAN', 'GRAB', 'SHOPEE_FOOD', 'ROBINHOOD'].includes(orderChannel)
+                      ? '🛵 ส่งออเดอร์เดลิเวอรีเข้าครัวทันที'
+                      : '🍳 ส่งออเดอร์เข้าครัวทันที'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

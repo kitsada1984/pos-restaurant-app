@@ -55,25 +55,44 @@
   }
 }
 
-/* Responsive Design System Tokens (Figma Library Spec: PC, Tablet, Mobile) */
+/* Responsive Design System Tokens (ORDEO POS 55 UI/UX Design Rules) */
 @layer components {
-  /* Responsive Button Touch Targets (Mobile >= 44px, Tablet >= 40px, Desktop >= 36px) */
-  .btn-touch-primary {
-    @apply min-h-[44px] sm:min-h-[40px] lg:min-h-[36px] px-4 sm:px-3.5 lg:px-3 py-2.5 sm:py-2 text-sm sm:text-xs lg:text-[13px] font-bold rounded-xl sm:rounded-2xl transition-all duration-75 inline-flex items-center justify-center gap-1.5 select-none;
+  /* Rule 14 & 15: POS Button System (Touch Target 48-56px, Primary Action 56-64px, Spacing 8-12px) */
+  .btn-pos-primary {
+    @apply min-h-[56px] md:min-h-[48px] px-5 py-3 text-base md:text-sm font-black rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/25 inline-flex items-center justify-center gap-2 select-none cursor-pointer transition-all duration-75 active:scale-90 active:translate-y-0.5 ring-0 active:ring-2 active:ring-orange-400;
   }
 
-  .btn-touch-secondary {
-    @apply min-h-[40px] sm:min-h-[38px] lg:min-h-[34px] px-3.5 sm:px-3 lg:px-2.5 py-2 sm:py-1.5 text-xs sm:text-[11px] font-bold rounded-xl sm:rounded-2xl transition-all duration-75 inline-flex items-center justify-center gap-1 select-none;
+  .btn-pos-secondary {
+    @apply min-h-[48px] md:min-h-[44px] px-4 py-2.5 text-base md:text-xs font-bold rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 inline-flex items-center justify-center gap-2 select-none cursor-pointer transition-all duration-75 active:scale-90 active:translate-y-0.5 border border-slate-200;
   }
 
-  /* Responsive Page Layout Container */
+  .btn-pos-success {
+    @apply min-h-[56px] md:min-h-[48px] px-5 py-3 text-base md:text-sm font-black rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/20 inline-flex items-center justify-center gap-2 select-none cursor-pointer transition-all duration-75 active:scale-90 active:translate-y-0.5 ring-0 active:ring-2 active:ring-emerald-300;
+  }
+
+  .btn-pos-compact {
+    @apply min-h-[44px] md:min-h-[38px] px-3.5 py-2 text-sm md:text-xs font-bold rounded-xl inline-flex items-center justify-center gap-1.5 select-none cursor-pointer transition-all duration-75 active:scale-90 active:translate-y-0.5;
+  }
+
+  /* Rule 16: Mobile Input Standard (Height 48px, Font Size 16px to eliminate iOS zoom) */
+  .input-pos {
+    @apply w-full min-h-[48px] px-4 py-2.5 text-base rounded-xl border border-slate-300 bg-white text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all;
+  }
+
+  /* Rule 10: Page Layout Container (Mobile 16px, Tablet 24px, Desktop 24-32px, Max Width 1440px) */
   .page-container-responsive {
-    @apply max-w-[1440px] w-full mx-auto px-3 sm:px-5 lg:px-8 py-3.5 sm:py-5 lg:py-6 space-y-3.5 sm:space-y-5 lg:space-y-6;
+    @apply max-w-[1440px] w-full mx-auto p-4 md:p-6 xl:p-8 space-y-4 md:space-y-6 pb-24 md:pb-8;
   }
 
-  /* Responsive Modal Container */
-  .modal-box-responsive {
-    @apply w-full max-w-[95vw] sm:max-w-lg lg:max-w-xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200;
+  /* Rule 24: Responsive Modal (Mobile Bottom Sheet, Desktop Center Modal) */
+  .modal-bottom-sheet {
+    @apply fixed inset-x-0 bottom-0 z-50 w-full max-h-[92vh] overflow-y-auto rounded-t-3xl bg-white p-4 pb-8 shadow-2xl border-t border-slate-200;
+    @apply md:relative md:inset-auto md:max-w-xl md:rounded-3xl md:p-6 md:pb-6 md:border md:shadow-2xl;
+  }
+
+  /* Mobile Safe Area Bottom Padding */
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
 

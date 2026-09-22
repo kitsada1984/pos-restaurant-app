@@ -514,7 +514,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
   };
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 pb-28 md:pb-8 space-y-3.5 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
         <div>
@@ -558,7 +558,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
           placeholder="ค้นหาเมนูอาหาร..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 sm:pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-semibold focus:ring-2 focus:ring-orange-500"
+          className="w-full pl-9 sm:pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-base sm:text-xs font-semibold focus:ring-2 focus:ring-orange-500"
         />
       </div>
 
@@ -733,7 +733,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   placeholder="เช่น ผัดกะเพราหมูกรอบ"
                   value={itemName}
                   onChange={(e) => setItemName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold text-base sm:text-xs"
                 />
               </div>
 
@@ -746,7 +746,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   placeholder="50"
                   value={itemPrice}
                   onChange={(e) => setItemPrice(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold text-base sm:text-xs"
                 />
               </div>
 
@@ -757,7 +757,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   placeholder="เช่น หมูกรอบแท้ ผัดพริกแห้งเข้มข้น"
                   value={itemDesc}
                   onChange={(e) => setItemDesc(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base sm:text-xs"
                 />
               </div>
 
@@ -770,7 +770,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   placeholder="เช่น ลิงก์แชร์ Google Drive หรือ https://..."
                   value={itemImage}
                   onChange={(e) => setItemImage(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base sm:text-xs"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
                   💡 วางลิงก์แชร์ Google Drive (ตั้งค่าเป็น 'ทุกคนที่มีลิงก์') ระบบจะแปลงรูปให้อัตโนมัติ
@@ -855,7 +855,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   placeholder="เช่น ผัดกะเพราหมูกรอบ"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold text-base sm:text-xs"
                 />
               </div>
 
@@ -868,7 +868,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   placeholder="50"
                   value={editPrice}
                   onChange={(e) => setEditPrice(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold text-base sm:text-xs"
                 />
               </div>
 
@@ -879,7 +879,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   placeholder="เช่น หมูกรอบแท้ ผัดพริกแห้งเข้มข้น"
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base sm:text-xs"
                 />
               </div>
 
@@ -892,7 +892,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                   placeholder="เช่น ลิงก์แชร์ Google Drive หรือ https://..."
                   value={editImage}
                   onChange={(e) => setEditImage(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base sm:text-xs"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
                   💡 วางลิงก์แชร์ Google Drive (ตั้งค่าเป็น 'ทุกคนที่มีลิงก์') ระบบจะแปลงรูปให้อัตโนมัติ

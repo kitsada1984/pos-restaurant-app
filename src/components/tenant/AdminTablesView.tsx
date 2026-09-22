@@ -236,7 +236,7 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
   }, [tables, searchTerm, statusFilter]);
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 pb-28 md:pb-8 space-y-3.5 sm:space-y-6">
       {/* Header & Quick Action Buttons */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm w-full">
         <div>
@@ -289,7 +289,7 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
             placeholder="ค้นหาชื่อโต๊ะ หรือหมายเลขโต๊ะ..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-semibold focus:ring-2 focus:ring-orange-500"
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-base sm:text-xs font-semibold focus:ring-2 focus:ring-orange-500"
           />
         </div>
 
@@ -436,7 +436,7 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
                   min={1}
                   value={addForm.id}
                   onChange={(e) => setAddForm({ ...addForm, id: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold text-base sm:text-xs"
                 />
               </div>
 
@@ -447,7 +447,7 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
                   placeholder="เช่น โต๊ะ 11, VIP 1, โต๊ะระเบียง 2"
                   value={addForm.name}
                   onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base sm:text-xs"
                 />
               </div>
 
@@ -540,13 +540,13 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
             <form onSubmit={handleEditTable} className="space-y-3.5 text-xs">
               <div>
                 <label className="block text-slate-700 font-bold mb-1">ชื่อโต๊ะที่แสดง *</label>
-                <input
-                  type="text"
-                  required
-                  value={editingTable.name}
-                  onChange={(e) => setEditingTable({ ...editingTable, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold"
-                />
+                  <input
+                    type="text"
+                    required
+                    value={editingTable.name}
+                    onChange={(e) => setEditingTable({ ...editingTable, name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold text-base sm:text-xs"
+                  />
               </div>
 
               <div className="flex items-center space-x-2 pt-2">

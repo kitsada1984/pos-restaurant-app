@@ -1,8 +1,8 @@
 {
   "$schema": "https://tr.designtokens.org/format/",
-  "name": "ORDEO Restaurant POS Design System",
-  "version": "1.0.0",
-  "description": "Design tokens library for ORDEO Restaurant POS platform, covering Desktop (PC), Tablet, and Mobile viewport scales according to figma-generate-library standards.",
+  "name": "ORDEO POS — UI/UX Design System",
+  "version": "1.1.0",
+  "description": "Comprehensive design token library for ORDEO POS based on 55 UI/UX Design Rules across Mobile (<768px), Tablet (768–1023px), Desktop (1024–1439px), and Large Desktop (≥1440px).",
   "primitives": {
     "color": {
       "neutral": {
@@ -23,7 +23,7 @@
         "200": { "$type": "color", "$value": "#fed7aa" },
         "300": { "$type": "color", "$value": "#fdba74" },
         "400": { "$type": "color", "$value": "#fb923c" },
-        "500": { "$type": "color", "$value": "#f97316", "$description": "Vibrant Thai Food Orange" },
+        "500": { "$type": "color", "$value": "#f97316", "$description": "ORDEO Vibrant Orange" },
         "600": { "$type": "color", "$value": "#ea580c" },
         "700": { "$type": "color", "$value": "#c2410c" },
         "800": { "$type": "color", "$value": "#9a3412" },
@@ -35,6 +35,11 @@
         "600": { "$type": "color", "$value": "#059669" },
         "700": { "$type": "color", "$value": "#047857" }
       },
+      "warning": {
+        "50": { "$type": "color", "$value": "#fffbeb" },
+        "500": { "$type": "color", "$value": "#f59e0b" },
+        "600": { "$type": "color", "$value": "#d97706" }
+      },
       "danger": {
         "50": { "$type": "color", "$value": "#fff1f2" },
         "500": { "$type": "color", "$value": "#f43f5e" },
@@ -43,27 +48,21 @@
       }
     },
     "spacing": {
-      "0": { "$type": "dimension", "$value": "0px" },
-      "1": { "$type": "dimension", "$value": "4px" },
-      "2": { "$type": "dimension", "$value": "8px" },
-      "2-5": { "$type": "dimension", "$value": "10px" },
-      "3": { "$type": "dimension", "$value": "12px" },
-      "3-5": { "$type": "dimension", "$value": "14px" },
-      "4": { "$type": "dimension", "$value": "16px" },
-      "5": { "$type": "dimension", "$value": "20px" },
-      "6": { "$type": "dimension", "$value": "24px" },
-      "8": { "$type": "dimension", "$value": "32px" },
-      "10": { "$type": "dimension", "$value": "40px" },
-      "12": { "$type": "dimension", "$value": "48px" },
-      "16": { "$type": "dimension", "$value": "64px" }
+      "4": { "$type": "dimension", "$value": "4px" },
+      "8": { "$type": "dimension", "$value": "8px" },
+      "12": { "$type": "dimension", "$value": "12px" },
+      "16": { "$type": "dimension", "$value": "16px" },
+      "24": { "$type": "dimension", "$value": "24px" },
+      "32": { "$type": "dimension", "$value": "32px" },
+      "40": { "$type": "dimension", "$value": "40px" },
+      "48": { "$type": "dimension", "$value": "48px" },
+      "64": { "$type": "dimension", "$value": "64px" }
     },
     "radius": {
-      "none": { "$type": "dimension", "$value": "0px" },
-      "sm": { "$type": "dimension", "$value": "4px" },
-      "md": { "$type": "dimension", "$value": "8px" },
-      "lg": { "$type": "dimension", "$value": "12px" },
-      "xl": { "$type": "dimension", "$value": "16px" },
-      "2xl": { "$type": "dimension", "$value": "24px" },
+      "sm": { "$type": "dimension", "$value": "8px" },
+      "md": { "$type": "dimension", "$value": "12px" },
+      "lg": { "$type": "dimension", "$value": "16px" },
+      "xl": { "$type": "dimension", "$value": "24px" },
       "full": { "$type": "dimension", "$value": "9999px" }
     },
     "fontFamily": {
@@ -72,110 +71,76 @@
     }
   },
   "semantic": {
-    "viewport": {
+    "viewports": {
       "mobile": {
-        "breakpoint": { "$type": "dimension", "$value": "640px", "$description": "Mobile screen max width" },
-        "containerPadding": { "$type": "dimension", "$value": "{primitives.spacing.3}" },
-        "gridGap": { "$type": "dimension", "$value": "{primitives.spacing.2-5}" },
-        "modalWidth": { "$type": "dimension", "$value": "94vw" },
+        "range": { "$type": "string", "$value": "< 768px" },
+        "containerPadding": { "$type": "dimension", "$value": "16px" },
+        "productGridCols": { "$type": "number", "$value": 2 },
+        "tableGridCols": { "$type": "number", "$value": 2 },
         "typography": {
-          "h1": { "$type": "dimension", "$value": "20px", "lineHeight": "28px", "fontWeight": "700" },
-          "h2": { "$type": "dimension", "$value": "18px", "lineHeight": "24px", "fontWeight": "700" },
-          "h3": { "$type": "dimension", "$value": "16px", "lineHeight": "22px", "fontWeight": "600" },
-          "body": { "$type": "dimension", "$value": "14px", "lineHeight": "20px", "fontWeight": "400" },
-          "caption": { "$type": "dimension", "$value": "12px", "lineHeight": "16px", "fontWeight": "500" }
+          "h1": { "fontSize": "20px", "lineHeight": "1.25", "fontWeight": "700" },
+          "h2": { "fontSize": "18px", "lineHeight": "1.3", "fontWeight": "700" },
+          "h3": { "fontSize": "16px", "lineHeight": "1.35", "fontWeight": "600" },
+          "body": { "fontSize": "16px", "lineHeight": "1.5", "fontWeight": "400" },
+          "small": { "fontSize": "14px", "lineHeight": "1.4", "fontWeight": "500" }
         },
         "button": {
           "minTouchTarget": { "$type": "dimension", "$value": "44px" },
-          "primaryHeight": { "$type": "dimension", "$value": "48px" },
-          "secondaryHeight": { "$type": "dimension", "$value": "40px" },
-          "paddingX": { "$type": "dimension", "$value": "{primitives.spacing.4}" },
-          "paddingY": { "$type": "dimension", "$value": "{primitives.spacing.3}" },
-          "fontSize": { "$type": "dimension", "$value": "15px" },
-          "fontWeight": { "$type": "fontWeight", "$value": "600" }
-        }
+          "recommendedPos": { "$type": "dimension", "$value": "48px" },
+          "primaryAction": { "$type": "dimension", "$value": "56px" },
+          "adjacentSpacing": { "$type": "dimension", "$value": "8px" }
+        },
+        "input": {
+          "minHeight": { "$type": "dimension", "$value": "44px" },
+          "recommendedHeight": { "$type": "dimension", "$value": "48px" },
+          "fontSize": { "$type": "dimension", "$value": "16px", "$description": "Prevents iOS zoom" }
+        },
+        "navigation": { "$type": "string", "$value": "Bottom Navigation Bar + Bottom Sheet" }
       },
       "tablet": {
-        "breakpoint": { "$type": "dimension", "$value": "1024px", "$description": "Tablet screen range 640px to 1024px" },
-        "containerPadding": { "$type": "dimension", "$value": "{primitives.spacing.4}" },
-        "gridGap": { "$type": "dimension", "$value": "{primitives.spacing.3-5}" },
-        "modalWidth": { "$type": "dimension", "$value": "512px" },
+        "range": { "$type": "string", "$value": "768px – 1023px" },
+        "containerPadding": { "$type": "dimension", "$value": "24px" },
+        "productGridCols": { "$type": "string", "$value": "3–4 columns" },
+        "tableGridCols": { "$type": "string", "$value": "3–4 columns" },
         "typography": {
-          "h1": { "$type": "dimension", "$value": "22px", "lineHeight": "30px", "fontWeight": "700" },
-          "h2": { "$type": "dimension", "$value": "18px", "lineHeight": "26px", "fontWeight": "700" },
-          "h3": { "$type": "dimension", "$value": "16px", "lineHeight": "22px", "fontWeight": "600" },
-          "body": { "$type": "dimension", "$value": "14px", "lineHeight": "20px", "fontWeight": "400" },
-          "caption": { "$type": "dimension", "$value": "12px", "lineHeight": "16px", "fontWeight": "500" }
+          "h1": { "fontSize": "22px", "lineHeight": "1.25", "fontWeight": "700" },
+          "h2": { "fontSize": "20px", "lineHeight": "1.3", "fontWeight": "700" },
+          "h3": { "fontSize": "16px", "lineHeight": "1.35", "fontWeight": "600" },
+          "body": { "fontSize": "16px", "lineHeight": "1.5", "fontWeight": "400" },
+          "small": { "fontSize": "14px", "lineHeight": "1.4", "fontWeight": "500" }
         },
         "button": {
           "minTouchTarget": { "$type": "dimension", "$value": "44px" },
-          "primaryHeight": { "$type": "dimension", "$value": "44px" },
-          "secondaryHeight": { "$type": "dimension", "$value": "38px" },
-          "paddingX": { "$type": "dimension", "$value": "{primitives.spacing.4}" },
-          "paddingY": { "$type": "dimension", "$value": "{primitives.spacing.2-5}" },
-          "fontSize": { "$type": "dimension", "$value": "14px" },
-          "fontWeight": { "$type": "fontWeight", "$value": "600" }
-        }
+          "recommendedPos": { "$type": "dimension", "$value": "48px" },
+          "primaryAction": { "$type": "dimension", "$value": "56px" },
+          "adjacentSpacing": { "$type": "dimension", "$value": "10px" }
+        },
+        "navigation": { "$type": "string", "$value": "Collapsed Sidebar or Top Glass Navigation" }
       },
       "desktop": {
-        "breakpoint": { "$type": "dimension", "$value": "1440px", "$description": "Desktop PC screen 1024px+" },
-        "containerPadding": { "$type": "dimension", "$value": "{primitives.spacing.6}" },
-        "gridGap": { "$type": "dimension", "$value": "{primitives.spacing.4}" },
-        "modalWidth": { "$type": "dimension", "$value": "640px" },
+        "range": { "$type": "string", "$value": "1024px – 1439px" },
+        "containerPadding": { "$type": "dimension", "$value": "24px–32px" },
+        "productGridCols": { "$type": "string", "$value": "4–6 columns" },
+        "tableGridCols": { "$type": "string", "$value": "5–6 columns" },
         "typography": {
-          "h1": { "$type": "dimension", "$value": "24px", "lineHeight": "32px", "fontWeight": "700" },
-          "h2": { "$type": "dimension", "$value": "20px", "lineHeight": "28px", "fontWeight": "700" },
-          "h3": { "$type": "dimension", "$value": "16px", "lineHeight": "24px", "fontWeight": "600" },
-          "body": { "$type": "dimension", "$value": "14px", "lineHeight": "20px", "fontWeight": "400" },
-          "caption": { "$type": "dimension", "$value": "12px", "lineHeight": "16px", "fontWeight": "500" }
+          "h1": { "fontSize": "24px", "lineHeight": "1.2", "fontWeight": "800" },
+          "h2": { "fontSize": "20px", "lineHeight": "1.25", "fontWeight": "700" },
+          "h3": { "fontSize": "16px", "lineHeight": "1.35", "fontWeight": "600" },
+          "body": { "fontSize": "16px", "lineHeight": "1.5", "fontWeight": "400" },
+          "small": { "fontSize": "14px", "lineHeight": "1.4", "fontWeight": "500" }
         },
         "button": {
           "minTouchTarget": { "$type": "dimension", "$value": "36px" },
-          "primaryHeight": { "$type": "dimension", "$value": "40px" },
-          "secondaryHeight": { "$type": "dimension", "$value": "36px" },
-          "paddingX": { "$type": "dimension", "$value": "{primitives.spacing.3-5}" },
-          "paddingY": { "$type": "dimension", "$value": "{primitives.spacing.2}" },
-          "fontSize": { "$type": "dimension", "$value": "14px" },
-          "fontWeight": { "$type": "fontWeight", "$value": "500" }
-        }
-      }
-    }
-  },
-  "components": {
-    "button": {
-      "primary": {
-        "background": "{primitives.color.primary.500}",
-        "hoverBackground": "{primitives.color.primary.600}",
-        "color": "#ffffff",
-        "borderRadius": "{primitives.radius.xl}",
-        "shadow": "0 2px 4px rgba(249, 115, 22, 0.2)",
-        "activeScale": "0.96",
-        "transition": "60ms cubic-bezier(0.16, 1, 0.3, 1)"
+          "recommendedPos": { "$type": "dimension", "$value": "44px" },
+          "primaryAction": { "$type": "dimension", "$value": "48px" },
+          "adjacentSpacing": { "$type": "dimension", "$value": "12px" }
+        },
+        "navigation": { "$type": "string", "$value": "Top Glass Navbar / Sidebar" }
       },
-      "secondary": {
-        "background": "{primitives.color.neutral.100}",
-        "hoverBackground": "{primitives.color.neutral.200}",
-        "color": "{primitives.color.neutral.800}",
-        "borderRadius": "{primitives.radius.xl}",
-        "activeScale": "0.96",
-        "transition": "60ms cubic-bezier(0.16, 1, 0.3, 1)"
-      },
-      "destructive": {
-        "background": "{primitives.color.danger.50}",
-        "hoverBackground": "{primitives.color.danger.600}",
-        "color": "{primitives.color.danger.600}",
-        "hoverColor": "#ffffff",
-        "borderRadius": "{primitives.radius.xl}",
-        "activeScale": "0.96",
-        "transition": "60ms cubic-bezier(0.16, 1, 0.3, 1)"
-      },
-      "success": {
-        "background": "{primitives.color.success.500}",
-        "hoverBackground": "{primitives.color.success.600}",
-        "color": "#ffffff",
-        "borderRadius": "{primitives.radius.xl}",
-        "activeScale": "0.96",
-        "transition": "60ms cubic-bezier(0.16, 1, 0.3, 1)"
+      "largeDesktop": {
+        "range": { "$type": "string", "$value": "≥ 1440px" },
+        "containerMaxWidth": { "$type": "dimension", "$value": "1440px" },
+        "productGridCols": { "$type": "string", "$value": "6+ columns" }
       }
     }
   }

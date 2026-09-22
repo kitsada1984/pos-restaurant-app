@@ -668,7 +668,7 @@ export default function PosTerminal({
   };
 
   return (
-    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-6">
+    <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 pb-28 md:pb-8 space-y-3.5 sm:space-y-6">
       {/* 🔊 Browser Audio Autoplay Unlock Banner */}
       {!isAudioUnlocked && voiceEnabled && (
         <div
@@ -1196,7 +1196,7 @@ export default function PosTerminal({
       {/* Selected Table Drawer */}
       {selectedTable && (
         <div className={`z-40 bg-slate-900 text-white shadow-2xl border-t border-slate-800 backdrop-blur-xl bg-opacity-95 ${
-          isSplitView ? 'sticky bottom-0 inset-x-0 p-2.5 sm:p-3' : 'fixed inset-x-0 bottom-14 xl:bottom-0 p-3.5 sm:p-5'
+          isSplitView ? 'sticky bottom-0 inset-x-0 p-2.5 sm:p-3' : 'fixed inset-x-0 bottom-16 md:bottom-0 p-3.5 sm:p-5'
         }`}>
           <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center space-x-3 min-w-0">
