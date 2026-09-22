@@ -55,6 +55,28 @@
   }
 }
 
+/* Responsive Design System Tokens (Figma Library Spec: PC, Tablet, Mobile) */
+@layer components {
+  /* Responsive Button Touch Targets (Mobile >= 44px, Tablet >= 40px, Desktop >= 36px) */
+  .btn-touch-primary {
+    @apply min-h-[44px] sm:min-h-[40px] lg:min-h-[36px] px-4 sm:px-3.5 lg:px-3 py-2.5 sm:py-2 text-sm sm:text-xs lg:text-[13px] font-bold rounded-xl sm:rounded-2xl transition-all duration-75 inline-flex items-center justify-center gap-1.5 select-none;
+  }
+
+  .btn-touch-secondary {
+    @apply min-h-[40px] sm:min-h-[38px] lg:min-h-[34px] px-3.5 sm:px-3 lg:px-2.5 py-2 sm:py-1.5 text-xs sm:text-[11px] font-bold rounded-xl sm:rounded-2xl transition-all duration-75 inline-flex items-center justify-center gap-1 select-none;
+  }
+
+  /* Responsive Page Layout Container */
+  .page-container-responsive {
+    @apply max-w-[1440px] w-full mx-auto px-3 sm:px-5 lg:px-8 py-3.5 sm:py-5 lg:py-6 space-y-3.5 sm:space-y-5 lg:space-y-6;
+  }
+
+  /* Responsive Modal Container */
+  .modal-box-responsive {
+    @apply w-full max-w-[95vw] sm:max-w-lg lg:max-w-xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200;
+  }
+}
+
 /* Glassmorphism Classes */
 .glass-header {
   background: rgba(255, 255, 255, 0.82);

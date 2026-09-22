@@ -109,7 +109,7 @@ export default function Navbar() {
         </div>
 
         {/* Medium and Mobile Horizontal Scrolling Submenu */}
-        <div className="xl:hidden flex items-center space-x-1.5 overflow-x-auto py-2.5 border-t border-slate-100 scrollbar-none text-xs whitespace-nowrap">
+        <div className="xl:hidden flex items-center space-x-1.5 overflow-x-auto py-2 border-t border-slate-100 scrollbar-none text-xs whitespace-nowrap">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -117,10 +117,10 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl whitespace-nowrap font-bold transition-all flex-shrink-0 ${
+                className={`min-h-[38px] sm:min-h-[36px] flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl whitespace-nowrap font-bold transition-all duration-75 active:scale-95 active:translate-y-0.5 select-none flex-shrink-0 cursor-pointer ${
                   isActive
-                    ? 'bg-orange-500 text-white shadow-sm'
-                    : 'bg-slate-100/70 text-slate-600 hover:bg-slate-200/70'
+                    ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/20'
+                    : 'bg-slate-100/80 text-slate-700 hover:bg-slate-200/80'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 flex-shrink-0" />

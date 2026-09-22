@@ -726,7 +726,7 @@ export default function PosTerminal({
 
         {/* Filter Pills & Action Buttons */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-1">
             {[
               { id: 'ALL', label: 'ทั้งหมด' },
               { id: 'OCCUPIED', label: `กำลังทาน (${totalOccupied})`, activeClass: 'bg-orange-500 text-white shadow-sm' },
@@ -737,7 +737,7 @@ export default function PosTerminal({
                 key={f.id}
                 onClick={() => setStatusFilter(f.id as any)}
                 data-sound="tap"
-                className={`py-1.5 px-2.5 rounded-xl text-[10px] sm:text-[11px] font-black transition-all duration-75 active:scale-95 active:translate-y-0.5 whitespace-nowrap cursor-pointer select-none ${
+                className={`min-h-[38px] sm:min-h-[34px] lg:min-h-[32px] py-1.5 sm:py-1 px-3 sm:px-2.5 rounded-xl text-xs sm:text-[11px] font-black transition-all duration-75 active:scale-95 active:translate-y-0.5 whitespace-nowrap cursor-pointer select-none ${
                   statusFilter === f.id
                     ? f.activeClass || 'bg-slate-900 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300'
@@ -765,7 +765,7 @@ export default function PosTerminal({
                   showInfo('🔇 ปิดเสียงอ่านแจ้งเตือนเงินเข้า');
                 }
               }}
-              className={`h-8 px-2.5 rounded-xl text-[11px] font-extrabold border flex items-center justify-center space-x-1 transition-all duration-75 whitespace-nowrap flex-shrink-0 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ${
+              className={`min-h-[38px] sm:min-h-[34px] lg:min-h-[32px] px-3 sm:px-2.5 rounded-xl text-xs sm:text-[11px] font-extrabold border flex items-center justify-center space-x-1.5 transition-all duration-75 whitespace-nowrap flex-shrink-0 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ${
                 voiceEnabled
                   ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-2xs'
                   : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
@@ -779,7 +779,7 @@ export default function PosTerminal({
             <button
               onClick={() => handleOpenDeliveryModal('LINEMAN')}
               data-sound="pop"
-              className="h-8 px-2.5 rounded-xl text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-2xs flex items-center space-x-1 transition-all duration-75 whitespace-nowrap flex-shrink-0 cursor-pointer active:scale-90 active:translate-y-0.5 select-none ring-0 active:ring-2 active:ring-emerald-300"
+              className="min-h-[38px] sm:min-h-[34px] lg:min-h-[32px] px-3 sm:px-2.5 rounded-xl text-xs sm:text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-2xs flex items-center space-x-1.5 transition-all duration-75 whitespace-nowrap flex-shrink-0 cursor-pointer active:scale-90 active:translate-y-0.5 select-none ring-0 active:ring-2 active:ring-emerald-300"
               title="รับออเดอร์เดลิเวอรี"
             >
               <span className="text-xs">🛵</span>
@@ -789,7 +789,7 @@ export default function PosTerminal({
             <button
               onClick={() => setIsAddTableModalOpen(true)}
               data-sound="pop"
-              className="h-8 px-2.5 rounded-xl text-[11px] font-black bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:from-orange-700 active:to-amber-700 text-white shadow-2xs flex items-center space-x-1 transition-all duration-75 whitespace-nowrap flex-shrink-0 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-orange-300"
+              className="min-h-[38px] sm:min-h-[34px] lg:min-h-[32px] px-3 sm:px-2.5 rounded-xl text-xs sm:text-[11px] font-black bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:from-orange-700 active:to-amber-700 text-white shadow-2xs flex items-center space-x-1.5 transition-all duration-75 whitespace-nowrap flex-shrink-0 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-orange-300"
               title="เพิ่มโต๊ะใหม่"
             >
               <Plus className="w-3.5 h-3.5 flex-shrink-0" />
@@ -1036,7 +1036,7 @@ export default function PosTerminal({
 
       {/* Tables Grid */}
       {statusFilter !== 'DELIVERY' && (
-        <div className={`grid gap-3 sm:gap-4 auto-rows-fr w-full ${isSplitView ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'}`}>
+        <div className={`grid gap-2.5 sm:gap-3.5 lg:gap-4 auto-rows-fr w-full ${isSplitView ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'}`}>
           {filteredTables.map((table) => {
             const isOccupied = table.status === 'OCCUPIED' || table.activeOrdersCount > 0;
             const isSelected = selectedTable?.id === table.id || selectedTable?.tableNo === table.tableNo;
@@ -1046,7 +1046,7 @@ export default function PosTerminal({
                 key={table.tableNo || table.id}
                 onClick={() => setSelectedTable(table)}
                 data-sound="tap"
-                className={`relative ${isSplitView ? 'p-3 sm:p-3.5 rounded-xl sm:rounded-2xl' : 'p-4 sm:p-5 rounded-2xl sm:rounded-3xl'} border cursor-pointer transition-all duration-75 active:scale-[0.98] select-none flex flex-col justify-between group w-full min-h-[90px] ${isSplitView ? 'sm:min-h-[120px]' : 'sm:min-h-[150px]'} ${
+                className={`relative ${isSplitView ? 'p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl' : 'p-3 sm:p-4 lg:p-5 rounded-2xl sm:rounded-3xl'} border cursor-pointer transition-all duration-75 active:scale-[0.98] select-none flex flex-col justify-between group w-full min-h-[90px] ${isSplitView ? 'sm:min-h-[120px]' : 'sm:min-h-[140px]'} ${
                   isSelected
                     ? 'ring-4 ring-orange-500/30 border-orange-500 shadow-xl bg-white scale-[1.01]'
                     : isOccupied
@@ -1218,11 +1218,11 @@ export default function PosTerminal({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => setIsCashierOrderOpen(true)}
                 data-sound="pop"
-                className="px-3 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-black text-xs shadow-sm flex items-center space-x-1 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-orange-300"
+                className="min-h-[40px] sm:min-h-[36px] px-3.5 sm:px-3 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-black text-xs shadow-sm flex items-center space-x-1.5 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-orange-300"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>+ สั่งอาหาร</span>
@@ -1233,7 +1233,7 @@ export default function PosTerminal({
                   <button
                     onClick={() => setIsMoveModalOpen(true)}
                     data-sound="pop"
-                    className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-300 font-bold text-xs border border-slate-700 flex items-center space-x-1 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none"
+                    className="min-h-[40px] sm:min-h-[36px] px-3 sm:px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-300 font-bold text-xs border border-slate-700 flex items-center space-x-1 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none"
                     title="ย้ายโต๊ะ"
                   >
                     <ArrowRightLeft className="w-3.5 h-3.5" />
@@ -1243,7 +1243,7 @@ export default function PosTerminal({
                   <button
                     onClick={() => handlePrintBillForTable(selectedTable)}
                     data-sound="pop"
-                    className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-amber-300 hover:text-amber-200 font-bold text-xs border border-amber-500/40 hover:border-amber-500/70 flex items-center space-x-1 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-amber-400"
+                    className="min-h-[40px] sm:min-h-[36px] px-3 sm:px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-amber-300 hover:text-amber-200 font-bold text-xs border border-amber-500/40 hover:border-amber-500/70 flex items-center space-x-1 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-amber-400"
                     title="พิมพ์ใบแจ้งค่าอาหาร / ใบเช็คบิล"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -1253,7 +1253,7 @@ export default function PosTerminal({
                   <button
                     onClick={() => handleOpenCheckoutForTable(selectedTable)}
                     data-sound="success"
-                    className={`px-3.5 py-2 rounded-xl font-black text-xs shadow-md flex items-center space-x-1 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-emerald-300 ${
+                    className={`min-h-[40px] sm:min-h-[36px] px-4 sm:px-3.5 py-2 rounded-xl font-black text-xs shadow-md flex items-center space-x-1.5 transition-all duration-75 active:scale-90 active:translate-y-0.5 cursor-pointer select-none ring-0 active:ring-2 active:ring-emerald-300 ${
                       selectedTable.hasPendingSlip
                         ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white ring-2 ring-amber-400/50 animate-pulse'
                         : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-500/20'

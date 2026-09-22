@@ -580,7 +580,7 @@ export default function AdminMenuView({ slug = 'lung-pa' }: { slug?: string }) {
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4 w-full">
                 {items.map((item: any) => (
                   <div
                     key={item.id}

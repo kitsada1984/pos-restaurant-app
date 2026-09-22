@@ -315,7 +315,7 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
       </div>
 
       {/* Tables Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 w-full">
         {filteredTables.map((table) => {
           const isOccupied = table.status === 'OCCUPIED' || table.activeOrdersCount > 0;
           const tableNo = table.tableNo || table.id;
@@ -323,7 +323,7 @@ export default function AdminTablesView({ slug = 'lung-pa' }: { slug?: string })
           return (
             <div
               key={tableNo}
-              className={`p-5 rounded-3xl border transition-all flex flex-col justify-between space-y-4 bg-white shadow-sm hover:shadow-md ${
+              className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all flex flex-col justify-between space-y-3.5 sm:space-y-4 bg-white shadow-sm hover:shadow-md ${
                 isOccupied ? 'border-orange-200 ring-1 ring-orange-500/20' : 'border-slate-200/80'
               }`}
             >
