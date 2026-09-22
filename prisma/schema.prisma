@@ -23,6 +23,12 @@ model User {
   store        Store?    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  // กระดานสนทนา (Community Board)
+  boardThreads   BoardThread[]
+  boardComments  BoardComment[]
+  boardReactions BoardReaction[]
+  boardReports   BoardReport[]
 }
 
 model Store {
@@ -376,3 +382,88 @@ model BankNotificationLog {
 
   @@index([storeId, createdAt])
 }
+
+// ----------------------------------------------------
+// 9. ระบบกระดานสนทนาและข้อเสนอแนะ (Community Board & Forum)
+// ----------------------------------------------------
+
+model BoardCategory {
+  id          String        @id @default(cuid())
+  slug        String        @unique // suggestion, community, feedback, announcement
+  name        String
+  description String?
+  icon        String?       // Lucide icon name or emoji
+  sortOrder   Int           @default(0)
+  threads     BoardThread[]
+  createdAt   DateTime      @default(now())
+}
+
+model BoardThread {
+  id            String          @id @default(cuid())
+  categoryId    String
+  category      BoardCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  body          String
+  isPinned      Boolean         @default(false)
+  isLocked      Boolean         @default(false)
+  status        String          @default("VISIBLE") // VISIBLE, HIDDEN, PENDING_REVIEW
+  featureStatus String?         // UNDER_REVIEW, IN_PROGRESS, COMPLETED, DECLINED
+  viewsCount    Int             @default(0)
+  comments      BoardComment[]
+  reactions     BoardReaction[]
+  reports       BoardReport[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([categoryId, createdAt(sort: Desc)])
+}
+
+model BoardComment {
+  id        String          @id @default(cuid())
+  threadId  String
+  thread    BoardThread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    BoardComment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   BoardComment[]  @relation("CommentReplies")
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  status    String          @default("VISIBLE") // VISIBLE, HIDDEN
+  reactions BoardReaction[]
+  reports   BoardReport[]
+  createdAt DateTime        @default(now())
+
+  @@index([threadId, createdAt(sort: Asc)])
+}
+
+model BoardReaction {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threadId  String?
+  thread    BoardThread?  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  commentId String?
+  comment   BoardComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  type      String        @default("LIKE") // LIKE, UPVOTE
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, threadId, commentId, type])
+  @@index([threadId])
+  @@index([commentId])
+}
+
+model BoardReport {
+  id         String        @id @default(cuid())
+  reporterId String
+  reporter   User          @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  threadId   String?
+  thread     BoardThread?  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  commentId  String?
+  comment    BoardComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reason     String
+  status     String        @default("OPEN") // OPEN, REVIEWED, DISMISSED
+  createdAt  DateTime      @default(now())
+}
+

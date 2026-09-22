@@ -22,6 +22,7 @@ import {
   Flame,
   ShieldCheck,
   Zap,
+  MessageSquare,
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -59,6 +60,14 @@ export default function HomePage() {
 
           {/* Action Buttons (Equal Height & Single Line) */}
           <div className="flex items-center space-x-1.5 sm:space-x-3 flex-shrink-0">
+            <Link
+              href="/board"
+              className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 border border-orange-500/30 transition-all whitespace-nowrap flex items-center space-x-1.5 h-9 sm:h-10"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>ชุมชน &amp; โหวตฟีเจอร์</span>
+            </Link>
+
             <Link
               href="/login"
               className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-200 hover:text-white hover:bg-slate-900 border border-slate-700/80 bg-slate-900/60 transition-all whitespace-nowrap flex items-center justify-center h-9 sm:h-10"
@@ -124,6 +133,14 @@ export default function HomePage() {
               className="w-full sm:w-auto px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-extrabold text-orange-400 bg-slate-900 hover:bg-slate-800 border border-orange-500/20 transition-all flex items-center justify-center space-x-2"
             >
               <span>📱 จำลองลูกค้าสแกนสั่ง (โต๊ะ 1)</span>
+            </Link>
+
+            <Link
+              href="/board"
+              className="w-full sm:w-auto px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-extrabold text-amber-300 bg-slate-900 hover:bg-slate-800 border border-amber-500/30 transition-all flex items-center justify-center space-x-2"
+            >
+              <MessageSquare className="w-4 h-4 text-amber-400" />
+              <span>💬 ชุมชน &amp; โหวตฟีเจอร์</span>
             </Link>
           </div>
 
@@ -280,7 +297,20 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-800 bg-slate-950 py-8 px-4 text-center text-xs text-slate-500">
+      <footer className="mt-auto border-t border-slate-800 bg-slate-950 py-8 px-4 text-center text-xs text-slate-500 space-y-3">
+        <div className="flex items-center justify-center space-x-4 text-xs font-bold text-slate-400">
+          <Link href="/board" className="hover:text-orange-400 transition-colors">
+            💬 กระดานสนทนา &amp; โหวตฟีเจอร์
+          </Link>
+          <span>•</span>
+          <Link href="/login" className="hover:text-orange-400 transition-colors">
+            เข้าสู่ระบบ
+          </Link>
+          <span>•</span>
+          <Link href="/register" className="hover:text-orange-400 transition-colors">
+            สมัครเปิดร้านใหม่
+          </Link>
+        </div>
         <p>© 2026 ORDEO POS Platform — ระบบบริหารจัดการร้านอาหารตามสั่งแบบ Multi-Tenant สงวนลิขสิทธิ์</p>
       </footer>
     </div>
