@@ -51,7 +51,24 @@ export default function TenantStoreLayout({
   const params = useParams();
   const slug = (params?.slug as string) || 'lung-pa';
 
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('pos_voice_enabled');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    const handleVoiceChange = (e: any) => {
+      if (typeof e.detail?.enabled === 'boolean') {
+        setSoundEnabled(e.detail.enabled);
+      }
+    };
+    window.addEventListener('pos-voice-changed', handleVoiceChange);
+    return () => window.removeEventListener('pos-voice-changed', handleVoiceChange);
+  }, []);
+
   const [storeInfo, setStoreInfo] = useState<any>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isSplitScreen, setIsSplitScreen] = useState(false);
@@ -190,12 +207,20 @@ export default function TenantStoreLayout({
 
               {/* Sound toggle */}
               <button
+                type="button"
+                data-sound="tap"
                 onClick={() => {
-                  setSoundEnabled(!soundEnabled);
-                  if (!soundEnabled) playOrderChime();
+                  const next = !soundEnabled;
+                  setSoundEnabled(next);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('pos_voice_enabled', next ? 'true' : 'false');
+                    localStorage.setItem('pos_audio_unlocked', 'true');
+                    window.dispatchEvent(new CustomEvent('pos-voice-changed', { detail: { enabled: next } }));
+                  }
+                  if (next) playOrderChime();
                 }}
                 title={soundEnabled ? 'ปิดเสียงเตือน' : 'เปิดเสียงเตือน'}
-                className={`p-2 sm:p-2.5 rounded-xl text-xs transition-all border flex-shrink-0 flex items-center space-x-1.5 ${
+                className={`p-2 sm:p-2.5 rounded-xl text-xs transition-all border flex-shrink-0 flex items-center space-x-1.5 duration-75 active:scale-95 cursor-pointer select-none ${
                   soundEnabled
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold'
                     : 'border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 font-bold'
