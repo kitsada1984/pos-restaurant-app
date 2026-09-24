@@ -62,7 +62,25 @@ export function useKitchenOrders({
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('ACTIVE'); // 'ACTIVE' | 'PENDING' | 'COOKING' | 'READY' | 'DELIVERY'
-  const [soundEnabled, setSoundEnabled] = useState(initialSoundEnabled);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('pos_voice_enabled');
+      if (saved !== null) {
+        return saved === 'true';
+      }
+    }
+    return initialSoundEnabled;
+  });
+
+  useEffect(() => {
+    const handleVoiceChange = (e: any) => {
+      if (typeof e.detail?.enabled === 'boolean') {
+        setSoundEnabled(e.detail.enabled);
+      }
+    };
+    window.addEventListener('pos-voice-changed', handleVoiceChange);
+    return () => window.removeEventListener('pos-voice-changed', handleVoiceChange);
+  }, []);
   const [showBatchBar, setShowBatchBar] = useState(true);
   const [confirmingServeOrder, setConfirmingServeOrder] = useState<KitchenOrder | null>(null);
   const [printingOrder, setPrintingOrder] = useState<KitchenOrder | null>(null);

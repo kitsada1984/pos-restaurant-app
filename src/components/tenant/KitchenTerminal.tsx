@@ -101,7 +101,15 @@ export default function KitchenTerminal({
             <button
               type="button"
               data-sound="tap"
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              onClick={() => {
+                const next = !soundEnabled;
+                setSoundEnabled(next);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('pos_voice_enabled', next ? 'true' : 'false');
+                  localStorage.setItem('pos_audio_unlocked', 'true');
+                  window.dispatchEvent(new CustomEvent('pos-voice-changed', { detail: { enabled: next } }));
+                }
+              }}
               className={`p-1.5 rounded-xl border text-xs font-bold flex items-center transition-all duration-75 active:scale-90 active:translate-y-0.5 select-none cursor-pointer ${
                 soundEnabled
                   ? 'bg-amber-50 border-amber-300 text-amber-800 shadow-2xs ring-1 ring-amber-300'

@@ -18,8 +18,24 @@ import { playOrderChime } from '@/lib/sound';
 
 export default function Navbar() {
   const pathname = usePathname() || '';
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('pos_voice_enabled');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
   const [storeName, setStoreName] = useState('ร้านอาหารตามสั่ง');
+
+  useEffect(() => {
+    const handleVoiceChange = (e: any) => {
+      if (typeof e.detail?.enabled === 'boolean') {
+        setSoundEnabled(e.detail.enabled);
+      }
+    };
+    window.addEventListener('pos-voice-changed', handleVoiceChange);
+    return () => window.removeEventListener('pos-voice-changed', handleVoiceChange);
+  }, []);
 
   // Intelligent slug prefix detection for multi-tenant SaaS vs standalone routes
   const slugMatch = pathname.match(/^\/r\/([^\/]+)/);
@@ -117,8 +133,14 @@ export default function Navbar() {
                 type="button"
                 data-sound="tap"
                 onClick={() => {
-                  setSoundEnabled(!soundEnabled);
-                  if (!soundEnabled) playOrderChime();
+                  const next = !soundEnabled;
+                  setSoundEnabled(next);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('pos_voice_enabled', next ? 'true' : 'false');
+                    localStorage.setItem('pos_audio_unlocked', 'true');
+                    window.dispatchEvent(new CustomEvent('pos-voice-changed', { detail: { enabled: next } }));
+                  }
+                  if (next) playOrderChime();
                 }}
                 title={soundEnabled ? 'ปิดเสียงเตือน' : 'เปิดเสียงเตือน'}
                 className={`min-h-[38px] md:min-h-[40px] px-3 py-1.5 rounded-xl text-xs transition-all border flex-shrink-0 flex items-center space-x-1.5 duration-75 active:scale-95 cursor-pointer select-none ${

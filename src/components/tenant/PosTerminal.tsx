@@ -241,11 +241,19 @@ export default function PosTerminal({
     }
     return true;
   });
-  const [isAudioUnlocked, setIsAudioUnlocked] = useState<boolean>(false);
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('pos_audio_unlocked') === 'true';
+    }
+    return false;
+  });
 
   useEffect(() => {
     const handleFirstInteraction = () => {
       setIsAudioUnlocked(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pos_audio_unlocked', 'true');
+      }
       window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('keydown', handleFirstInteraction);
       window.removeEventListener('touchstart', handleFirstInteraction);
@@ -258,6 +266,17 @@ export default function PosTerminal({
       window.removeEventListener('keydown', handleFirstInteraction);
       window.removeEventListener('touchstart', handleFirstInteraction);
     };
+  }, []);
+
+  // Sync voice state across components (Navbar, Kitchen, POS)
+  useEffect(() => {
+    const handleVoiceChange = (e: any) => {
+      if (typeof e.detail?.enabled === 'boolean') {
+        setVoiceEnabled(e.detail.enabled);
+      }
+    };
+    window.addEventListener('pos-voice-changed', handleVoiceChange);
+    return () => window.removeEventListener('pos-voice-changed', handleVoiceChange);
   }, []);
 
   const fetchData = async (forceRefresh = false) => {
@@ -672,17 +691,22 @@ export default function PosTerminal({
       {/* 🔊 Browser Audio Autoplay Unlock Banner */}
       {!isAudioUnlocked && voiceEnabled && (
         <div
-          onClick={() => {
-            setIsAudioUnlocked(true);
-            playSuccessChime();
-            speakThaiVoice('ระบบเสียงแจ้งเตือนเงินเข้าพร้อมทำงานแล้วค่ะ');
-            showSuccess('🔊 เปิดระบบเสียงแจ้งเตือนสำเร็จ', 'พร้อมรับเสียงพูดแจ้งเตือนเงินเข้าภาษาไทยอัตโนมัติ');
-          }}
-          className={`rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between shadow-md shadow-orange-500/20 cursor-pointer animate-pulse hover:brightness-105 transition-all ${
+          className={`rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between shadow-md shadow-orange-500/20 transition-all ${
             isSplitView ? 'p-2 sm:p-2.5' : 'p-3 sm:p-4'
           }`}
         >
-          <div className="flex items-center space-x-2.5 min-w-0">
+          <div
+            onClick={() => {
+              setIsAudioUnlocked(true);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('pos_audio_unlocked', 'true');
+              }
+              playSuccessChime();
+              speakThaiVoice('ระบบเสียงแจ้งเตือนเงินเข้าพร้อมทำงานแล้วค่ะ');
+              showSuccess('🔊 เปิดระบบเสียงแจ้งเตือนสำเร็จ', 'พร้อมรับเสียงพูดแจ้งเตือนเงินเข้าภาษาไทยอัตโนมัติ');
+            }}
+            className="flex items-center space-x-2.5 min-w-0 flex-1 cursor-pointer hover:brightness-105"
+          >
             <div className={`${isSplitView ? 'w-8 h-8 text-base rounded-lg' : 'w-10 h-10 text-xl rounded-xl'} bg-white/20 flex items-center justify-center flex-shrink-0`}>
               🔊
             </div>
@@ -695,12 +719,37 @@ export default function PosTerminal({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            className={`${isSplitView ? 'px-2.5 py-1 text-[11px]' : 'px-3.5 py-1.5 text-xs'} rounded-xl bg-white text-orange-700 font-black shadow-sm flex-shrink-0 ml-2 cursor-pointer`}
-          >
-            เปิดเสียง ⚡
-          </button>
+          <div className="flex items-center space-x-1.5 flex-shrink-0 ml-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAudioUnlocked(true);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('pos_audio_unlocked', 'true');
+                }
+                playSuccessChime();
+                speakThaiVoice('ระบบเสียงแจ้งเตือนเงินเข้าพร้อมทำงานแล้วค่ะ');
+                showSuccess('🔊 เปิดระบบเสียงแจ้งเตือนสำเร็จ', 'พร้อมรับเสียงพูดแจ้งเตือนเงินเข้าภาษาไทยอัตโนมัติ');
+              }}
+              className={`${isSplitView ? 'px-2.5 py-1 text-[11px]' : 'px-3.5 py-1.5 text-xs'} rounded-xl bg-white text-orange-700 font-black shadow-sm cursor-pointer hover:bg-orange-50 active:scale-95`}
+            >
+              เปิดเสียง ⚡
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAudioUnlocked(true);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('pos_audio_unlocked', 'true');
+                }
+              }}
+              className="p-1.5 rounded-lg bg-black/10 hover:bg-black/25 text-white/80 hover:text-white transition-colors cursor-pointer"
+              title="ปิดการแจ้งเตือนนี้ (จำค่าไว้)"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -757,6 +806,8 @@ export default function PosTerminal({
                 setVoiceEnabled(next);
                 if (typeof window !== 'undefined') {
                   localStorage.setItem('pos_voice_enabled', next ? 'true' : 'false');
+                  localStorage.setItem('pos_audio_unlocked', 'true');
+                  window.dispatchEvent(new CustomEvent('pos-voice-changed', { detail: { enabled: next } }));
                 }
                 if (next) {
                   speakThaiVoice('เปิดระบบเสียงอ่านแจ้งเตือนเงินเข้าแล้วค่ะ');
