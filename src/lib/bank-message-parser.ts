@@ -50,10 +50,28 @@ export function parseBankNotificationText(
     };
   }
 
-  // 1. ตรวจสอบว่าเป็น "เงินออก" หรือ "ถอนเงิน/ชำระเงิน" หรือไม่ (ถ้าใช่ ให้ปฏิเสธทันที)
-  const isWithdrawal = /(เงินออก|โอนเงินออก|โอนสำเร็จ|โอนไป|ชำระเงิน|ถอนเงิน|หักบัญชี|จ่ายบิล|ตัดบัญชี|จ่ายเงิน)/i.test(
-    text
-  ) && !/(เงินเข้า|รับเงิน|รับโอน|ได้รับ)/i.test(text);
+  // 1. ปฏิเสธการแจ้งเตือนล็อกอิน / สแปม / ระบบแจ้งเตือนความปลอดภัยทั่วไป
+  const isSystemOrSpam = /(เข้าสู่ระบบ|login|คาสิโน|สล็อต|เดิมพัน|เครดิตฟรี|uwin33|marketing|โปรโมชั่น|บริการอัตโนมัติแจ้งเตือนการทำธุรกรรม|ความปลอดภัยของลูกค้า)/i.test(fullText);
+  if (isSystemOrSpam) {
+    return {
+      isValid: false,
+      isDeposit: false,
+      rawText: text,
+      sender,
+      message: 'ตรวจพบข้อความแจ้งเตือนความปลอดภัย/โฆษณา (ไม่ใช่รายการเงินเข้า)',
+    };
+  }
+
+  // 2. ป้องกันคำว่า "ผู้รับเงิน" ไม่ให้คำว่า "รับเงิน" ถูกจับคู่เป็นเงินเข้า
+  const sanitizedTextForDepositCheck = text
+    .replace(/ผู้รับเงิน/g, '[RECIPIENT]')
+    .replace(/ชื่อผู้รับ/g, '[RECIPIENT_NAME]')
+    .replace(/โอนเงินพร้อมเพย์/g, '[TRANSFER_OUT]');
+
+  // 3. ตรวจสอบว่าเป็น "เงินออก" หรือ "ถอนเงิน/ชำระเงิน" หรือไม่ (ถ้าใช่ ให้ปฏิเสธทันที)
+  const isWithdrawal = /(เงินออก|โอนเงินออก|โอนสำเร็จ|โอนไป|ชำระเงิน|ถอนเงิน|หักบัญชี|จ่ายบิล|ตัดบัญชี|จ่ายเงิน|\[TRANSFER_OUT\]|ไปยัง.*หมายเลขพร้อมเพย์)/i.test(
+    sanitizedTextForDepositCheck
+  ) && !/(เงินเข้า|รับโอน|ได้รับเงินเข้า|ยอดเงินเข้า)/i.test(sanitizedTextForDepositCheck);
 
   if (isWithdrawal) {
     return {
@@ -65,9 +83,9 @@ export function parseBankNotificationText(
     };
   }
 
-  // 2. ตรวจสอบยืนยันว่าเป็น "เงินเข้า"
+  // 4. ตรวจสอบยืนยันว่าเป็น "เงินเข้า"
   const isDeposit = /(เงินเข้า|รับเงิน|รับโอน|ได้รับเงิน|ยอดเงินเข้า|โอนเข้า|เงินโอนเข้า|deposit|received|inward)/i.test(
-    fullText
+    sanitizedTextForDepositCheck
   );
 
   // 3. ระบุธนาคาร (Bank Identification)
@@ -109,8 +127,12 @@ export function parseBankNotificationText(
     }
   }
 
-  // ตัดคำว่ายอดคงเหลือและตัวเลขที่ผูกกับยอดคงเหลือทิ้งจากข้อความค้นหาทั้งหมด
-  const cleanSearchText = text.replace(balancePattern, ' ');
+  // ตัดคำว่ายอดคงเหลือ ตัวเลขที่ผูกกับยอดคงเหลือ และเลขบัตร/พร้อมเพย์ผู้รับเงินทิ้งจากข้อความค้นหาทั้งหมด
+  const cleanSearchText = text
+    .replace(balancePattern, ' ')
+    .replace(/(?:หมายเลขพร้อมเพย์|เบอร์พร้อมเพย์|พร้อมเพย์ผู้รับเงิน|ผู้รับเงิน|เลขประจำตัว|รหัสอ้างอิง)[^0-9\n]{0,20}[0-9]{10,15}/gi, ' ')
+    .replace(/ผู้รับเงิน/g, '[RECIPIENT]')
+    .replace(/ชื่อผู้รับ/g, '[RECIPIENT_NAME]');
 
   let amount: number | undefined = undefined;
 
@@ -135,9 +157,19 @@ export function parseBankNotificationText(
     if (match && match[1]) {
       const cleanNum = match[1].replace(/,/g, '');
       const candidateVal = parseFloat(cleanNum);
-      // ตรวจสอบความปลอดภัย: ยอดเงินเข้าต้องมากกว่า 0 และต้องไม่ตรงกับยอดเงินคงเหลือใดๆ ในบัญชี
+      // ตรวจสอบความปลอดภัย:
+      // 1. ยอดเงินต้องมากกว่า 0 และไม่เกิน 500,000 บาท (สำหรับร้านอาหาร)
+      // 2. ต้องไม่ใช่เลขจำนวนเต็ม 10-13 หลัก (เช่น เบอร์โทรหรือบัตรประชาชน)
+      // 3. ต้องไม่ตรงกับยอดเงินคงเหลือใดๆ ในบัญชี
+      const isPhoneOrCitizenId = cleanNum.length >= 10 && !cleanNum.includes('.');
       const isMatchingAnyBalance = detectedBalances.some(bal => Math.abs(bal - candidateVal) < 0.01);
-      if (!isNaN(candidateVal) && candidateVal > 0 && !isMatchingAnyBalance) {
+      if (
+        !isNaN(candidateVal) &&
+        candidateVal > 0 &&
+        candidateVal <= 500000 &&
+        !isPhoneOrCitizenId &&
+        !isMatchingAnyBalance
+      ) {
         amount = candidateVal;
         break;
       }

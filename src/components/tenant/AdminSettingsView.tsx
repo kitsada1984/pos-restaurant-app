@@ -289,44 +289,6 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
     }
   };
 
-  const handleTestBankEmailWebhook = async (bankName: 'KBANK' | 'SCB' | 'KTB' | 'BBL' | 'TTB' = 'KBANK') => {
-    setTestingBankWebhook(true);
-    try {
-      const mockTestAmount = 150;
-      const payload =
-        bankName === 'KBANK'
-          ? {
-              sender: 'K-eMail Alert (kasikornbank.com)',
-              title: 'K-eMail Alert: แจ้งเงินเข้าบัญชี x-9999',
-              text: `ธนาคารกสิกรไทย เงินเข้าบัญชี x-9999 จำนวน ${mockTestAmount}.00 บาท เมื่อ ${new Date().toLocaleTimeString('th-TH')} ยอดเงินคงเหลือ 15,200.00 บาท`,
-            }
-          : {
-              sender: 'SCB Email Alert (scb.co.th)',
-              title: 'SCB Alert: รายการเงินเข้าบัญชี PromptPay',
-              text: `ธนาคารไทยพาณิชย์ รายการเงินโอนเข้าบัญชีพร้อมเพย์ จำนวน ฿${mockTestAmount}.00 เมื่อ ${new Date().toLocaleTimeString('th-TH')} คงเหลือ 18,350.00 บาท`,
-            };
-
-      const res = await fetch(`/api/r/${slug}/webhooks/bank-notify?key=${form.bankWebhookKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showSuccess(
-          `จำลองอีเมลเงินเข้า ฿${mockTestAmount} (${bankName}) สำเร็จ! 📧✨`,
-          data.message || 'ส่งสัญญาณแจ้งเตือนและส่งเสียงพูดไปยังหน้าจอ POS แล้ว'
-        );
-      } else {
-        showInfo('ส่งทดสอบแล้ว (เซิร์ฟเวอร์ตอบกลับ)', data.message || data.error);
-      }
-    } catch (e: any) {
-      showError('เกิดข้อผิดพลาดในการทดสอบอีเมล', e.message);
-    } finally {
-      setTestingBankWebhook(false);
-    }
-  };
-
   const handleTestWebhook = async (channel: 'LINEMAN' | 'GRAB' | 'SHOPEE_FOOD' | 'CANCEL') => {
     setTestingWebhook(true);
     try {
@@ -739,7 +701,6 @@ export default function AdminSettingsView({ slug = 'lung-pa' }: { slug?: string 
           form={form}
           setForm={setForm}
           handleCopy={handleCopy}
-          handleTestBankEmailWebhook={handleTestBankEmailWebhook}
           handleTestBankWebhook={handleTestBankWebhook}
           handleRegenerateBankKey={handleRegenerateBankKey}
           testingBankWebhook={testingBankWebhook}

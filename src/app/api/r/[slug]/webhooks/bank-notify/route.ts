@@ -108,49 +108,48 @@ export async function POST(
       );
     }
 
-    // 3. ทำการวิเคราะห์ข้อความแจ้งเตือนด้วย Bank Message Parser
-    const parsed = parseBankNotificationText(rawText, title ? `${title} ${sender}` : sender);
-
-    if (!parsed.isValid || !parsed.amount) {
-      // บันทึก Log กรณีไม่ใช่รายการเงินเข้า หรือไม่พบยอดเงิน
-      await prisma.bankNotificationLog.create({
-        data: {
-          storeId: store.id,
-          rawText: rawText || '(ข้อความว่างเปล่า)',
-          sender: sender || title || 'UNKNOWN',
-          bank: parsed.bank || 'UNKNOWN',
-          amount: parsed.amount || 0,
-          status: parsed.isDeposit ? 'UNMATCHED_NO_AMOUNT' : 'IGNORED_WITHDRAWAL',
-        },
-      }).catch(() => {});
-
-      return NextResponse.json({
-        success: false,
-        message: parsed.message,
-        parsed,
-      }, { status: 400 });
-    }
-
-    const incomingAmount = parsed.amount;
-
-    // ตรวจสอบช่องทางการแจ้งเตือน (Email ผ่าน Gmail/Google Cloud หรือ App Notification ผ่าน MacroDroid)
+    // 2.5 ปฏิเสธการแจ้งเตือนผ่านอีเมลทั้งหมดอย่างเด็ดขาด (ปิดฟังก์ชันอ่านเงินเข้าผ่าน Email)
     const isEmail =
       sender.includes('@') ||
       sender.toLowerCase().includes('mail') ||
       title.toLowerCase().includes('mail') ||
-      title.toLowerCase().includes('alert') ||
-      title.toLowerCase().includes('แจ้งเตือน') ||
       rawText.toLowerCase().includes('from:') ||
-      rawText.toLowerCase().includes('subject:');
-    const channel: 'EMAIL' | 'NOTIFICATION' = isEmail ? 'EMAIL' : 'NOTIFICATION';
+      rawText.toLowerCase().includes('subject:') ||
+      request.headers.get('user-agent')?.toLowerCase().includes('google-apps-script');
 
-    // 3.1 ป้องกันการส่ง Webhook ซ้ำซ้อน (Replay / Duplicate Webhook Protection ภายใน 30 วินาที)
+    if (isEmail) {
+      // ตอบกลับ status 200 เพื่อให้ Google Apps Script / Client มาร์กอ่านแล้วและไม่วนกลับมายิงซ้ำ
+      // โดยไม่บันทึกข้อมูลใดๆ ลงใน BankNotificationLog เพื่อไม่ให้ฐานข้อมูลบวม
+      return NextResponse.json({
+        success: false,
+        ignored: true,
+        channel: 'EMAIL_DISABLED',
+        message: 'ระบบปิดการรับข้อมูลเงินเข้าผ่านทางอีเมลแล้ว (กรุณาใช้ Direct Web หรือ MacroDroid แทน)',
+      }, { status: 200 });
+    }
+
+    // 3. ทำการวิเคราะห์ข้อความแจ้งเตือนด้วย Bank Message Parser
+    const parsed = parseBankNotificationText(rawText, title ? `${title} ${sender}` : sender);
+
+    if (!parsed.isValid || !parsed.amount) {
+      // ไม่บันทึกขยะหรือรายการที่ไม่ใช่เงินเข้าลงตาราง เพื่อป้องกันฐานข้อมูลบวม
+      return NextResponse.json({
+        success: false,
+        message: parsed.message,
+        parsed,
+      }, { status: 200 });
+    }
+
+    const incomingAmount = parsed.amount;
+    const channel = 'NOTIFICATION';
+
+    // 3.1 ป้องกันการส่ง Webhook ซ้ำซ้อน (Replay / Duplicate Webhook Protection ภายใน 12 ชั่วโมง)
     const recentDuplicate = await prisma.bankNotificationLog.findFirst({
       where: {
         storeId: store.id,
-        rawText,
+        rawText: rawText.slice(0, 500),
         amount: incomingAmount,
-        createdAt: { gte: new Date(Date.now() - 30 * 1000) },
+        createdAt: { gte: new Date(Date.now() - 12 * 60 * 60 * 1000) },
       },
     });
 
@@ -162,6 +161,14 @@ export async function POST(
         parsed,
       });
     }
+
+    // ลบ Log เก่าที่เกิน 7 วัน เพื่อป้องกันตาราง BankNotificationLog บวม
+    await prisma.bankNotificationLog.deleteMany({
+      where: {
+        storeId: store.id,
+        createdAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      },
+    }).catch(() => {});
 
     // 4. ดึงรายการออเดอร์และโต๊ะที่ค้างชำระเงินของร้าน
     const activeOrders = await prisma.order.findMany({
@@ -325,7 +332,7 @@ export async function POST(
           orders: updatedOrders,
           logId: logRecord.id,
           channel,
-          sender: sender || title || 'Email ธนาคาร',
+          sender: sender || title || 'แอปธนาคาร / LINE',
           title: title || 'แจ้งเตือนเงินเข้า',
         },
         store.id
@@ -375,7 +382,7 @@ export async function POST(
           ],
           logId: logRecord.id,
           channel,
-          sender: sender || title || 'Email ธนาคาร',
+          sender: sender || title || 'แอปธนาคาร / LINE',
           title: title || 'แจ้งเตือนเงินเข้า',
         },
         store.id
@@ -419,7 +426,7 @@ export async function POST(
           })),
           logId: logRecord.id,
           channel,
-          sender: sender || title || 'Email ธนาคาร',
+          sender: sender || title || 'แอปธนาคาร / LINE',
           title: title || 'แจ้งเตือนเงินเข้า',
         },
         store.id
@@ -461,7 +468,7 @@ export async function POST(
           rawText: parsed.rawText,
           logId: logRecord.id,
           channel,
-          sender: sender || title || 'Email ธนาคาร',
+          sender: sender || title || 'แอปธนาคาร / LINE',
           title: title || 'แจ้งเตือนเงินเข้า',
         },
         store.id
