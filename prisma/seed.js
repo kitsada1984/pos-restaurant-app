@@ -80,16 +80,16 @@ async function main() {
   // 3. Super Admin User
   const adminPasswordHash = await bcrypt.hash('11072526#Kit', 10);
   await prisma.user.upsert({
-    where: { email: 'kitsada1984@gmail.com' },
+    where: { email: 'kit0924984391@gmail.com' },
     update: {
       passwordHash: adminPasswordHash,
       role: 'SUPER_ADMIN',
-      name: 'ผู้ดูแลระบบสูงสุด (Kitsada Admin)',
+      name: 'ผู้ดูแลระบบสูงสุด (Kit Admin)',
     },
     create: {
-      email: 'kitsada1984@gmail.com',
+      email: 'kit0924984391@gmail.com',
       passwordHash: adminPasswordHash,
-      name: 'ผู้ดูแลระบบสูงสุด (Kitsada Admin)',
+      name: 'ผู้ดูแลระบบสูงสุด (Kit Admin)',
       role: 'SUPER_ADMIN',
     },
   });
@@ -664,7 +664,7 @@ async function main() {
   });
 
   console.log('✅ Multi-Tenant SaaS Seed Completed:');
-  console.log(' - Super Admin: kitsada1984@gmail.com / [CONFIGURED]');
+  console.log(' - Super Admin: kit0924984391@gmail.com / [CONFIGURED]');
   console.log(' - Demo Store Owner: owner@lungpa.com / password123 (Slug: lung-pa)');
   console.log(' - 4 Subscription Plans created');
   console.log(' - Enterprise Recipe BOM & Inventory seeded');
